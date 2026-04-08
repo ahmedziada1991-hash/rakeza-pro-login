@@ -51,8 +51,8 @@ export function SmartTargetsPage() {
           setResult({
             requiredQuantity: rq,
             perSalesperson: ps,
-            dailyCalls: data.calls_per_day || Math.ceil(ps / 0.1 / (data.working_days || 26)),
-            dailyVisits: data.visits_per_day || Math.ceil(ps / 0.1 / (data.working_days || 26) / 2),
+            dailyCalls: data.calls_per_day || 15,
+            dailyVisits: data.visits_per_day || 5,
             weeklyTarget: ps / ((data.working_days || 26) / 7),
           });
         }
