@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export function MyClientsTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
