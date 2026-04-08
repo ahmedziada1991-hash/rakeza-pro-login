@@ -83,6 +83,8 @@ const Dashboard = () => {
                 <OrderForm orderId={subpath.match(/^orders\/(\d+)\/edit$/)?.[1]} />
               ) : subpath === "finance" ? (
                 <FinancePage />
+              ) : subpath === "settings" ? (
+                <SettingsPage />
               ) : (
                 <Outlet />
               )}
