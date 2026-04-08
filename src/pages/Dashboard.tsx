@@ -10,6 +10,7 @@ import { ClientsManagement } from "@/components/ClientsManagement";
 import { StationsManagement } from "@/components/StationsManagement";
 import { ReportsPage } from "@/components/ReportsPage";
 import { OrderForm } from "@/components/OrderForm";
+import { FinancePage } from "@/components/FinancePage";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -74,6 +75,8 @@ const Dashboard = () => {
                 <ReportsPage />
               ) : subpath === "orders/new" ? (
                 <OrderForm />
+              ) : subpath === "finance" ? (
+                <FinancePage />
               ) : (
                 <Outlet />
               )}
