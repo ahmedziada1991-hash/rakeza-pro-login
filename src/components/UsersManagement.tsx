@@ -177,6 +177,7 @@ export function UsersManagement() {
                 <TableRow>
                   <TableHead className="font-cairo text-right">الاسم</TableHead>
                   <TableHead className="font-cairo text-right">البريد الإلكتروني</TableHead>
+                  <TableHead className="font-cairo text-right">الواتساب</TableHead>
                   <TableHead className="font-cairo text-right">الدور</TableHead>
                   <TableHead className="font-cairo text-right">الحالة</TableHead>
                   <TableHead className="font-cairo text-right">إجراءات</TableHead>
@@ -187,6 +188,7 @@ export function UsersManagement() {
                   <TableRow key={u.id}>
                     <TableCell className="font-cairo font-medium">{u.name}</TableCell>
                     <TableCell className="font-cairo text-muted-foreground text-sm" dir="ltr">{u.email}</TableCell>
+                    <TableCell className="font-cairo text-muted-foreground text-sm" dir="ltr">{u.whatsapp}</TableCell>
                     <TableCell>
                       <Badge variant={ROLE_COLORS[u.role] ?? "outline"} className="font-cairo text-[11px]">
                         {ROLES.find((r) => r.value === u.role)?.label ?? u.role}
