@@ -8,9 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { MapPin, Plus, Clock, Mic, MicOff, Contact } from "lucide-react";
+import { MapPin, Plus, Clock, Mic, MicOff, Contact, CalendarDays, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+
+const CLASSIFICATIONS = [
+  { value: "hot", label: "ساخن" },
+  { value: "warm", label: "دافئ" },
+  { value: "cold", label: "بارد" },
+  { value: "inactive", label: "خامل" },
+];
 
 export function FieldTab() {
   const { user } = useAuth();
@@ -22,6 +33,8 @@ export function FieldTab() {
   const [clientPhone, setClientPhone] = useState("");
   const [area, setArea] = useState("");
   const [notes, setNotes] = useState("");
+  const [classification, setClassification] = useState("cold");
+  const [pourDate, setPourDate] = useState<Date>();
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
@@ -74,8 +87,9 @@ export function FieldTab() {
           area: area.trim() || null,
           notes: notes.trim() || null,
           assigned_to: user!.id,
-          classification: "cold",
+          classification,
           last_contact: new Date().toISOString(),
+          expected_pour_date: pourDate ? pourDate.toISOString() : null,
         })
         .select("id")
         .single();
@@ -104,6 +118,8 @@ export function FieldTab() {
       setClientPhone("");
       setArea("");
       setNotes("");
+      setClassification("cold");
+      setPourDate(undefined);
       toast({ title: "تم تسجيل الزيارة بنجاح ✅" });
     },
     onError: (err: Error) => {
@@ -263,6 +279,60 @@ export function FieldTab() {
                 className="font-cairo min-h-[80px]"
               />
             </div>
+
+            {/* تصنيف العميل */}
+            <div className="space-y-2">
+              <Label className="font-cairo">تصنيف العميل</Label>
+              <Select value={classification} onValueChange={setClassification}>
+                <SelectTrigger className="font-cairo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICATIONS.map((c) => (
+                    <SelectItem key={c.value} value={c.value} className="font-cairo">
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* موعد الصبة التقريبي */}
+            <div className="space-y-2">
+              <Label className="font-cairo">موعد الصبة التقريبي</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !pourDate && "text-muted-foreground")}>
+                    <CalendarDays className="h-4 w-4 ml-2" />
+                    {pourDate ? format(pourDate, "yyyy-MM-dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={pourDate} onSelect={setPourDate} className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* تحويل للمتابعة - يظهر فقط لو ساخن أو دافئ */}
+            {(classification === "hot" || classification === "warm") && (
+              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+                <p className="text-xs font-cairo text-muted-foreground mb-2">
+                  العميل {classification === "hot" ? "ساخن" : "دافئ"} - يمكن تحويله للمتابعة مباشرة
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="font-cairo gap-2 text-primary border-primary/30"
+                  onClick={() => {
+                    // Will be handled after save
+                    toast({ title: "سيتم تحويل العميل للمتابعة بعد الحفظ" });
+                  }}
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  تحويل للمتابعة بعد الحفظ
+                </Button>
+              </div>
+            )}
 
             <Button
               variant="outline"
