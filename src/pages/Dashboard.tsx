@@ -1,4 +1,6 @@
-import { useParams, useNavigate, Outlet } from "react-router-dom";
+import { useParams, useNavigate, Outlet, useLocation } from "react-router-dom";
+import { Home, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -39,8 +41,20 @@ const Dashboard = () => {
         <div className="min-h-screen flex w-full">
           <AdminSidebar />
           <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 bg-card border-b border-border px-4 flex items-center justify-between shrink-0">
-              <SidebarTrigger className="mr-2" />
+             <header className="h-14 bg-card border-b border-border px-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-1">
+                <SidebarTrigger className="mr-1" />
+                {subpath && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigate("/dashboard/admin")}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Home className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-cairo text-muted-foreground">مرحباً، المدير</span>
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
