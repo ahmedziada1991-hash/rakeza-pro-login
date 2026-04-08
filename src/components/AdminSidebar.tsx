@@ -39,7 +39,7 @@ const navItems = [
 export function AdminSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
+  const { signOut } = useAuth();
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
