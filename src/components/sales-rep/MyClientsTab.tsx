@@ -175,6 +175,7 @@ export function MyClientsTab() {
     setEditDialogOpen(true);
   };
 
+  const toggleRecording = async () => {
     if (isRecording && mediaRecorder) {
       mediaRecorder.stop();
       setIsRecording(false);
