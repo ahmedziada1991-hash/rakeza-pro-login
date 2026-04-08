@@ -65,6 +65,7 @@ const POUR_STATUS_MAP: Record<string, string> = {
 
 export function ClientsManagement() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
