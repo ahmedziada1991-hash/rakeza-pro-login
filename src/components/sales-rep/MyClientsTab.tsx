@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus, Contact } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -523,7 +523,26 @@ export function MyClientsTab() {
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">رقم الهاتف</Label>
-              <Input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} className="font-cairo" placeholder="رقم الهاتف" />
+              <div className="flex gap-2">
+                <Input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} className="font-cairo flex-1" placeholder="رقم الهاتف" />
+                <Button variant="outline" size="icon" title="استيراد من جهات الاتصال" onClick={async () => {
+                  try {
+                    if ("contacts" in navigator && "ContactsManager" in window) {
+                      const contacts = await (navigator as any).contacts.select(["name", "tel"], { multiple: false });
+                      if (contacts?.length) {
+                        setAddName(contacts[0].name?.[0] || addName);
+                        setAddPhone(contacts[0].tel?.[0] || "");
+                      }
+                    } else {
+                      toast({ title: "غير مدعوم", description: "استيراد جهات الاتصال غير مدعوم في هذا المتصفح", variant: "destructive" });
+                    }
+                  } catch {
+                    toast({ title: "تم الإلغاء", variant: "destructive" });
+                  }
+                }}>
+                  <Contact className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">التصنيف</Label>
@@ -560,6 +579,15 @@ export function MyClientsTab() {
                 </PopoverContent>
               </Popover>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn("font-cairo gap-2", isRecording && "text-destructive border-destructive")}
+              onClick={toggleRecording}
+            >
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {isRecording ? "إيقاف التسجيل" : "تسجيل صوتي"}
+            </Button>
             <Button
               onClick={() => addClientMutation.mutate()}
               disabled={addClientMutation.isPending}
