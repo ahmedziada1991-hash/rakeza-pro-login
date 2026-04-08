@@ -51,8 +51,8 @@ export function SmartTargetsPage() {
           setResult({
             requiredQuantity: rq,
             perSalesperson: ps,
-            dailyCalls: data.calls_per_day || Math.ceil(ps / 0.1 / (data.working_days || 26)),
-            dailyVisits: data.visits_per_day || Math.ceil(ps / 0.1 / (data.working_days || 26) / 2),
+            dailyCalls: data.calls_per_day || 15,
+            dailyVisits: data.visits_per_day || 5,
             weeklyTarget: ps / ((data.working_days || 26) / 7),
           });
         }
@@ -75,8 +75,8 @@ export function SmartTargetsPage() {
 
       const requiredQuantity = (fe + md) / pm;
       const perSalesperson = requiredQuantity / sc;
-      const dailyCalls = Math.ceil(perSalesperson / 0.1 / wd);
-      const dailyVisits = Math.ceil(dailyCalls / 2);
+      const dailyCalls = 15;
+      const dailyVisits = 5;
       const profitNeeded = fe + md;
       const now = new Date();
 
@@ -180,6 +180,10 @@ export function SmartTargetsPage() {
               </Card>
             ))}
           </div>
+
+          <p className="text-sm font-cairo text-muted-foreground bg-muted/50 rounded-lg p-3 border border-border">
+            💡 أرقام المكالمات والزيارات مبنية على المعايير العالمية لمبيعات الخرسانة وستتحدث تلقائياً مع تراكم بيانات فريقك.
+          </p>
 
           <Card>
             <CardHeader>
