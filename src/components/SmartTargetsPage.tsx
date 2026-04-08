@@ -233,7 +233,7 @@ function SalespeopleChart({ count, targetPerSalesperson }: { count: number; targ
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       const { data: orders } = await (supabase as any)
         .from("pour_orders")
-        .select("quantity, assigned_to")
+        .select("quantity_m3, assigned_to")
         .gte("created_at", startOfMonth)
         .eq("status", "completed");
 
@@ -242,7 +242,7 @@ function SalespeopleChart({ count, targetPerSalesperson }: { count: number; targ
       if (orders && orders.length > 0) {
         orders.forEach((o: any) => {
           const key = o.assigned_to || "غير محدد";
-          achievedMap[key] = (achievedMap[key] || 0) + (o.quantity || 0);
+          achievedMap[key] = (achievedMap[key] || 0) + (o.quantity_m3 || 0);
         });
       }
 

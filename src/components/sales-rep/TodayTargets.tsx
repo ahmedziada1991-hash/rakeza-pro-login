@@ -53,8 +53,8 @@ export function TodayTargets() {
         .from("call_logs")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user!.id)
-        .gte("created_at", startOfDay)
-        .lte("created_at", endOfDay);
+        .gte("call_date", startOfDay)
+        .lte("call_date", endOfDay);
       return count || 0;
     },
     enabled: !!user,

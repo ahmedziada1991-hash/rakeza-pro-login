@@ -73,7 +73,8 @@ export function MyClientsTab() {
       const { error } = await (supabase as any).from("call_logs").insert({
         user_id: user!.id,
         client_id: selectedClient.id,
-        client_name: selectedClient.name,
+        employee_name: user!.email?.split("@")[0] || "",
+        call_date: new Date().toISOString(),
         result: callResult,
         notes: callNotes,
       });
