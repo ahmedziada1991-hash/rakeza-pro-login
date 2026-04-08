@@ -140,7 +140,41 @@ export function MyClientsTab() {
     },
   });
 
-  const toggleRecording = async () => {
+  const editClientMutation = useMutation({
+    mutationFn: async () => {
+      if (!editName.trim()) throw new Error("أدخل اسم العميل");
+      const { error } = await (supabase as any)
+        .from("clients")
+        .update({
+          name: editName.trim(),
+          phone: editPhone.trim(),
+          classification: editClassification,
+          notes: editNotes.trim() || null,
+          area: editArea.trim() || null,
+        })
+        .eq("id", selectedClient.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      setEditDialogOpen(false);
+      toast({ title: "تم تعديل بيانات العميل ✅" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const openEditDialog = (client: any) => {
+    setSelectedClient(client);
+    setEditName(client.name || "");
+    setEditPhone(client.phone || "");
+    setEditClassification(client.classification || "cold");
+    setEditNotes(client.notes || "");
+    setEditArea(client.area || "");
+    setEditDialogOpen(true);
+  };
+
     if (isRecording && mediaRecorder) {
       mediaRecorder.stop();
       setIsRecording(false);
