@@ -3,22 +3,25 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Users,
   FileText,
-  Truck,
+  Building2,
   TrendingUp,
   Clock,
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Banknote,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: typeof CheckCircle2 }> = {
-  completed: { label: "مكتمل", variant: "default", icon: CheckCircle2 },
+  done: { label: "مكتمل", variant: "default", icon: CheckCircle2 },
   in_progress: { label: "قيد التنفيذ", variant: "secondary", icon: Clock },
+  scheduled: { label: "مجدول", variant: "outline", icon: Clock },
   pending: { label: "في الانتظار", variant: "outline", icon: AlertCircle },
   cancelled: { label: "ملغي", variant: "destructive", icon: AlertCircle },
+  problem: { label: "مشكلة", variant: "destructive", icon: AlertCircle },
 };
 
 function formatCurrency(amount: number) {
@@ -26,56 +29,81 @@ function formatCurrency(amount: number) {
 }
 
 export function AdminDashboardContent() {
-  // Fetch stats
+  // Clients count
   const { data: clientsCount, isLoading: loadingClients } = useQuery({
     queryKey: ["clients-count"],
     queryFn: async () => {
-      const { count } = await supabase.from("clients").select("*", { count: "exact", head: true }).eq("is_active", true);
+      const { count } = await supabase
+        .from("clients")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active");
       return count ?? 0;
     },
   });
 
+  // Orders stats from pour_orders
   const { data: ordersData, isLoading: loadingOrders } = useQuery({
     queryKey: ["orders-stats"],
     queryFn: async () => {
-      const { data } = await supabase.from("orders").select("id, total_amount, status, created_at");
-      if (!data) return { total: 0, todayCount: 0, revenue: 0, inProgress: 0 };
+      const { data } = await supabase
+        .from("pour_orders")
+        .select("id, total_agreed_amount, amount_paid, amount_remaining, status, scheduled_date, created_at");
+      if (!data) return { total: 0, revenue: 0, remaining: 0, collected: 0 };
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayOrders = data.filter((o) => new Date(o.created_at) >= today);
-      const revenue = data.filter((o) => o.status === "completed").reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+      const revenue = data.reduce((sum, o) => sum + (Number(o.total_agreed_amount) || 0), 0);
+      const collected = data.reduce((sum, o) => sum + (Number(o.amount_paid) || 0), 0);
+      const remaining = data.reduce((sum, o) => sum + (Number(o.amount_remaining) || 0), 0);
 
-      return {
-        total: data.length,
-        todayCount: todayOrders.length,
-        revenue,
-        inProgress: data.filter((o) => o.status === "in_progress").length,
-      };
+      return { total: data.length, revenue, collected, remaining };
     },
   });
 
-  const { data: driversCount, isLoading: loadingDrivers } = useQuery({
-    queryKey: ["drivers-count"],
+  // Stations count
+  const { data: stationsCount, isLoading: loadingStations } = useQuery({
+    queryKey: ["stations-count"],
     queryFn: async () => {
-      const { count } = await supabase.from("drivers").select("*", { count: "exact", head: true }).eq("is_active", true);
+      const { count } = await supabase
+        .from("stations")
+        .select("*", { count: "exact", head: true })
+        .eq("active", true);
       return count ?? 0;
     },
   });
 
+  // Payments total
+  const { data: paymentsTotal, isLoading: loadingPayments } = useQuery({
+    queryKey: ["payments-total"],
+    queryFn: async () => {
+      const { data } = await supabase.from("payments").select("amount");
+      if (!data) return 0;
+      return data.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    },
+  });
+
+  // Recent orders with client name
   const { data: recentOrders, isLoading: loadingRecent } = useQuery({
     queryKey: ["recent-orders"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("orders")
-        .select("id, order_number, total_amount, status, created_at, concrete_type, quantity, clients(name)")
+        .from("pour_orders")
+        .select("id, concrete_type, quantity_m3, total_agreed_amount, amount_paid, amount_remaining, status, station_name, scheduled_date, created_at, client_id")
         .order("created_at", { ascending: false })
-        .limit(5);
-      return data ?? [];
+        .limit(6);
+      if (!data || data.length === 0) return [];
+
+      // Fetch client names
+      const clientIds = [...new Set(data.map((o) => o.client_id))];
+      const { data: clients } = await supabase
+        .from("clients")
+        .select("id, name")
+        .in("id", clientIds);
+
+      const clientMap = new Map((clients ?? []).map((c) => [c.id, c.name]));
+      return data.map((o) => ({ ...o, client_name: clientMap.get(o.client_id) ?? "—" }));
     },
   });
 
-  const isLoading = loadingClients || loadingOrders || loadingDrivers;
+  const isLoading = loadingClients || loadingOrders || loadingStations || loadingPayments;
 
   const stats = [
     {
@@ -91,9 +119,9 @@ export function AdminDashboardContent() {
       color: "bg-secondary/10 text-secondary",
     },
     {
-      title: "السائقين",
-      value: driversCount ?? 0,
-      icon: Truck,
+      title: "المحطات",
+      value: stationsCount ?? 0,
+      icon: Building2,
       color: "bg-emerald-500/10 text-emerald-600",
     },
     {
@@ -104,11 +132,16 @@ export function AdminDashboardContent() {
     },
   ];
 
+  const financeSummary = [
+    { title: "المحصّل", value: formatCurrency(paymentsTotal ?? 0), icon: Banknote, color: "text-emerald-600" },
+    { title: "المتبقي", value: formatCurrency(ordersData?.remaining ?? 0), icon: Clock, color: "text-destructive" },
+  ];
+
   const quickActions = [
-    { title: "إضافة طلب جديد", icon: FileText, description: "إنشاء طلب توريد خرسانة" },
+    { title: "إضافة طلب صب", icon: FileText, description: "إنشاء طلب توريد خرسانة جديد" },
     { title: "إضافة عميل", icon: Users, description: "تسجيل عميل جديد في النظام" },
     { title: "تقرير يومي", icon: TrendingUp, description: "عرض تقرير العمليات اليومية" },
-    { title: "إدارة السائقين", icon: Truck, description: "متابعة السائقين والرحلات" },
+    { title: "إدارة المحطات", icon: Building2, description: "إدارة محطات الخرسانة" },
   ];
 
   return (
@@ -138,11 +171,32 @@ export function AdminDashboardContent() {
         ))}
       </div>
 
+      {/* Finance Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {financeSummary.map((item) => (
+          <Card key={item.title} className="shadow-[var(--shadow-card)] border-border/50">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center bg-muted ${item.color}`}>
+                <item.icon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-cairo text-muted-foreground">{item.title}</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-32 mt-1" />
+                ) : (
+                  <p className={`text-xl font-cairo font-bold ${item.color}`}>{item.value}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Orders */}
         <Card className="lg:col-span-2 shadow-[var(--shadow-card)] border-border/50">
           <CardHeader className="pb-3">
-            <CardTitle className="font-cairo text-lg">آخر الطلبات</CardTitle>
+            <CardTitle className="font-cairo text-lg">آخر طلبات الصب</CardTitle>
           </CardHeader>
           <CardContent>
             {loadingRecent ? (
@@ -161,17 +215,29 @@ export function AdminDashboardContent() {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className="text-sm font-cairo font-medium text-muted-foreground shrink-0">
-                          #{order.order_number}
+                          #{order.id}
                         </span>
-                        <span className="text-sm font-cairo text-foreground truncate">
-                          {(order.clients as any)?.name ?? "—"}
-                        </span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-cairo text-foreground truncate block">
+                            {order.client_name}
+                          </span>
+                          <span className="text-xs font-cairo text-muted-foreground">
+                            {order.concrete_type} • {order.quantity_m3} م³ • {order.station_name ?? "—"}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 shrink-0">
-                        <span className="text-sm font-cairo font-semibold text-foreground">
-                          {formatCurrency(Number(order.total_amount) || 0)}
-                        </span>
-                        <Badge variant={statusInfo.variant} className="font-cairo text-[11px] min-w-[80px] justify-center">
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-left">
+                          <span className="text-sm font-cairo font-semibold text-foreground block">
+                            {formatCurrency(Number(order.total_agreed_amount) || 0)}
+                          </span>
+                          {Number(order.amount_remaining) > 0 && (
+                            <span className="text-[11px] font-cairo text-destructive">
+                              متبقي: {formatCurrency(Number(order.amount_remaining))}
+                            </span>
+                          )}
+                        </div>
+                        <Badge variant={statusInfo.variant} className="font-cairo text-[11px] min-w-[70px] justify-center">
                           <StatusIcon className="h-3 w-3 ml-1" />
                           {statusInfo.label}
                         </Badge>
