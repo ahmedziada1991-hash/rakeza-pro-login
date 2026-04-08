@@ -233,7 +233,7 @@ function SalespeopleChart({ count, targetPerSalesperson }: { count: number; targ
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       const { data: orders } = await (supabase as any)
         .from("pour_orders")
-        .select("quantity, assigned_to")
+        .select("quantity_m3, assigned_to")
         .gte("created_at", startOfMonth)
         .eq("status", "completed");
 
