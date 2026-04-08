@@ -40,7 +40,6 @@ export function AdminSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { signOut } = useAuth();
-  const { signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
