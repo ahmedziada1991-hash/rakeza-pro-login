@@ -86,9 +86,7 @@ export function FieldTab() {
           phone: clientPhone.trim(),
           area: area.trim() || null,
           notes: notes.trim() || null,
-          assigned_to: user!.id,
-          classification,
-          last_contact: new Date().toISOString(),
+          status: classification === "hot" || classification === "warm" ? "followup" : "active",
           expected_pour_date: pourDate ? pourDate.toISOString() : null,
         })
         .select("id")
@@ -100,12 +98,10 @@ export function FieldTab() {
         .from("field_locations")
         .insert({
           user_id: user!.id,
-          client_id: newClient.id,
-          client_name: clientName.trim(),
-          latitude: location?.lat || null,
-          longitude: location?.lng || null,
+          lat: location?.lat || null,
+          lng: location?.lng || null,
           area: area.trim() || null,
-          notes: notes.trim() || null,
+          notes: `${clientName.trim()} - ${notes.trim() || "زيارة ميدانية"}`,
         });
       if (locError) throw locError;
     },
@@ -193,7 +189,7 @@ export function FieldTab() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-cairo font-bold text-foreground">{visit.client_name}</h3>
+                    <h3 className="font-cairo font-bold text-foreground">{visit.notes?.split(" - ")[0] || "زيارة"}</h3>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground font-cairo mt-1">
                       <Clock className="h-3 w-3" />
                       {new Date(visit.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}
@@ -202,14 +198,14 @@ export function FieldTab() {
                       <p className="text-sm text-muted-foreground font-cairo mt-2">{visit.notes}</p>
                     )}
                   </div>
-                  {visit.latitude && visit.longitude && (
+                  {visit.lat && visit.lng && (
                     <Button
                       size="sm"
                       variant="outline"
                       className="font-cairo gap-1 shrink-0"
                       onClick={() =>
                         window.open(
-                          `https://www.google.com/maps?q=${visit.latitude},${visit.longitude}`,
+                          `https://www.google.com/maps?q=${visit.lat},${visit.lng}`,
                           "_blank"
                         )
                       }
