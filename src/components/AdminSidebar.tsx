@@ -34,6 +34,7 @@ const navItems = [
   { title: "طلبات الصب", url: "/dashboard/admin/orders", icon: FileText },
   { title: "الماليات", url: "/dashboard/admin/finance", icon: CreditCard },
   { title: "التقارير", url: "/dashboard/admin/reports", icon: TrendingUp },
+  { title: "الأهداف الذكية", url: "/dashboard/admin/targets", icon: LayoutDashboard },
   { title: "الإعدادات", url: "/dashboard/admin/settings", icon: Settings },
 ];
 
