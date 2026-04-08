@@ -94,6 +94,8 @@ const Dashboard = () => {
                 <FinancePage />
               ) : subpath === "settings" ? (
                 <SettingsPage />
+              ) : subpath === "targets" ? (
+                <SmartTargetsPage />
               ) : (
                 <Outlet />
               )}
