@@ -307,22 +307,23 @@ function DailyTrackingTable({ count, targetCalls, targetVisits }: { count: numbe
   const salespeopleNames = ["أحمد", "محمد", "علي", "خالد", "عمر", "يوسف", "حسن", "سعيد", "طارق", "مصطفى"];
   const today = new Date().toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-  // Simulated daily data — in production this would come from a daily_activity table
-  const data = Array.from({ length: count }, (_, i) => {
-    const actualCalls = Math.floor(Math.random() * targetCalls * 1.5);
-    const actualVisits = Math.floor(Math.random() * targetVisits * 1.5);
-    const callsPercent = Math.min(100, Math.round((actualCalls / targetCalls) * 100));
-    const visitsPercent = Math.min(100, Math.round((actualVisits / targetVisits) * 100));
-    return {
+  const [rows, setRows] = useState(() =>
+    Array.from({ length: count }, (_, i) => ({
       name: salespeopleNames[i] || `بائع ${i + 1}`,
-      targetCalls,
-      actualCalls,
-      callsPercent,
-      targetVisits,
-      actualVisits,
-      visitsPercent,
-      overall: Math.round((callsPercent + visitsPercent) / 2),
-    };
+      actualCalls: 0,
+      actualVisits: 0,
+    }))
+  );
+
+  const updateRow = (index: number, field: "actualCalls" | "actualVisits", value: number) => {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+  };
+
+  const computed = rows.map((r) => {
+    const callsPercent = targetCalls > 0 ? Math.min(100, Math.round((r.actualCalls / targetCalls) * 100)) : 0;
+    const visitsPercent = targetVisits > 0 ? Math.min(100, Math.round((r.actualVisits / targetVisits) * 100)) : 0;
+    const overall = Math.round((callsPercent + visitsPercent) / 2);
+    return { ...r, callsPercent, visitsPercent, overall };
   });
 
   const getStatusBadge = (percent: number) => {
@@ -348,16 +349,28 @@ function DailyTrackingTable({ count, targetCalls, targetVisits }: { count: numbe
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((row) => (
+            {computed.map((row, i) => (
               <TableRow key={row.name}>
                 <TableCell className="font-cairo font-medium">{row.name}</TableCell>
-                <TableCell className="text-center text-muted-foreground">{row.targetCalls}</TableCell>
-                <TableCell className={`text-center font-bold ${row.actualCalls >= row.targetCalls ? "text-chart-2" : "text-destructive"}`}>
-                  {row.actualCalls}
+                <TableCell className="text-center text-muted-foreground">{targetCalls}</TableCell>
+                <TableCell className="text-center p-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={row.actualCalls}
+                    onChange={(e) => updateRow(i, "actualCalls", parseInt(e.target.value) || 0)}
+                    className={`w-16 mx-auto text-center font-bold h-8 ${row.actualCalls >= targetCalls ? "text-chart-2" : "text-destructive"}`}
+                  />
                 </TableCell>
-                <TableCell className="text-center text-muted-foreground">{row.targetVisits}</TableCell>
-                <TableCell className={`text-center font-bold ${row.actualVisits >= row.targetVisits ? "text-chart-2" : "text-destructive"}`}>
-                  {row.actualVisits}
+                <TableCell className="text-center text-muted-foreground">{targetVisits}</TableCell>
+                <TableCell className="text-center p-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={row.actualVisits}
+                    onChange={(e) => updateRow(i, "actualVisits", parseInt(e.target.value) || 0)}
+                    className={`w-16 mx-auto text-center font-bold h-8 ${row.actualVisits >= targetVisits ? "text-chart-2" : "text-destructive"}`}
+                  />
                 </TableCell>
                 <TableCell className="text-center font-cairo font-bold">{row.overall}%</TableCell>
                 <TableCell className="text-center">{getStatusBadge(row.overall)}</TableCell>
