@@ -28,17 +28,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 
-const mainItems = [
-  { title: "الرئيسية", url: "/dashboard/admin", icon: LayoutDashboard },
+const navItems = [
+  { title: "الرئيسية", url: "/dashboard/admin", icon: LayoutDashboard, end: true },
   { title: "العملاء", url: "/dashboard/admin/clients", icon: Users },
-  { title: "الطلبات", url: "/dashboard/admin/orders", icon: FileText },
-  { title: "التقارير", url: "/dashboard/admin/reports", icon: TrendingUp },
-];
-
-const operationItems = [
   { title: "المحطات", url: "/dashboard/admin/stations", icon: Building2 },
-  { title: "السائقين", url: "/dashboard/admin/drivers", icon: Truck },
-  { title: "المالية", url: "/dashboard/admin/finance", icon: CreditCard },
+  { title: "طلبات الصب", url: "/dashboard/admin/orders", icon: FileText },
+  { title: "الماليات", url: "/dashboard/admin/finance", icon: CreditCard },
+  { title: "التقارير", url: "/dashboard/admin/reports", icon: TrendingUp },
   { title: "الإعدادات", url: "/dashboard/admin/settings", icon: Settings },
 ];
 
@@ -70,40 +66,17 @@ export function AdminSidebar() {
           )}
         </div>
 
-        {/* Main Navigation */}
+        {/* Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel className="font-cairo text-sidebar-foreground/50">القائمة الرئيسية</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-cairo text-sidebar-foreground/50">القائمة</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainItems.map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
-                      end={item.url === "/dashboard/admin"}
-                      className="hover:bg-sidebar-accent/50 font-cairo"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <item.icon className="h-4 w-4 ml-2" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Operations */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="font-cairo text-sidebar-foreground/50">التشغيل</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {operationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
+                      end={item.end}
                       className="hover:bg-sidebar-accent/50 font-cairo"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
