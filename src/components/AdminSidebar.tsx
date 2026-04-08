@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "الرئيسية", url: "/dashboard/admin", icon: LayoutDashboard, end: true },
+  { title: "المبيعات", url: "/dashboard/admin/sales", icon: TrendingUp },
   { title: "العملاء", url: "/dashboard/admin/clients", icon: Users },
   { title: "المحطات", url: "/dashboard/admin/stations", icon: Building2 },
   { title: "طلبات الصب", url: "/dashboard/admin/orders", icon: FileText },
