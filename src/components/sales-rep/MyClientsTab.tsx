@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +43,7 @@ export function MyClientsTab() {
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [callResult, setCallResult] = useState("");
   const [callNotes, setCallNotes] = useState("");
@@ -55,6 +56,12 @@ export function MyClientsTab() {
   const [editClassification, setEditClassification] = useState("cold");
   const [editNotes, setEditNotes] = useState("");
   const [editArea, setEditArea] = useState("");
+  // Add form state
+  const [addName, setAddName] = useState("");
+  const [addPhone, setAddPhone] = useState("");
+  const [addClassification, setAddClassification] = useState("cold");
+  const [addNotes, setAddNotes] = useState("");
+  const [addArea, setAddArea] = useState("");
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["my-clients", user?.id, filter],
@@ -163,6 +170,36 @@ export function MyClientsTab() {
     },
   });
 
+  const addClientMutation = useMutation({
+    mutationFn: async () => {
+      if (!addName.trim()) throw new Error("أدخل اسم العميل");
+      if (!addPhone.trim()) throw new Error("أدخل رقم الهاتف");
+      const { error } = await (supabase as any)
+        .from("clients")
+        .insert({
+          name: addName.trim(),
+          phone: addPhone.trim(),
+          status: addClassification,
+          notes: addNotes.trim() || null,
+          area: addArea.trim() || null,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      setAddDialogOpen(false);
+      setAddName("");
+      setAddPhone("");
+      setAddClassification("cold");
+      setAddNotes("");
+      setAddArea("");
+      toast({ title: "تم إضافة العميل بنجاح ✅" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
+  });
+
   const openEditDialog = (client: any) => {
     setSelectedClient(client);
     setEditName(client.name || "");
@@ -210,6 +247,12 @@ export function MyClientsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Add client button */}
+      <Button onClick={() => setAddDialogOpen(true)} className="w-full font-cairo gap-2">
+        <Plus className="h-4 w-4" />
+        إضافة عميل جديد
+      </Button>
+
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
         {CLASSIFICATIONS.map((c) => (
@@ -459,6 +502,53 @@ export function MyClientsTab() {
               className="w-full font-cairo"
             >
               {editClientMutation.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Client Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-cairo">إضافة عميل جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-cairo">اسم العميل</Label>
+              <Input value={addName} onChange={(e) => setAddName(e.target.value)} className="font-cairo" placeholder="اسم العميل" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">رقم الهاتف</Label>
+              <Input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} className="font-cairo" placeholder="رقم الهاتف" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">التصنيف</Label>
+              <Select value={addClassification} onValueChange={setAddClassification}>
+                <SelectTrigger className="font-cairo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICATIONS.filter((c) => c.value !== "all").map((c) => (
+                    <SelectItem key={c.value} value={c.value} className="font-cairo">{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">المنطقة</Label>
+              <Input value={addArea} onChange={(e) => setAddArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">ملاحظات</Label>
+              <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
+            </div>
+            <Button
+              onClick={() => addClientMutation.mutate()}
+              disabled={addClientMutation.isPending}
+              className="w-full font-cairo"
+            >
+              {addClientMutation.isPending ? "جاري الحفظ..." : "إضافة العميل"}
             </Button>
           </div>
         </DialogContent>
