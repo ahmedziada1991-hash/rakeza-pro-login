@@ -247,6 +247,12 @@ export function MyClientsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Add client button */}
+      <Button onClick={() => setAddDialogOpen(true)} className="w-full font-cairo gap-2">
+        <Plus className="h-4 w-4" />
+        إضافة عميل جديد
+      </Button>
+
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
         {CLASSIFICATIONS.map((c) => (
