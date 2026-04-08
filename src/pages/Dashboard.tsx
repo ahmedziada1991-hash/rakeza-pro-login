@@ -36,6 +36,10 @@ const Dashboard = () => {
       navigate("/");
       return;
     }
+    if (userRole === "sales") {
+      navigate("/dashboard/sales-rep", { replace: true });
+      return;
+    }
     if (userRole && userRole !== role) {
       navigate(`/dashboard/${userRole}`);
     }
