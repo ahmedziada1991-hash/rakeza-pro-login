@@ -28,7 +28,11 @@ const Login = () => {
 
   useEffect(() => {
     if (!authLoading && session && userRole) {
-      navigate(`/dashboard/${userRole}`);
+      if (userRole === "sales") {
+        navigate("/dashboard/sales-rep");
+      } else {
+        navigate(`/dashboard/${userRole}`);
+      }
     }
   }, [session, userRole, authLoading, navigate]);
 
