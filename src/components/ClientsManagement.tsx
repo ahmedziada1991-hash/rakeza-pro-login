@@ -71,6 +71,13 @@ export function ClientsManagement() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState<ClientForm>(EMPTY_FORM);
 
+  useEffect(() => {
+    if (searchParams.get("add") === "1") {
+      setDialogOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients-list"],
     queryFn: async () => {
