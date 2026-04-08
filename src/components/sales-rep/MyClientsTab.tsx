@@ -23,6 +23,8 @@ const CLASSIFICATIONS = [
   { value: "warm", label: "دافئ", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
   { value: "cold", label: "بارد", color: "bg-chart-1/15 text-chart-1 border-chart-1/30" },
   { value: "inactive", label: "خامل", color: "bg-muted-foreground/15 text-muted-foreground border-muted-foreground/30" },
+  { value: "active", label: "نشط", color: "bg-chart-2/15 text-chart-2 border-chart-2/30" },
+  { value: "followup", label: "متابعة", color: "bg-primary/15 text-primary border-primary/30" },
 ];
 
 const CALL_RESULTS = [
@@ -235,13 +237,8 @@ export function MyClientsTab() {
                   <div>
                     <h3 className="font-cairo font-bold text-foreground">{client.name}</h3>
                     <p className="text-sm text-muted-foreground font-cairo direction-ltr">{client.phone}</p>
-                    {client.last_contact && (
-                      <p className="text-xs text-muted-foreground font-cairo mt-1">
-                        آخر تواصل: {new Date(client.last_contact).toLocaleDateString("ar-EG")}
-                      </p>
-                    )}
                   </div>
-                  {getClassBadge(client.classification)}
+                  {getClassBadge(client.status)}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -288,7 +285,7 @@ export function MyClientsTab() {
                   </Button>
 
                   {/* Transfer - only for hot/warm */}
-                  {(client.classification === "hot" || client.classification === "warm") && (
+                  {(client.status === "hot" || client.status === "warm") && (
                     <Button
                       size="sm"
                       variant="outline"
