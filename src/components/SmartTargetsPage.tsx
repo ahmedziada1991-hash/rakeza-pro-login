@@ -304,8 +304,10 @@ function SalespeopleChart({ count, targetPerSalesperson }: { count: number; targ
 }
 
 function DailyTrackingTable({ count, targetCalls, targetVisits }: { count: number; targetCalls: number; targetVisits: number }) {
+  const queryClient = useQueryClient();
   const salespeopleNames = ["أحمد", "محمد", "علي", "خالد", "عمر", "يوسف", "حسن", "سعيد", "طارق", "مصطفى"];
-  const today = new Date().toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayLabel = new Date().toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   const [rows, setRows] = useState(() =>
     Array.from({ length: count }, (_, i) => ({
@@ -314,9 +316,64 @@ function DailyTrackingTable({ count, targetCalls, targetVisits }: { count: numbe
       actualVisits: 0,
     }))
   );
+  const [saving, setSaving] = useState(false);
+
+  // Load today's saved data
+  useQuery({
+    queryKey: ["daily-performance", todayStr, count],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("daily_performance")
+        .select("*")
+        .eq("date", todayStr)
+        .order("salesperson_name");
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setRows(
+          Array.from({ length: count }, (_, i) => {
+            const name = salespeopleNames[i] || `بائع ${i + 1}`;
+            const saved = data.find((d: any) => d.salesperson_name === name);
+            return {
+              name,
+              actualCalls: saved?.actual_calls ?? 0,
+              actualVisits: saved?.actual_visits ?? 0,
+            };
+          })
+        );
+      }
+      return data;
+    },
+  });
 
   const updateRow = (index: number, field: "actualCalls" | "actualVisits", value: number) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Delete existing records for today then insert fresh
+      await (supabase as any).from("daily_performance").delete().eq("date", todayStr);
+
+      const records = rows.map((r) => ({
+        date: todayStr,
+        salesperson_name: r.name,
+        actual_calls: r.actualCalls,
+        actual_visits: r.actualVisits,
+        target_calls: targetCalls,
+        target_visits: targetVisits,
+      }));
+
+      const { error } = await (supabase as any).from("daily_performance").insert(records);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["daily-performance"] });
+      toast({ title: "تم حفظ الأداء اليومي بنجاح ✅" });
+    } catch (err: any) {
+      toast({ title: "خطأ في الحفظ", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const computed = rows.map((r) => {
@@ -334,7 +391,12 @@ function DailyTrackingTable({ count, targetCalls, targetVisits }: { count: numbe
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-cairo text-muted-foreground">{today}</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm font-cairo text-muted-foreground">{todayLabel}</p>
+        <Button onClick={handleSave} disabled={saving} size="sm" className="font-cairo gap-2">
+          {saving ? "جاري الحفظ..." : "💾 حفظ الأداء اليومي"}
+        </Button>
+      </div>
       <div className="overflow-x-auto rounded-lg border border-border">
         <Table>
           <TableHeader>
