@@ -284,5 +284,3 @@ function SalespeopleChart({ count, targetPerSalesperson }: { count: number; targ
     </div>
   );
 }
-  );
-}
