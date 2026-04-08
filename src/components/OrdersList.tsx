@@ -265,6 +265,8 @@ export function OrdersList() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
 
 function DateFilter({ label, date, onChange }: { label: string; date?: Date; onChange: (d?: Date) => void }) {
   return (
