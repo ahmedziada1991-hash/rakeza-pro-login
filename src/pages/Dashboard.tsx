@@ -1,8 +1,9 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Outlet } from "react-router-dom";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AdminSidebar } from "@/components/AdminSidebar";
+import { AdminDashboardContent } from "@/components/AdminDashboardContent";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -11,17 +12,10 @@ const ROLE_LABELS: Record<string, string> = {
   execution: "تنفيذ",
 };
 
-const ROLE_DESCRIPTIONS: Record<string, string> = {
-  admin: "إدارة النظام والمستخدمين والتقارير",
-  sales: "إدارة العملاء وعروض الأسعار والطلبات",
-  followup: "متابعة الطلبات والتحصيل",
-  execution: "إدارة التشغيل والمحطات والسائقين",
-};
-
 const Dashboard = () => {
-  const { role } = useParams<{ role: string }>();
+  const { role, "*": subpath } = useParams();
   const navigate = useNavigate();
-  const { session, userRole, isLoading, signOut } = useAuth();
+  const { session, userRole, isLoading } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
@@ -34,43 +28,41 @@ const Dashboard = () => {
     }
   }, [session, userRole, role, isLoading, navigate]);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate("/");
-  };
-
   if (isLoading || !role || !ROLE_LABELS[role]) return null;
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-cairo font-bold">ر</span>
-          </div>
-          <div>
-            <h1 className="font-cairo font-bold text-foreground text-lg leading-tight">ركيزة Pro</h1>
-            <p className="font-cairo text-xs text-muted-foreground">{ROLE_LABELS[role]}</p>
+  if (role === "admin") {
+    return (
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full">
+          <AdminSidebar />
+          <div className="flex-1 flex flex-col min-w-0">
+            <header className="h-14 bg-card border-b border-border px-4 flex items-center justify-between shrink-0">
+              <SidebarTrigger className="mr-2" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-cairo text-muted-foreground">مرحباً، المدير</span>
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                  <span className="text-primary-foreground font-cairo font-bold text-sm">م</span>
+                </div>
+              </div>
+            </header>
+            <main className="flex-1 p-4 md:p-6 overflow-auto">
+              {!subpath ? <AdminDashboardContent /> : <Outlet />}
+            </main>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout} className="font-cairo gap-2 text-muted-foreground">
-          <LogOut size={18} />
-          خروج
-        </Button>
-      </header>
+      </SidebarProvider>
+    );
+  }
 
-      <main className="p-4 max-w-2xl mx-auto mt-12 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-          <span className="text-primary font-cairo font-bold text-xl">{ROLE_LABELS[role][0]}</span>
-        </div>
+  // Fallback for other roles (sales, followup, execution)
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center">
         <h2 className="text-2xl font-cairo font-bold text-foreground mb-2">
           لوحة تحكم {ROLE_LABELS[role]}
         </h2>
-        <p className="text-muted-foreground font-cairo">{ROLE_DESCRIPTIONS[role]}</p>
-        <p className="text-muted-foreground/60 font-cairo text-sm mt-6">
-          سيتم بناء هذه اللوحة قريباً...
-        </p>
-      </main>
+        <p className="text-muted-foreground font-cairo">سيتم بناء هذه اللوحة قريباً...</p>
+      </div>
     </div>
   );
 };
