@@ -22,7 +22,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { CreditCard, Search, Banknote, TrendingUp, AlertCircle, Plus, CalendarIcon, Loader2 } from "lucide-react";
+import { CreditCard, Search, Banknote, TrendingUp, AlertCircle, Plus, CalendarIcon, Loader2, Download } from "lucide-react";
+import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -206,10 +207,65 @@ export function FinancePage() {
           <CreditCard className="h-5 w-5 text-primary" />
           <h2 className="text-xl font-cairo font-bold text-foreground">الماليات</h2>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="font-cairo gap-1">
-          <Plus className="h-4 w-4" />
-          تسجيل دفعة
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="font-cairo gap-1">
+                <Download className="h-3.5 w-3.5" />
+                تصدير
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="end">
+              <div className="flex flex-col gap-1">
+                <Button variant="ghost" size="sm" className="font-cairo justify-start" onClick={() => {
+                  if (!payments) return;
+                  const headers = [
+                    { key: "id", label: "#" },
+                    { key: "client_name", label: "العميل" },
+                    { key: "pour_order_id", label: "رقم الطلب" },
+                    { key: "amount", label: "المبلغ" },
+                    { key: "payment_method", label: "طريقة الدفع" },
+                    { key: "payment_date", label: "التاريخ" },
+                    { key: "notes", label: "ملاحظات" },
+                  ];
+                  exportToExcel(payments, headers, "المدفوعات");
+                }}>
+                  تصدير المدفوعات Excel
+                </Button>
+                <Button variant="ghost" size="sm" className="font-cairo justify-start" onClick={() => {
+                  if (!payments) return;
+                  const headers = [
+                    { key: "id", label: "#" },
+                    { key: "client_name", label: "Client" },
+                    { key: "pour_order_id", label: "Order" },
+                    { key: "amount", label: "Amount" },
+                    { key: "payment_method", label: "Method" },
+                    { key: "payment_date", label: "Date" },
+                  ];
+                  exportToPDF(payments, headers, "المدفوعات", "Payments Report");
+                }}>
+                  تصدير المدفوعات PDF
+                </Button>
+                <Button variant="ghost" size="sm" className="font-cairo justify-start" onClick={() => {
+                  if (!clientSummary) return;
+                  const headers = [
+                    { key: "name", label: "العميل" },
+                    { key: "total", label: "الإجمالي" },
+                    { key: "paid", label: "المدفوع" },
+                    { key: "remaining", label: "المتبقي" },
+                  ];
+                  exportToExcel(clientSummary, headers, "أرصدة_العملاء");
+                }}>
+                  تصدير أرصدة العملاء Excel
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button onClick={() => setDialogOpen(true)} className="font-cairo gap-1">
+            <Plus className="h-4 w-4" />
+            تسجيل دفعة
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

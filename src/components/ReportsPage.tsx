@@ -15,8 +15,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  TrendingUp, CalendarIcon, FileText, Banknote, CuboidIcon, Loader2,
+  TrendingUp, CalendarIcon, FileText, Banknote, CuboidIcon, Loader2, Download,
 } from "lucide-react";
+import { exportToExcel, exportToPDF } from "@/lib/export-utils";
 
 const STATUS_LABELS: Record<string, string> = {
   done: "مكتمل",
@@ -139,6 +140,50 @@ export function ReportsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <DatePicker label="من" date={from} onChange={setFrom} />
           <DatePicker label="إلى" date={to} onChange={setTo} />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="font-cairo gap-1 h-9">
+                <Download className="h-3.5 w-3.5" />
+                تصدير
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="end">
+              <div className="flex flex-col gap-1">
+                <Button variant="ghost" size="sm" className="font-cairo justify-start" onClick={() => {
+                  if (!orders) return;
+                  const headers = [
+                    { key: "id", label: "#" },
+                    { key: "concrete_type", label: "النوع" },
+                    { key: "quantity_m3", label: "الكمية م³" },
+                    { key: "total_agreed_amount", label: "الإجمالي" },
+                    { key: "amount_paid", label: "المدفوع" },
+                    { key: "amount_remaining", label: "المتبقي" },
+                    { key: "status", label: "الحالة" },
+                    { key: "station_name", label: "المحطة" },
+                  ];
+                  exportToExcel(orders, headers, `تقرير_${format(from, "yyyy-MM-dd")}`);
+                }}>
+                  تصدير Excel
+                </Button>
+                <Button variant="ghost" size="sm" className="font-cairo justify-start" onClick={() => {
+                  if (!orders) return;
+                  const headers = [
+                    { key: "id", label: "#" },
+                    { key: "concrete_type", label: "Type" },
+                    { key: "quantity_m3", label: "Qty" },
+                    { key: "total_agreed_amount", label: "Total" },
+                    { key: "amount_paid", label: "Paid" },
+                    { key: "amount_remaining", label: "Remaining" },
+                    { key: "status", label: "Status" },
+                    { key: "station_name", label: "Station" },
+                  ];
+                  exportToPDF(orders, headers, `تقرير_${format(from, "yyyy-MM-dd")}`, `Report: ${format(from, "yyyy/MM/dd")} - ${format(to, "yyyy/MM/dd")}`);
+                }}>
+                  تصدير PDF
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
