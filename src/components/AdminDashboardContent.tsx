@@ -30,6 +30,7 @@ function formatCurrency(amount: number) {
 }
 
 export function AdminDashboardContent() {
+  const navigate = useNavigate();
   // Clients count
   const { data: clientsCount, isLoading: loadingClients } = useQuery({
     queryKey: ["clients-count"],
