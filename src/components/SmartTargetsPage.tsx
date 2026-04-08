@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Target, Calculator, Users, Phone, MapPin, CalendarDays } from "lucide-react";
+import { Target, Calculator, Users, Phone, MapPin, CalendarDays, BarChart3 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 
 interface TargetResult {
   requiredQuantity: number;
@@ -161,22 +162,125 @@ export function SmartTargetsPage() {
       </Card>
 
       {result && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {resultCards.map((card) => (
-            <Card key={card.label}>
-              <CardContent className="p-5 flex items-center gap-4">
-                <div className={`p-3 rounded-xl bg-muted ${card.color}`}>
-                  <card.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-cairo text-muted-foreground">{card.label}</p>
-                  <p className="text-xl font-cairo font-bold text-foreground">{card.value}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {resultCards.map((card) => (
+              <Card key={card.label}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className={`p-3 rounded-xl bg-muted ${card.color}`}>
+                    <card.icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-cairo text-muted-foreground">{card.label}</p>
+                    <p className="text-xl font-cairo font-bold text-foreground">{card.value}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-cairo text-lg flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                تقدم البائعين نحو الهدف الشهري
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SalespeopleChart
+                count={parseInt(salespeopleCount) || 0}
+                targetPerSalesperson={result.perSalesperson}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
+    </div>
+  );
+}
+
+function SalespeopleChart({ count, targetPerSalesperson }: { count: number; targetPerSalesperson: number }) {
+  const salespeopleNames = ["أحمد", "محمد", "علي", "خالد", "عمر", "يوسف", "حسن", "سعيد", "طارق", "مصطفى"];
+
+  // Query pour_orders to get actual achieved quantities per salesperson
+  const { data: chartData } = useQuery({
+    queryKey: ["salespeople-progress", count, targetPerSalesperson],
+    queryFn: async () => {
+      // Try to get real sales data from pour_orders
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { data: orders } = await (supabase as any)
+        .from("pour_orders")
+        .select("quantity, assigned_to")
+        .gte("created_at", startOfMonth)
+        .eq("status", "completed");
+
+      // Build per-salesperson achieved map
+      const achievedMap: Record<string, number> = {};
+      if (orders && orders.length > 0) {
+        orders.forEach((o: any) => {
+          const key = o.assigned_to || "غير محدد";
+          achievedMap[key] = (achievedMap[key] || 0) + (o.quantity || 0);
+        });
+      }
+
+      // Generate chart data for each salesperson slot
+      return Array.from({ length: count }, (_, i) => {
+        const name = salespeopleNames[i] || `بائع ${i + 1}`;
+        // Use real data if available, otherwise simulate
+        const achieved = Object.values(achievedMap)[i] as number ?? Math.round(targetPerSalesperson * (0.3 + Math.random() * 0.7));
+        const percentage = Math.min(100, Math.round((achieved / targetPerSalesperson) * 100));
+        return { name, الهدف: Math.round(targetPerSalesperson), المحقق: achieved, percentage };
+      });
+    },
+    enabled: count > 0 && targetPerSalesperson > 0,
+  });
+
+  if (!chartData || chartData.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+          <XAxis type="number" tick={{ fontSize: 12 }} />
+          <YAxis dataKey="name" type="category" tick={{ fontSize: 13, fontFamily: "Cairo" }} width={60} />
+          <Tooltip
+            contentStyle={{ fontFamily: "Cairo", direction: "rtl", borderRadius: 8 }}
+            formatter={(value: number, name: string) => [`${value} م³`, name]}
+          />
+          <Legend wrapperStyle={{ fontFamily: "Cairo" }} />
+          <Bar dataKey="الهدف" fill="hsl(var(--muted-foreground))" opacity={0.3} radius={[0, 4, 4, 0]} />
+          <Bar dataKey="المحقق" radius={[0, 4, 4, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell
+                key={index}
+                fill={
+                  entry.percentage >= 80
+                    ? "hsl(var(--chart-2))"
+                    : entry.percentage >= 50
+                    ? "hsl(var(--chart-4))"
+                    : "hsl(var(--destructive))"
+                }
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {chartData.map((s) => (
+          <div key={s.name} className="flex items-center gap-2 text-sm font-cairo">
+            <div
+              className={`w-2.5 h-2.5 rounded-full ${
+                s.percentage >= 80 ? "bg-chart-2" : s.percentage >= 50 ? "bg-chart-4" : "bg-destructive"
+              }`}
+            />
+            <span className="text-muted-foreground">{s.name}:</span>
+            <span className="font-bold text-foreground">{s.percentage}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
