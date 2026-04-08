@@ -13,6 +13,8 @@ import { OrderForm } from "@/components/OrderForm";
 import { FinancePage } from "@/components/FinancePage";
 import { OrdersList } from "@/components/OrdersList";
 import { SettingsPage } from "@/components/SettingsPage";
+import { NotificationBell } from "@/components/NotificationBell";
+import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
