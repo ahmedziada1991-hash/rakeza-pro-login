@@ -59,11 +59,10 @@ export function MyClientsTab() {
       let query = (supabase as any)
         .from("clients")
         .select("*")
-        .eq("assigned_to", user!.id)
         .order("created_at", { ascending: false });
 
       if (filter !== "all") {
-        query = query.eq("classification", filter);
+        query = query.eq("status", filter);
       }
 
       const { data, error } = await query;
@@ -87,11 +86,7 @@ export function MyClientsTab() {
       });
       if (error) throw error;
 
-      // Update client's last_contact
-      await (supabase as any)
-        .from("clients")
-        .update({ last_contact: new Date().toISOString() })
-        .eq("id", selectedClient.id);
+      // No last_contact column - skip update
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
@@ -148,7 +143,7 @@ export function MyClientsTab() {
         .update({
           name: editName.trim(),
           phone: editPhone.trim(),
-          classification: editClassification,
+          status: editClassification,
           notes: editNotes.trim() || null,
           area: editArea.trim() || null,
         })
@@ -169,7 +164,7 @@ export function MyClientsTab() {
     setSelectedClient(client);
     setEditName(client.name || "");
     setEditPhone(client.phone || "");
-    setEditClassification(client.classification || "cold");
+    setEditClassification(client.status || "active");
     setEditNotes(client.notes || "");
     setEditArea(client.area || "");
     setEditDialogOpen(true);
