@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -39,12 +39,19 @@ export function MyClientsTab() {
   const [filter, setFilter] = useState("all");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [callResult, setCallResult] = useState("");
   const [callNotes, setCallNotes] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [pourDate, setPourDate] = useState<Date>();
+  // Edit form state
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editClassification, setEditClassification] = useState("cold");
+  const [editNotes, setEditNotes] = useState("");
+  const [editArea, setEditArea] = useState("");
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["my-clients", user?.id, filter],
@@ -132,6 +139,41 @@ export function MyClientsTab() {
       toast({ title: "تم تحويل العميل للمتابعة ✅" });
     },
   });
+
+  const editClientMutation = useMutation({
+    mutationFn: async () => {
+      if (!editName.trim()) throw new Error("أدخل اسم العميل");
+      const { error } = await (supabase as any)
+        .from("clients")
+        .update({
+          name: editName.trim(),
+          phone: editPhone.trim(),
+          classification: editClassification,
+          notes: editNotes.trim() || null,
+          area: editArea.trim() || null,
+        })
+        .eq("id", selectedClient.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      setEditDialogOpen(false);
+      toast({ title: "تم تعديل بيانات العميل ✅" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const openEditDialog = (client: any) => {
+    setSelectedClient(client);
+    setEditName(client.name || "");
+    setEditPhone(client.phone || "");
+    setEditClassification(client.classification || "cold");
+    setEditNotes(client.notes || "");
+    setEditArea(client.area || "");
+    setEditDialogOpen(true);
+  };
 
   const toggleRecording = async () => {
     if (isRecording && mediaRecorder) {
@@ -262,6 +304,17 @@ export function MyClientsTab() {
                       تحويل للمتابعة
                     </Button>
                   )}
+
+                  {/* Edit */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="font-cairo gap-1"
+                    onClick={() => openEditDialog(client)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    تعديل
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -352,6 +405,52 @@ export function MyClientsTab() {
               className="w-full font-cairo"
             >
               {savePourDateMutation.isPending ? "جاري الحفظ..." : "حفظ الموعد"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Edit Client Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-cairo">تعديل بيانات العميل</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-cairo">اسم العميل</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="font-cairo" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">رقم الهاتف</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="font-cairo" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">التصنيف</Label>
+              <Select value={editClassification} onValueChange={setEditClassification}>
+                <SelectTrigger className="font-cairo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICATIONS.filter((c) => c.value !== "all").map((c) => (
+                    <SelectItem key={c.value} value={c.value} className="font-cairo">{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">المنطقة</Label>
+              <Input value={editArea} onChange={(e) => setEditArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">ملاحظات</Label>
+              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="font-cairo min-h-[80px]" />
+            </div>
+            <Button
+              onClick={() => editClientMutation.mutate()}
+              disabled={editClientMutation.isPending}
+              className="w-full font-cairo"
+            >
+              {editClientMutation.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
             </Button>
           </div>
         </DialogContent>
