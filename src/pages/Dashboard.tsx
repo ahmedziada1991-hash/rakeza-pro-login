@@ -12,6 +12,7 @@ import { ReportsPage } from "@/components/ReportsPage";
 import { OrderForm } from "@/components/OrderForm";
 import { FinancePage } from "@/components/FinancePage";
 import { OrdersList } from "@/components/OrdersList";
+import { SettingsPage } from "@/components/SettingsPage";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
