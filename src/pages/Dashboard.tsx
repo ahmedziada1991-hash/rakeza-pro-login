@@ -6,6 +6,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminDashboardContent } from "@/components/AdminDashboardContent";
 import { ClientsManagement } from "@/components/ClientsManagement";
 import { StationsManagement } from "@/components/StationsManagement";
+import { ReportsPage } from "@/components/ReportsPage";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -54,6 +55,8 @@ const Dashboard = () => {
                 <ClientsManagement />
               ) : subpath === "stations" ? (
                 <StationsManagement />
+              ) : subpath === "reports" ? (
+                <ReportsPage />
               ) : (
                 <Outlet />
               )}
