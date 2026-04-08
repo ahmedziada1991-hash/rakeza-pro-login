@@ -62,6 +62,7 @@ export function MyClientsTab() {
   const [addClassification, setAddClassification] = useState("cold");
   const [addNotes, setAddNotes] = useState("");
   const [addArea, setAddArea] = useState("");
+  const [addPourDate, setAddPourDate] = useState<Date>();
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["my-clients", user?.id, filter],
@@ -182,6 +183,7 @@ export function MyClientsTab() {
           status: addClassification,
           notes: addNotes.trim() || null,
           area: addArea.trim() || null,
+          expected_pour_date: addPourDate ? addPourDate.toISOString() : null,
         });
       if (error) throw error;
     },
@@ -193,6 +195,7 @@ export function MyClientsTab() {
       setAddClassification("cold");
       setAddNotes("");
       setAddArea("");
+      setAddPourDate(undefined);
       toast({ title: "تم إضافة العميل بنجاح ✅" });
     },
     onError: (err: Error) => {
@@ -542,6 +545,20 @@ export function MyClientsTab() {
             <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">موعد الصبة التقريبي</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !addPourDate && "text-muted-foreground")}>
+                    <CalendarDays className="h-4 w-4 ml-2" />
+                    {addPourDate ? format(addPourDate, "yyyy-MM-dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={addPourDate} onSelect={setAddPourDate} className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
             </div>
             <Button
               onClick={() => addClientMutation.mutate()}
