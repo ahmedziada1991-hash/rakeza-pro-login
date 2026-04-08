@@ -133,9 +133,12 @@ export function SalesPage() {
       }
       const contacts = await (navigator as any).contacts.select(
         ["name", "tel"],
-        { multiple: false }
+        { multiple: true }
       );
-      if (contacts?.length > 0) {
+      if (!contacts?.length) return;
+
+      // If only one contact selected, fill the form
+      if (contacts.length === 1) {
         const contact = contacts[0];
         setForm((f) => ({
           ...f,
@@ -143,7 +146,47 @@ export function SalesPage() {
           phone: contact.tel?.[0] || f.phone,
         }));
         toast({ title: "تم استيراد جهة الاتصال ✅" });
+        return;
       }
+
+      // Multiple contacts: bulk import
+      const newClients = contacts
+        .filter((c: any) => c.name?.[0])
+        .map((c: any) => ({
+          name: c.name[0],
+          phone: c.tel?.[0] || null,
+          status: "cold",
+          notes: null,
+        }));
+
+      if (!newClients.length) return;
+
+      // Get existing phones to avoid duplicates
+      const phones = newClients.map((c: any) => c.phone).filter(Boolean);
+      let existingPhones = new Set<string>();
+      if (phones.length > 0) {
+        const { data } = await supabase
+          .from("clients")
+          .select("phone")
+          .in("phone", phones);
+        existingPhones = new Set((data ?? []).map((r: any) => r.phone));
+      }
+
+      const toInsert = newClients.filter(
+        (c: any) => !c.phone || !existingPhones.has(c.phone)
+      );
+
+      if (toInsert.length === 0) {
+        toast({ title: "جميع جهات الاتصال موجودة بالفعل" });
+        return;
+      }
+
+      const { error } = await supabase.from("clients").insert(toInsert);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["sales-clients"] });
+      queryClient.invalidateQueries({ queryKey: ["clients-list"] });
+      toast({ title: `تم إضافة ${toInsert.length} عميل بنجاح ✅` });
     } catch {
       toast({ title: "تم إلغاء الاستيراد", variant: "destructive" });
     }
