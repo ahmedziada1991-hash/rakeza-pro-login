@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Building2, User, Lock, Loader2, Save } from "lucide-react";
+import { Settings, Building2, User, Lock, Loader2, Save, Users } from "lucide-react";
+import { UsersManagement } from "@/components/UsersManagement";
 
 export function SettingsPage() {
   const { session } = useAuth();
