@@ -39,9 +39,9 @@ const Dashboard = () => {
     }
   }, [session, userRole, role, isLoading, navigate]);
 
-  if (isLoading || !role || !ROLE_LABELS[role]) return null;
-
   useNotificationGenerator();
+
+  if (isLoading || !role || !ROLE_LABELS[role]) return null;
 
   if (role === "admin") {
     return (
