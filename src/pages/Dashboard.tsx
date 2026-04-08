@@ -14,6 +14,7 @@ import { FinancePage } from "@/components/FinancePage";
 import { OrdersList } from "@/components/OrdersList";
 import { SettingsPage } from "@/components/SettingsPage";
 import { SalesPage } from "@/components/SalesPage";
+import { SmartTargetsPage } from "@/components/SmartTargetsPage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
