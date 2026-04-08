@@ -302,3 +302,70 @@ function SalespeopleChart({ count, targetPerSalesperson }: { count: number; targ
     </div>
   );
 }
+
+function DailyTrackingTable({ count, targetCalls, targetVisits }: { count: number; targetCalls: number; targetVisits: number }) {
+  const salespeopleNames = ["أحمد", "محمد", "علي", "خالد", "عمر", "يوسف", "حسن", "سعيد", "طارق", "مصطفى"];
+  const today = new Date().toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+  // Simulated daily data — in production this would come from a daily_activity table
+  const data = Array.from({ length: count }, (_, i) => {
+    const actualCalls = Math.floor(Math.random() * targetCalls * 1.5);
+    const actualVisits = Math.floor(Math.random() * targetVisits * 1.5);
+    const callsPercent = Math.min(100, Math.round((actualCalls / targetCalls) * 100));
+    const visitsPercent = Math.min(100, Math.round((actualVisits / targetVisits) * 100));
+    return {
+      name: salespeopleNames[i] || `بائع ${i + 1}`,
+      targetCalls,
+      actualCalls,
+      callsPercent,
+      targetVisits,
+      actualVisits,
+      visitsPercent,
+      overall: Math.round((callsPercent + visitsPercent) / 2),
+    };
+  });
+
+  const getStatusBadge = (percent: number) => {
+    if (percent >= 80) return <Badge className="bg-chart-2/15 text-chart-2 border-chart-2/30 font-cairo text-xs">ممتاز</Badge>;
+    if (percent >= 50) return <Badge className="bg-chart-4/15 text-chart-4 border-chart-4/30 font-cairo text-xs">متوسط</Badge>;
+    return <Badge className="bg-destructive/15 text-destructive border-destructive/30 font-cairo text-xs">ضعيف</Badge>;
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-cairo text-muted-foreground">{today}</p>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="font-cairo text-right">البائع</TableHead>
+              <TableHead className="font-cairo text-center">مكالمات (هدف)</TableHead>
+              <TableHead className="font-cairo text-center">مكالمات (فعلي)</TableHead>
+              <TableHead className="font-cairo text-center">زيارات (هدف)</TableHead>
+              <TableHead className="font-cairo text-center">زيارات (فعلي)</TableHead>
+              <TableHead className="font-cairo text-center">الأداء</TableHead>
+              <TableHead className="font-cairo text-center">التقييم</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((row) => (
+              <TableRow key={row.name}>
+                <TableCell className="font-cairo font-medium">{row.name}</TableCell>
+                <TableCell className="text-center text-muted-foreground">{row.targetCalls}</TableCell>
+                <TableCell className={`text-center font-bold ${row.actualCalls >= row.targetCalls ? "text-chart-2" : "text-destructive"}`}>
+                  {row.actualCalls}
+                </TableCell>
+                <TableCell className="text-center text-muted-foreground">{row.targetVisits}</TableCell>
+                <TableCell className={`text-center font-bold ${row.actualVisits >= row.targetVisits ? "text-chart-2" : "text-destructive"}`}>
+                  {row.actualVisits}
+                </TableCell>
+                <TableCell className="text-center font-cairo font-bold">{row.overall}%</TableCell>
+                <TableCell className="text-center">{getStatusBadge(row.overall)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
