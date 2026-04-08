@@ -78,6 +78,8 @@ const Dashboard = () => {
                 <OrdersList />
               ) : subpath === "orders/new" ? (
                 <OrderForm />
+              ) : subpath?.match(/^orders\/(\d+)\/edit$/) ? (
+                <OrderForm orderId={subpath.match(/^orders\/(\d+)\/edit$/)?.[1]} />
               ) : subpath === "finance" ? (
                 <FinancePage />
               ) : (

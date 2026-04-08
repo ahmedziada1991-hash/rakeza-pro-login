@@ -185,7 +185,7 @@ export function OrdersList() {
                   {filtered.map((o: any) => {
                     const st = STATUS_MAP[o.status] ?? STATUS_MAP.pending;
                     return (
-                      <TableRow key={o.id}>
+                      <TableRow key={o.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/dashboard/admin/orders/${o.id}/edit`)}>
                         <TableCell className="font-cairo text-muted-foreground">{o.id}</TableCell>
                         <TableCell className="font-cairo font-medium">{o.client_name}</TableCell>
                         <TableCell className="font-cairo">{o.concrete_type ?? "—"}</TableCell>
