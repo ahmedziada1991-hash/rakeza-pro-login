@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Users,
@@ -138,10 +139,10 @@ export function AdminDashboardContent() {
   ];
 
   const quickActions = [
-    { title: "إضافة طلب صب", icon: FileText, description: "إنشاء طلب توريد خرسانة جديد" },
-    { title: "إضافة عميل", icon: Users, description: "تسجيل عميل جديد في النظام" },
-    { title: "تقرير يومي", icon: TrendingUp, description: "عرض تقرير العمليات اليومية" },
-    { title: "إدارة المحطات", icon: Building2, description: "إدارة محطات الخرسانة" },
+    { title: "إضافة طلب صب", icon: FileText, description: "إنشاء طلب توريد خرسانة جديد", url: "/dashboard/admin/orders/new" },
+    { title: "إضافة عميل", icon: Users, description: "تسجيل عميل جديد في النظام", url: "/dashboard/admin/clients?add=1" },
+    { title: "تقرير يومي", icon: TrendingUp, description: "عرض تقرير العمليات اليومية", url: "/dashboard/admin/reports" },
+    { title: "إدارة المحطات", icon: Building2, description: "إدارة محطات الخرسانة", url: "/dashboard/admin/stations" },
   ];
 
   return (
