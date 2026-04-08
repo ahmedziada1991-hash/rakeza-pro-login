@@ -308,7 +308,22 @@ export function MyClientsTab() {
                     <Pencil className="h-3.5 w-3.5" />
                     تعديل
                   </Button>
+                  {/* Show call history */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="font-cairo gap-1"
+                    onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}
+                  >
+                    {expandedClientId === client.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    سجل المكالمات
+                  </Button>
                 </div>
+
+                {/* Expandable Call History */}
+                {expandedClientId === client.id && (
+                  <ClientCallHistory clientId={client.id} />
+                )}
               </CardContent>
             </Card>
           ))}
