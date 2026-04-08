@@ -201,6 +201,7 @@ export function OrdersList() {
                     <TableHead className="font-cairo text-right">المتبقي</TableHead>
                     <TableHead className="font-cairo text-right">التاريخ</TableHead>
                     <TableHead className="font-cairo text-right">الحالة</TableHead>
+                    <TableHead className="font-cairo text-right w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -224,6 +225,16 @@ export function OrdersList() {
                         <TableCell>
                           <Badge variant={st.variant} className="font-cairo text-[11px]">{st.label}</Badge>
                         </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); setDeleteId(o.id); }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -233,9 +244,27 @@ export function OrdersList() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cairo text-right">تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription className="font-cairo text-right">
+              هل أنت متأكد من حذف الطلب رقم {deleteId}؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  );
-}
 
 function DateFilter({ label, date, onChange }: { label: string; date?: Date; onChange: (d?: Date) => void }) {
   return (
