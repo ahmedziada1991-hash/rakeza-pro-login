@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminDashboardContent } from "@/components/AdminDashboardContent";
 import { ClientsManagement } from "@/components/ClientsManagement";
+import { StationsManagement } from "@/components/StationsManagement";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -51,6 +52,8 @@ const Dashboard = () => {
                 <AdminDashboardContent />
               ) : subpath === "clients" ? (
                 <ClientsManagement />
+              ) : subpath === "stations" ? (
+                <StationsManagement />
               ) : (
                 <Outlet />
               )}
