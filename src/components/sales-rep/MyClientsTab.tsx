@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -39,12 +39,19 @@ export function MyClientsTab() {
   const [filter, setFilter] = useState("all");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [callResult, setCallResult] = useState("");
   const [callNotes, setCallNotes] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [pourDate, setPourDate] = useState<Date>();
+  // Edit form state
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editClassification, setEditClassification] = useState("cold");
+  const [editNotes, setEditNotes] = useState("");
+  const [editArea, setEditArea] = useState("");
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["my-clients", user?.id, filter],
