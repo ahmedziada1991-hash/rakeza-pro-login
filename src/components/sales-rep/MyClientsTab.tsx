@@ -506,6 +506,53 @@ export function MyClientsTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Add Client Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-cairo">إضافة عميل جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-cairo">اسم العميل</Label>
+              <Input value={addName} onChange={(e) => setAddName(e.target.value)} className="font-cairo" placeholder="اسم العميل" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">رقم الهاتف</Label>
+              <Input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} className="font-cairo" placeholder="رقم الهاتف" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">التصنيف</Label>
+              <Select value={addClassification} onValueChange={setAddClassification}>
+                <SelectTrigger className="font-cairo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICATIONS.filter((c) => c.value !== "all").map((c) => (
+                    <SelectItem key={c.value} value={c.value} className="font-cairo">{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">المنطقة</Label>
+              <Input value={addArea} onChange={(e) => setAddArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">ملاحظات</Label>
+              <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
+            </div>
+            <Button
+              onClick={() => addClientMutation.mutate()}
+              disabled={addClientMutation.isPending}
+              className="w-full font-cairo"
+            >
+              {addClientMutation.isPending ? "جاري الحفظ..." : "إضافة العميل"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
