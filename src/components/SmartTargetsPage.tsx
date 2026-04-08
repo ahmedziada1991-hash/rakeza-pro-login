@@ -181,6 +181,10 @@ export function SmartTargetsPage() {
             ))}
           </div>
 
+          <p className="text-sm font-cairo text-muted-foreground bg-muted/50 rounded-lg p-3 border border-border">
+            💡 أرقام المكالمات والزيارات مبنية على المعايير العالمية لمبيعات الخرسانة وستتحدث تلقائياً مع تراكم بيانات فريقك.
+          </p>
+
           <Card>
             <CardHeader>
               <CardTitle className="font-cairo text-lg flex items-center gap-2">
