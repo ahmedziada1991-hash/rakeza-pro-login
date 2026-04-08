@@ -16,7 +16,7 @@ export function SettingsPage() {
   const { session } = useAuth();
 
   return (
-    <div className="space-y-5 max-w-3xl mx-auto">
+    <div className="space-y-5 max-w-4xl mx-auto">
       <div className="flex items-center gap-2">
         <Settings className="h-5 w-5 text-primary" />
         <h2 className="text-xl font-cairo font-bold text-foreground">الإعدادات</h2>
@@ -36,6 +36,10 @@ export function SettingsPage() {
             <Lock className="h-3.5 w-3.5" />
             الأمان
           </TabsTrigger>
+          <TabsTrigger value="users" className="font-cairo gap-1">
+            <Users className="h-3.5 w-3.5" />
+            المستخدمين
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="mt-4">
@@ -46,6 +50,9 @@ export function SettingsPage() {
         </TabsContent>
         <TabsContent value="security" className="mt-4">
           <SecuritySettings />
+        </TabsContent>
+        <TabsContent value="users" className="mt-4">
+          <UsersManagement />
         </TabsContent>
       </Tabs>
     </div>
