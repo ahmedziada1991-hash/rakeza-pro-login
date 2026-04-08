@@ -13,6 +13,8 @@ import { OrderForm } from "@/components/OrderForm";
 import { FinancePage } from "@/components/FinancePage";
 import { OrdersList } from "@/components/OrdersList";
 import { SettingsPage } from "@/components/SettingsPage";
+import { NotificationBell } from "@/components/NotificationBell";
+import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -39,6 +41,8 @@ const Dashboard = () => {
 
   if (isLoading || !role || !ROLE_LABELS[role]) return null;
 
+  useNotificationGenerator();
+
   if (role === "admin") {
     return (
       <SidebarProvider>
@@ -60,6 +64,7 @@ const Dashboard = () => {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                <NotificationBell />
                 <span className="text-sm font-cairo text-muted-foreground">مرحباً، المدير</span>
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                   <span className="text-primary-foreground font-cairo font-bold text-sm">م</span>
