@@ -109,8 +109,22 @@ export function OrdersList() {
     setDateFrom(undefined);
     setDateTo(undefined);
   }
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from("pour_orders").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders-list"] });
+      queryClient.invalidateQueries({ queryKey: ["orders-stats"] });
+      toast({ title: "تم حذف الطلب بنجاح" });
+      setDeleteId(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" });
+    },
+  });
 
-  return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
