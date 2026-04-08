@@ -195,6 +195,22 @@ export function SmartTargetsPage() {
               />
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-cairo text-lg flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                تتبع الأداء اليومي
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DailyTrackingTable
+                count={parseInt(salespeopleCount) || 0}
+                targetCalls={result.dailyCalls}
+                targetVisits={result.dailyVisits}
+              />
+            </CardContent>
+          </Card>
         </>
       )}
     </div>
