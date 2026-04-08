@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminDashboardContent } from "@/components/AdminDashboardContent";
+import { ClientsManagement } from "@/components/ClientsManagement";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -46,7 +47,13 @@ const Dashboard = () => {
               </div>
             </header>
             <main className="flex-1 p-4 md:p-6 overflow-auto">
-              {!subpath ? <AdminDashboardContent /> : <Outlet />}
+              {!subpath ? (
+                <AdminDashboardContent />
+              ) : subpath === "clients" ? (
+                <ClientsManagement />
+              ) : (
+                <Outlet />
+              )}
             </main>
           </div>
         </div>

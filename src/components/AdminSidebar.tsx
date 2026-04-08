@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 
 const mainItems = [
   { title: "الرئيسية", url: "/dashboard/admin", icon: LayoutDashboard },
-  { title: "المستخدمين", url: "/dashboard/admin/users", icon: Users },
+  { title: "العملاء", url: "/dashboard/admin/clients", icon: Users },
   { title: "الطلبات", url: "/dashboard/admin/orders", icon: FileText },
   { title: "التقارير", url: "/dashboard/admin/reports", icon: TrendingUp },
 ];
