@@ -75,8 +75,8 @@ export function SmartTargetsPage() {
 
       const requiredQuantity = (fe + md) / pm;
       const perSalesperson = requiredQuantity / sc;
-      const dailyCalls = Math.ceil(perSalesperson / 0.1 / wd);
-      const dailyVisits = Math.ceil(dailyCalls / 2);
+      const dailyCalls = 15;
+      const dailyVisits = 5;
       const profitNeeded = fe + md;
       const now = new Date();
 
