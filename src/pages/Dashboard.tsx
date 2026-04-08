@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -20,25 +21,25 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 const Dashboard = () => {
   const { role } = useParams<{ role: string }>();
   const navigate = useNavigate();
+  const { session, userRole, isLoading, signOut } = useAuth();
 
   useEffect(() => {
-    const user = localStorage.getItem("rakiza_user");
-    if (!user) {
+    if (isLoading) return;
+    if (!session) {
       navigate("/");
       return;
     }
-    const parsed = JSON.parse(user);
-    if (parsed.role !== role) {
-      navigate(`/dashboard/${parsed.role}`);
+    if (userRole && userRole !== role) {
+      navigate(`/dashboard/${userRole}`);
     }
-  }, [role, navigate]);
+  }, [session, userRole, role, isLoading, navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("rakiza_user");
+  const handleLogout = async () => {
+    await signOut();
     navigate("/");
   };
 
-  if (!role || !ROLE_LABELS[role]) return null;
+  if (isLoading || !role || !ROLE_LABELS[role]) return null;
 
   return (
     <div className="min-h-screen bg-background">
