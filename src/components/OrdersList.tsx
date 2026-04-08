@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -17,7 +17,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { FileText, Plus, Search, CalendarIcon, X } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
+import { FileText, Plus, Search, CalendarIcon, X, Trash2 } from "lucide-react";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   done: { label: "مكتمل", variant: "default" },
@@ -34,11 +39,13 @@ function fmt(n: number) {
 
 export function OrdersList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [clientFilter, setClientFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["orders-list"],
@@ -102,6 +109,21 @@ export function OrdersList() {
     setDateFrom(undefined);
     setDateTo(undefined);
   }
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from("pour_orders").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders-list"] });
+      queryClient.invalidateQueries({ queryKey: ["orders-stats"] });
+      toast({ title: "تم حذف الطلب بنجاح" });
+      setDeleteId(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" });
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -179,6 +201,7 @@ export function OrdersList() {
                     <TableHead className="font-cairo text-right">المتبقي</TableHead>
                     <TableHead className="font-cairo text-right">التاريخ</TableHead>
                     <TableHead className="font-cairo text-right">الحالة</TableHead>
+                    <TableHead className="font-cairo text-right w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -202,6 +225,16 @@ export function OrdersList() {
                         <TableCell>
                           <Badge variant={st.variant} className="font-cairo text-[11px]">{st.label}</Badge>
                         </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); setDeleteId(o.id); }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -211,6 +244,26 @@ export function OrdersList() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cairo text-right">تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription className="font-cairo text-right">
+              هل أنت متأكد من حذف الطلب رقم {deleteId}؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
