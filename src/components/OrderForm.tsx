@@ -27,9 +27,10 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "ملغي" },
 ];
 
-export function OrderForm() {
+export function OrderForm({ orderId }: { orderId?: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isEdit = Boolean(orderId);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [form, setForm] = useState({
     client_id: "",
@@ -45,6 +46,44 @@ export function OrderForm() {
     aggregate_type: "",
     special_additives: "",
   });
+  const [loaded, setLoaded] = useState(false);
+
+  // Load existing order for edit
+  const { data: existingOrder } = useQuery({
+    queryKey: ["order-edit", orderId],
+    enabled: isEdit,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pour_orders")
+        .select("*")
+        .eq("id", Number(orderId))
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Populate form when order loads
+  if (existingOrder && !loaded) {
+    setForm({
+      client_id: String(existingOrder.client_id ?? ""),
+      station_name: existingOrder.station_name ?? "",
+      concrete_type: existingOrder.concrete_type ?? "",
+      quantity_m3: String(existingOrder.quantity_m3 ?? ""),
+      agreed_price_per_m3: String(existingOrder.agreed_price_per_m3 ?? ""),
+      cement_content: String(existingOrder.cement_content ?? ""),
+      address: existingOrder.address ?? "",
+      status: existingOrder.status ?? "pending",
+      notes: existingOrder.notes ?? "",
+      special_conditions: existingOrder.special_conditions ?? "",
+      aggregate_type: existingOrder.aggregate_type ?? "",
+      special_additives: existingOrder.special_additives ?? "",
+    });
+    if (existingOrder.scheduled_date) {
+      setScheduledDate(new Date(existingOrder.scheduled_date));
+    }
+    setLoaded(true);
+  }
 
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
@@ -84,8 +123,6 @@ export function OrderForm() {
         agreed_quantity_m3: quantity || null,
         agreed_price_per_m3: price || null,
         total_agreed_amount: total || null,
-        amount_paid: 0,
-        amount_remaining: total || null,
         cement_content: Number(form.cement_content) || null,
         address: form.address || null,
         status: form.status,
@@ -96,13 +133,19 @@ export function OrderForm() {
         scheduled_date: scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null,
         created_by_role: "admin",
       };
-      const { error } = await supabase.from("pour_orders").insert(payload);
-      if (error) throw error;
+      if (isEdit) {
+        const { error } = await supabase.from("pour_orders").update(payload).eq("id", Number(orderId));
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("pour_orders").insert({ ...payload, amount_paid: 0, amount_remaining: total || null });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders-stats"] });
       queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
-      toast({ title: "تم إنشاء الطلب بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["orders-list"] });
+      toast({ title: isEdit ? "تم تحديث الطلب بنجاح" : "تم إنشاء الطلب بنجاح" });
       navigate("/dashboard/admin/orders");
     },
     onError: (err: any) => {
@@ -133,7 +176,7 @@ export function OrderForm() {
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-2 mb-5">
         <FileText className="h-5 w-5 text-primary" />
-        <h2 className="text-xl font-cairo font-bold text-foreground">إنشاء طلب صب جديد</h2>
+        <h2 className="text-xl font-cairo font-bold text-foreground">{isEdit ? "تعديل طلب الصب" : "إنشاء طلب صب جديد"}</h2>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -326,7 +369,7 @@ export function OrderForm() {
               </Button>
               <Button type="submit" disabled={mutation.isPending} className="font-cairo gap-1">
                 {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {mutation.isPending ? "جاري الحفظ..." : "إنشاء الطلب"}
+                {mutation.isPending ? "جاري الحفظ..." : isEdit ? "حفظ التعديلات" : "إنشاء الطلب"}
               </Button>
             </div>
           </CardContent>
