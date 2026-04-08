@@ -170,6 +170,36 @@ export function MyClientsTab() {
     },
   });
 
+  const addClientMutation = useMutation({
+    mutationFn: async () => {
+      if (!addName.trim()) throw new Error("أدخل اسم العميل");
+      if (!addPhone.trim()) throw new Error("أدخل رقم الهاتف");
+      const { error } = await (supabase as any)
+        .from("clients")
+        .insert({
+          name: addName.trim(),
+          phone: addPhone.trim(),
+          status: addClassification,
+          notes: addNotes.trim() || null,
+          area: addArea.trim() || null,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      setAddDialogOpen(false);
+      setAddName("");
+      setAddPhone("");
+      setAddClassification("cold");
+      setAddNotes("");
+      setAddArea("");
+      toast({ title: "تم إضافة العميل بنجاح ✅" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
+  });
+
   const openEditDialog = (client: any) => {
     setSelectedClient(client);
     setEditName(client.name || "");
