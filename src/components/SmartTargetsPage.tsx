@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,16 +25,35 @@ export function SmartTargetsPage() {
   const [salespeopleCount, setSalespeopleCount] = useState("");
   const [result, setResult] = useState<TargetResult | null>(null);
 
-  const { data: latestTarget, isLoading } = useQuery({
+  // Load latest saved target
+  const { data: latestTarget } = useQuery({
     queryKey: ["latest-target"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("targets")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
+      if (data) {
+        setFixedExpenses(String(data.fixed_expenses || ""));
+        setMonthlyDebt(String(data.monthly_debt || ""));
+        setProfitPerMeter(String(data.profit_per_m3 || ""));
+        setWorkDays(String(data.working_days || "26"));
+        setSalespeopleCount(String(data.num_salespeople || ""));
+        if (data.target_m3 && data.num_salespeople) {
+          const rq = data.target_m3;
+          const ps = rq / data.num_salespeople;
+          setResult({
+            requiredQuantity: rq,
+            perSalesperson: ps,
+            dailyCalls: data.calls_per_day || Math.ceil(ps / 0.1 / (data.working_days || 26)),
+            dailyVisits: data.visits_per_day || Math.ceil(ps / 0.1 / (data.working_days || 26) / 2),
+            weeklyTarget: ps / ((data.working_days || 26) / 7),
+          });
+        }
+      }
       return data;
     },
   });
@@ -51,21 +70,30 @@ export function SmartTargetsPage() {
         throw new Error("يرجى ملء جميع الحقول بقيم صحيحة");
       }
 
-      const { error } = await supabase.from("targets").insert({
+      const requiredQuantity = (fe + md) / pm;
+      const perSalesperson = requiredQuantity / sc;
+      const dailyCalls = Math.ceil(perSalesperson / 0.1 / wd);
+      const dailyVisits = Math.ceil(dailyCalls / 2);
+      const profitNeeded = fe + md;
+      const now = new Date();
+
+      const { error } = await (supabase as any).from("targets").insert({
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
         fixed_expenses: fe,
         monthly_debt: md,
-        profit_per_meter: pm,
-        work_days: wd,
-        salespeople_count: sc,
+        profit_per_m3: pm,
+        working_days: wd,
+        num_salespeople: sc,
+        target_m3: requiredQuantity,
+        debt_amount: md,
+        profit_needed: profitNeeded,
+        calls_per_day: dailyCalls,
+        visits_per_day: dailyVisits,
       });
       if (error) throw error;
 
-      const requiredQuantity = (fe + md) / pm;
-      const perSalesperson = requiredQuantity / sc;
-      const dailyCalls = perSalesperson / 0.1 / wd;
-      const dailyVisits = dailyCalls / 2;
       const weeklyTarget = perSalesperson / (wd / 7);
-
       return { requiredQuantity, perSalesperson, dailyCalls, dailyVisits, weeklyTarget };
     },
     onSuccess: (data) => {
@@ -77,8 +105,6 @@ export function SmartTargetsPage() {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
     },
   });
-
-  const handleCalculate = () => saveMutation.mutate();
 
   const resultCards = result
     ? [
@@ -108,60 +134,26 @@ export function SmartTargetsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="font-cairo">المصاريف الثابتة (جنيه)</Label>
-              <Input
-                type="number"
-                placeholder="مثال: 50000"
-                value={fixedExpenses}
-                onChange={(e) => setFixedExpenses(e.target.value)}
-                className="font-cairo"
-              />
+              <Input type="number" placeholder="مثال: 50000" value={fixedExpenses} onChange={(e) => setFixedExpenses(e.target.value)} className="font-cairo" />
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">المديونية الشهرية (جنيه)</Label>
-              <Input
-                type="number"
-                placeholder="مثال: 30000"
-                value={monthlyDebt}
-                onChange={(e) => setMonthlyDebt(e.target.value)}
-                className="font-cairo"
-              />
+              <Input type="number" placeholder="مثال: 30000" value={monthlyDebt} onChange={(e) => setMonthlyDebt(e.target.value)} className="font-cairo" />
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">متوسط ربح المتر (جنيه)</Label>
-              <Input
-                type="number"
-                placeholder="مثال: 50"
-                value={profitPerMeter}
-                onChange={(e) => setProfitPerMeter(e.target.value)}
-                className="font-cairo"
-              />
+              <Input type="number" placeholder="مثال: 50" value={profitPerMeter} onChange={(e) => setProfitPerMeter(e.target.value)} className="font-cairo" />
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">عدد أيام العمل في الشهر</Label>
-              <Input
-                type="number"
-                placeholder="مثال: 26"
-                value={workDays}
-                onChange={(e) => setWorkDays(e.target.value)}
-                className="font-cairo"
-              />
+              <Input type="number" placeholder="مثال: 26" value={workDays} onChange={(e) => setWorkDays(e.target.value)} className="font-cairo" />
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">عدد البائعين</Label>
-              <Input
-                type="number"
-                placeholder="مثال: 5"
-                value={salespeopleCount}
-                onChange={(e) => setSalespeopleCount(e.target.value)}
-                className="font-cairo"
-              />
+              <Input type="number" placeholder="مثال: 5" value={salespeopleCount} onChange={(e) => setSalespeopleCount(e.target.value)} className="font-cairo" />
             </div>
           </div>
-          <Button
-            onClick={handleCalculate}
-            disabled={saveMutation.isPending}
-            className="mt-6 font-cairo gap-2"
-          >
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="mt-6 font-cairo gap-2">
             <Calculator className="h-4 w-4" />
             {saveMutation.isPending ? "جاري الحساب..." : "احسب الهدف"}
           </Button>
