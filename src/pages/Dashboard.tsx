@@ -13,6 +13,7 @@ import { OrderForm } from "@/components/OrderForm";
 import { FinancePage } from "@/components/FinancePage";
 import { OrdersList } from "@/components/OrdersList";
 import { SettingsPage } from "@/components/SettingsPage";
+import { SalesPage } from "@/components/SalesPage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
@@ -74,6 +75,8 @@ const Dashboard = () => {
             <main className="flex-1 p-4 md:p-6 overflow-auto">
               {!subpath ? (
                 <AdminDashboardContent />
+              ) : subpath === "sales" ? (
+                <SalesPage />
               ) : subpath === "clients" ? (
                 <ClientsManagement />
               ) : subpath === "stations" ? (
