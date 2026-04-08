@@ -43,6 +43,7 @@ export function MyClientsTab() {
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [callResult, setCallResult] = useState("");
   const [callNotes, setCallNotes] = useState("");
@@ -55,6 +56,12 @@ export function MyClientsTab() {
   const [editClassification, setEditClassification] = useState("cold");
   const [editNotes, setEditNotes] = useState("");
   const [editArea, setEditArea] = useState("");
+  // Add form state
+  const [addName, setAddName] = useState("");
+  const [addPhone, setAddPhone] = useState("");
+  const [addClassification, setAddClassification] = useState("cold");
+  const [addNotes, setAddNotes] = useState("");
+  const [addArea, setAddArea] = useState("");
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["my-clients", user?.id, filter],
