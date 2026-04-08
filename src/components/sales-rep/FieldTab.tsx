@@ -8,9 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { MapPin, Plus, Clock, Mic, MicOff, Contact } from "lucide-react";
+import { MapPin, Plus, Clock, Mic, MicOff, Contact, CalendarDays, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+
+const CLASSIFICATIONS = [
+  { value: "hot", label: "ساخن" },
+  { value: "warm", label: "دافئ" },
+  { value: "cold", label: "بارد" },
+  { value: "inactive", label: "خامل" },
+];
 
 export function FieldTab() {
   const { user } = useAuth();
@@ -22,6 +33,8 @@ export function FieldTab() {
   const [clientPhone, setClientPhone] = useState("");
   const [area, setArea] = useState("");
   const [notes, setNotes] = useState("");
+  const [classification, setClassification] = useState("cold");
+  const [pourDate, setPourDate] = useState<Date>();
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
@@ -74,8 +87,9 @@ export function FieldTab() {
           area: area.trim() || null,
           notes: notes.trim() || null,
           assigned_to: user!.id,
-          classification: "cold",
+          classification,
           last_contact: new Date().toISOString(),
+          expected_pour_date: pourDate ? pourDate.toISOString() : null,
         })
         .select("id")
         .single();
@@ -104,6 +118,8 @@ export function FieldTab() {
       setClientPhone("");
       setArea("");
       setNotes("");
+      setClassification("cold");
+      setPourDate(undefined);
       toast({ title: "تم تسجيل الزيارة بنجاح ✅" });
     },
     onError: (err: Error) => {
