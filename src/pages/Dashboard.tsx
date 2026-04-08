@@ -54,6 +54,7 @@ const Dashboard = () => {
                 <ClientsManagement />
               ) : subpath === "stations" ? (
                 <StationsManagement />
+              ) : (
                 <Outlet />
               )}
             </main>
