@@ -304,6 +304,17 @@ export function MyClientsTab() {
                       تحويل للمتابعة
                     </Button>
                   )}
+
+                  {/* Edit */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="font-cairo gap-1"
+                    onClick={() => openEditDialog(client)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    تعديل
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -394,6 +405,52 @@ export function MyClientsTab() {
               className="w-full font-cairo"
             >
               {savePourDateMutation.isPending ? "جاري الحفظ..." : "حفظ الموعد"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Edit Client Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-cairo">تعديل بيانات العميل</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-cairo">اسم العميل</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="font-cairo" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">رقم الهاتف</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="font-cairo" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">التصنيف</Label>
+              <Select value={editClassification} onValueChange={setEditClassification}>
+                <SelectTrigger className="font-cairo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICATIONS.filter((c) => c.value !== "all").map((c) => (
+                    <SelectItem key={c.value} value={c.value} className="font-cairo">{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">المنطقة</Label>
+              <Input value={editArea} onChange={(e) => setEditArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">ملاحظات</Label>
+              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="font-cairo min-h-[80px]" />
+            </div>
+            <Button
+              onClick={() => editClientMutation.mutate()}
+              disabled={editClientMutation.isPending}
+              className="w-full font-cairo"
+            >
+              {editClientMutation.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
             </Button>
           </div>
         </DialogContent>
