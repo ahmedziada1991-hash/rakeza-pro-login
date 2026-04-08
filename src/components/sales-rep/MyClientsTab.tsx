@@ -466,3 +466,64 @@ export function MyClientsTab() {
     </div>
   );
 }
+
+const RESULT_LABELS: Record<string, string> = {
+  interested: "مهتم",
+  not_interested: "غير مهتم",
+  postponed: "تأجيل",
+  no_answer: "لم يرد",
+  completed: "مكتمل",
+};
+
+function ClientCallHistory({ clientId }: { clientId: string | number }) {
+  const { data: calls, isLoading } = useQuery({
+    queryKey: ["client-call-history", clientId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("call_logs")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("call_date", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  if (isLoading) {
+    return <p className="text-xs font-cairo text-muted-foreground py-2 text-center">جاري التحميل...</p>;
+  }
+
+  if (!calls?.length) {
+    return <p className="text-xs font-cairo text-muted-foreground py-2 text-center">لا توجد مكالمات سابقة</p>;
+  }
+
+  return (
+    <div className="border-t border-border pt-3 space-y-2">
+      <p className="text-xs font-cairo font-bold text-muted-foreground">📞 سجل المكالمات ({calls.length})</p>
+      {calls.map((call: any) => (
+        <div key={call.id} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50 text-sm">
+          <Clock className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-cairo text-foreground font-medium">
+                {RESULT_LABELS[call.result] || call.result}
+              </span>
+              <span className="text-xs text-muted-foreground font-cairo">
+                {call.call_date
+                  ? new Date(call.call_date).toLocaleDateString("ar-EG", { day: "numeric", month: "short", year: "numeric" })
+                  : new Date(call.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+              {call.duration_minutes > 0 && (
+                <span className="text-xs text-muted-foreground font-cairo">{call.duration_minutes} د</span>
+              )}
+            </div>
+            {call.notes && (
+              <p className="text-xs text-muted-foreground font-cairo mt-1 truncate">{call.notes}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
