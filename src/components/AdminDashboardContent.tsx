@@ -264,6 +264,7 @@ export function AdminDashboardContent() {
               {quickActions.map((action) => (
                 <button
                   key={action.title}
+                  onClick={() => navigate(action.url)}
                   className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/70 transition-colors text-right"
                 >
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
