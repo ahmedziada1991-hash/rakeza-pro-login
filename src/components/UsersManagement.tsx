@@ -38,7 +38,7 @@ export function UsersManagement() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
-  const [newUser, setNewUser] = useState({ email: "", password: "", name: "", role: "sales" });
+  const [newUser, setNewUser] = useState({ email: "", password: "", name: "", role: "sales", whatsapp: "" });
 
   // Fetch users from user_roles
   const { data: users, isLoading } = useQuery({
@@ -57,7 +57,7 @@ export function UsersManagement() {
       const userIds = data.map((u) => u.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, email, full_name")
+        .select("id, email, full_name, whatsapp")
         .in("id", userIds);
 
       const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
@@ -66,6 +66,7 @@ export function UsersManagement() {
         ...u,
         email: profileMap.get(u.user_id)?.email ?? "—",
         name: profileMap.get(u.user_id)?.full_name ?? "—",
+        whatsapp: profileMap.get(u.user_id)?.whatsapp ?? "—",
       }));
     },
   });
@@ -128,13 +129,14 @@ export function UsersManagement() {
         id: authData.user.id,
         email: newUser.email,
         full_name: newUser.name,
+        whatsapp: newUser.whatsapp || null,
       }).select();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast({ title: "تم إضافة المستخدم بنجاح" });
       setAddOpen(false);
-      setNewUser({ email: "", password: "", name: "", role: "sales" });
+      setNewUser({ email: "", password: "", name: "", role: "sales", whatsapp: "" });
     },
     onError: (err: any) => {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
@@ -175,6 +177,7 @@ export function UsersManagement() {
                 <TableRow>
                   <TableHead className="font-cairo text-right">الاسم</TableHead>
                   <TableHead className="font-cairo text-right">البريد الإلكتروني</TableHead>
+                  <TableHead className="font-cairo text-right">الواتساب</TableHead>
                   <TableHead className="font-cairo text-right">الدور</TableHead>
                   <TableHead className="font-cairo text-right">الحالة</TableHead>
                   <TableHead className="font-cairo text-right">إجراءات</TableHead>
@@ -185,6 +188,7 @@ export function UsersManagement() {
                   <TableRow key={u.id}>
                     <TableCell className="font-cairo font-medium">{u.name}</TableCell>
                     <TableCell className="font-cairo text-muted-foreground text-sm" dir="ltr">{u.email}</TableCell>
+                    <TableCell className="font-cairo text-muted-foreground text-sm" dir="ltr">{u.whatsapp}</TableCell>
                     <TableCell>
                       <Badge variant={ROLE_COLORS[u.role] ?? "outline"} className="font-cairo text-[11px]">
                         {ROLES.find((r) => r.value === u.role)?.label ?? u.role}
@@ -233,6 +237,10 @@ export function UsersManagement() {
             <div className="space-y-1.5">
               <Label className="font-cairo">البريد الإلكتروني *</Label>
               <Input value={newUser.email} onChange={(e) => setNewUser((f) => ({ ...f, email: e.target.value }))} className="font-cairo" dir="ltr" type="email" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-cairo">رقم الواتساب</Label>
+              <Input value={newUser.whatsapp} onChange={(e) => setNewUser((f) => ({ ...f, whatsapp: e.target.value }))} className="font-cairo" dir="ltr" placeholder="+201xxxxxxxxx" />
             </div>
             <div className="space-y-1.5">
               <Label className="font-cairo">كلمة المرور *</Label>
