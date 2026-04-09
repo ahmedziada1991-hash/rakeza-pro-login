@@ -143,6 +143,40 @@ export function MonthlyGoals() {
         </CardContent>
       </Card>
 
+      {/* Weekly Chart */}
+      <Card>
+        <CardContent className="p-4 space-y-2">
+          <h3 className="font-cairo font-medium text-sm text-foreground">أداء الأسابيع</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart
+              data={adjustedWeekly.map((w, i) => ({
+                name: w.label,
+                هدف: Math.round(w.adjustedTarget),
+                منجز: Math.round(w.achieved),
+              }))}
+              margin={{ top: 5, right: 0, left: -20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} className="font-cairo" />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ fontFamily: "Cairo", fontSize: 12, direction: "rtl" }}
+                formatter={(value: number, name: string) => [`${value} م³`, name]}
+              />
+              <Bar dataKey="هدف" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} barSize={20} />
+              <Bar dataKey="منجز" radius={[4, 4, 0, 0]} barSize={20}>
+                {adjustedWeekly.map((w, i) => {
+                  const weekTarget = Math.round(w.adjustedTarget);
+                  const percent = weekTarget > 0 ? (w.achieved / weekTarget) * 100 : 0;
+                  const color = percent >= 80 ? "hsl(var(--chart-2))" : percent >= 50 ? "hsl(var(--chart-4))" : "hsl(var(--destructive))";
+                  return <Cell key={i} fill={color} />;
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       {/* Weekly breakdown */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {adjustedWeekly.map((week, i) => {
