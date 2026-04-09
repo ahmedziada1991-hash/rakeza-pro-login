@@ -56,6 +56,7 @@ export function MyClientsTab() {
   const [editClassification, setEditClassification] = useState("cold");
   const [editNotes, setEditNotes] = useState("");
   const [editArea, setEditArea] = useState("");
+  const [editPourDate, setEditPourDate] = useState<Date | undefined>();
   // Add form state
   const [addName, setAddName] = useState("");
   const [addPhone, setAddPhone] = useState("");
