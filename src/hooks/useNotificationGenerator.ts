@@ -64,7 +64,7 @@ export function useNotificationGenerator() {
           const orderMap = new Map<number, number>();
           orders.forEach((o: any) => {
             if (o.status !== "cancelled") {
-              orderMap.set(o.client_id, (orderMap.get(o.client_id) || 0) + Number(o.total_amount || 0));
+              orderMap.set(o.client_id, (orderMap.get(o.client_id) || 0) + Number(o.quantity_m3 || 0) * Number(o.price_per_m3 || 0));
             }
           });
 
