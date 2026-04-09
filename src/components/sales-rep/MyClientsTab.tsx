@@ -293,18 +293,11 @@ export function MyClientsTab() {
 
       {isLoading ? (
         <p className="text-center font-cairo text-muted-foreground py-8">جاري التحميل...</p>
-      ) : !(() => {
-        const q = searchQuery.trim().toLowerCase();
-        return (clients || []).filter((c: any) => !q || (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q));
-      })().length ? (
+      ) : !filteredClients.length ? (
         <p className="text-center font-cairo text-muted-foreground py-8">لا يوجد عملاء</p>
       ) : (
         <div className="space-y-3">
-          {(clients || []).filter((client: any) => {
-            const q = searchQuery.trim().toLowerCase();
-            if (!q) return true;
-            return (client.name || "").toLowerCase().includes(q) || (client.phone || "").includes(q);
-          }).map((client: any) => (
+          {filteredClients.map((client: any) => (
             <Card key={client.id}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={() => openEditDialog(client)}>
