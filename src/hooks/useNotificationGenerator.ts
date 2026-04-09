@@ -95,7 +95,39 @@ export function useNotificationGenerator() {
         }
       } catch (e) { /* silent */ }
 
-      // 5. Pending orders > 48 hours
+      // 2. Today's pour dates - notify sales rep
+      try {
+        const todayStr = now.toISOString().split("T")[0];
+        const { data: pourClients } = await supabase
+          .from("clients")
+          .select("id, name, phone")
+          .gte("expected_pour_date", `${todayStr}T00:00:00`)
+          .lte("expected_pour_date", `${todayStr}T23:59:59`);
+
+        if (pourClients && pourClients.length > 0) {
+          for (const client of pourClients) {
+            addIfNew(
+              "pour_date_today",
+              `موعد صبة ${(client as any).name} النهارده - كلمه!`,
+              `العميل ${(client as any).name} عنده موعد صبة اليوم. تواصل معه الآن.`,
+              { client_id: (client as any).id }
+            );
+          }
+
+          // Browser push notification
+          if ("Notification" in window && Notification.permission === "granted") {
+            const names = pourClients.map((c: any) => c.name).join("، ");
+            new Notification("🔔 مواعيد صبة اليوم", {
+              body: `عندك ${pourClients.length} عميل عندهم صبة النهارده: ${names}`,
+              icon: "/favicon.ico",
+            });
+          } else if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+          }
+        }
+      } catch (e) { /* silent */ }
+
+      // 3. Pending orders > 48 hours
       try {
         const cutoff = new Date(now.getTime() - 48 * 3600000).toISOString();
         const { data: pendingOrders } = await supabase
