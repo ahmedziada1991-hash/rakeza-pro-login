@@ -288,8 +288,15 @@ export function MyClientsTab() {
 
       {isLoading ? (
         <p className="text-center font-cairo text-muted-foreground py-8">جاري التحميل...</p>
-      ) : !clients?.length ? (
-        <p className="text-center font-cairo text-muted-foreground py-8">لا يوجد عملاء</p>
+      ) : (() => {
+        const q = searchQuery.trim().toLowerCase();
+        const filtered = (clients || []).filter((c: any) => {
+          if (!q) return true;
+          return (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q);
+        });
+        return !filtered.length ? (
+          <p className="text-center font-cairo text-muted-foreground py-8">لا يوجد عملاء</p>
+        ) : (
       ) : (
         <div className="space-y-3">
           {clients.map((client: any) => (
