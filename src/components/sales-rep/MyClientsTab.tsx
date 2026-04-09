@@ -158,6 +158,7 @@ export function MyClientsTab() {
           status: editClassification,
           notes: editNotes.trim() || null,
           area: editArea.trim() || null,
+          expected_pour_date: editPourDate ? editPourDate.toISOString() : null,
         })
         .eq("id", selectedClient.id);
       if (error) throw error;
