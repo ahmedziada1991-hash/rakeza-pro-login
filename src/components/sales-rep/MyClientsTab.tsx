@@ -309,6 +309,20 @@ export function MyClientsTab() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  {/* Call */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="font-cairo gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10"
+                    onClick={() => {
+                      const phone = (client.phone || "").replace(/[^0-9]/g, "");
+                      window.open(`tel:${phone}`);
+                    }}
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    اتصال
+                  </Button>
+
                   {/* WhatsApp */}
                   <Button
                     size="sm"
