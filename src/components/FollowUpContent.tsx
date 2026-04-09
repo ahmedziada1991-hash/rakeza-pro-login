@@ -16,7 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import {
   Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft,
-  Search, ChevronDown, ChevronUp, AlertTriangle, Clock, Bell
+  Search, ChevronDown, ChevronUp, AlertTriangle, Clock, Bell,
+  Users, Flame, Snowflake, TrendingUp, CheckCircle2
 } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -190,6 +191,42 @@ export function FollowUpContent() {
   return (
     <div className="space-y-4" dir="rtl">
       <h2 className="text-xl font-cairo font-bold text-foreground">لوحة المتابعة</h2>
+
+      {/* Stats cards */}
+      {(() => {
+        const hotCount = clients.filter((c: any) => c.status === "hot").length;
+        const warmCount = clients.filter((c: any) => c.status === "warm").length;
+        const coldCount = clients.filter((c: any) => c.status === "cold" || c.status === "inactive").length;
+        const activeCount = clients.filter((c: any) => c.status === "active" || c.status === "followup").length;
+        const executionCount = clients.filter((c: any) => c.status === "execution").length;
+        const total = clients.length;
+        const completionRate = total > 0 ? Math.round(((activeCount + executionCount) / total) * 100) : 0;
+
+        const stats = [
+          { label: "إجمالي العملاء", value: total, icon: Users, color: "text-primary", bg: "bg-primary/10" },
+          { label: "ساخن / دافئ", value: `${hotCount} / ${warmCount}`, icon: Flame, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "بارد / خامل", value: coldCount, icon: Snowflake, color: "text-chart-1", bg: "bg-chart-1/10" },
+          { label: "نسبة الإنجاز", value: `${completionRate}%`, icon: CheckCircle2, color: "text-chart-2", bg: "bg-chart-2/10" },
+        ];
+
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {stats.map((s, i) => (
+              <Card key={i}>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", s.bg)}>
+                    <s.icon className={cn("h-5 w-5", s.color)} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold font-cairo text-foreground leading-tight">{s.value}</p>
+                    <p className="text-[11px] text-muted-foreground font-cairo truncate">{s.label}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Today alerts banner */}
       {todayAlerts.length > 0 && (
