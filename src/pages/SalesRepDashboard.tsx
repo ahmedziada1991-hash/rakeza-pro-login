@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TodayTargets } from "@/components/sales-rep/TodayTargets";
-import { MonthlyGoals } from "@/components/sales-rep/MonthlyGoals";
 import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
-import { Users, MapPin, LogOut } from "lucide-react";
+import { Users, MapPin, LogOut, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const SalesRepDashboard = () => {
@@ -44,8 +43,15 @@ const SalesRepDashboard = () => {
         {/* Section 1: Today's Targets */}
         <TodayTargets />
 
-        {/* Section 2: Monthly Goals */}
-        <MonthlyGoals />
+        {/* Monthly Goals Button */}
+        <Button
+          variant="outline"
+          className="w-full font-cairo gap-2"
+          onClick={() => navigate("/dashboard/sales-rep/goals")}
+        >
+          <Target className="h-4 w-4" />
+          أهدافي الشهرية
+        </Button>
 
         {/* Tabs for Clients & Field */}
         <Tabs defaultValue="clients" dir="rtl">

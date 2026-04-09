@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import SalesRepDashboard from "./pages/SalesRepDashboard.tsx";
+import SalesRepGoals from "./pages/SalesRepGoals.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard/sales-rep" element={<SalesRepDashboard />} />
+            <Route path="/dashboard/sales-rep/goals" element={<SalesRepGoals />} />
             <Route path="/dashboard/:role/*" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
