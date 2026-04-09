@@ -281,8 +281,8 @@ export function MyClientsTab() {
       ) : (
         <div className="space-y-3">
           {clients.map((client: any) => (
-            <Card key={client.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => openEditDialog(client)}>
-              <CardContent className="p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <Card key={client.id}>
+              <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h3 className="font-cairo font-bold text-foreground">{client.name}</h3>
