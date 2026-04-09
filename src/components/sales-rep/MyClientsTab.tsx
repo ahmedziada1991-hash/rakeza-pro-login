@@ -499,6 +499,20 @@ export function MyClientsTab() {
               <Input value={editArea} onChange={(e) => setEditArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
             </div>
             <div className="space-y-2">
+              <Label className="font-cairo">موعد الصبة التقريبي</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !editPourDate && "text-muted-foreground")}>
+                    <CalendarDays className="h-4 w-4 ml-2" />
+                    {editPourDate ? format(editPourDate, "yyyy-MM-dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={editPourDate} onSelect={setEditPourDate} className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="font-cairo min-h-[80px]" />
             </div>
