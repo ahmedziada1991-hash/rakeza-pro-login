@@ -16,7 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import {
   Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft,
-  Search, ChevronDown, ChevronUp, AlertTriangle, Clock, Bell
+  Search, ChevronDown, ChevronUp, AlertTriangle, Clock, Bell,
+  Users, Flame, Snowflake, TrendingUp, CheckCircle2
 } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { ar } from "date-fns/locale";
