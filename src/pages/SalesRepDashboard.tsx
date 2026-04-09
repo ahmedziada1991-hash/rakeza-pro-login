@@ -7,7 +7,7 @@ import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
-import { Users, MapPin, LogOut, Target } from "lucide-react";
+import { Users, MapPin, LogOut, Target, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const SalesRepDashboard = () => {
