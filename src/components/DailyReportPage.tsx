@@ -1,20 +1,29 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Phone, MapPin, CalendarDays, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export function DailyReportPage() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
-  const todayLabel = now.toLocaleDateString("ar-EG", {
+  const todayStr = format(selectedDate, "yyyy-MM-dd");
+  const todayLabel = selectedDate.toLocaleDateString("ar-EG", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
-  const isAfter2PM = now.getHours() >= 14;
+  const isToday = format(now, "yyyy-MM-dd") === todayStr;
+  const isAfter2PM = isToday && now.getHours() >= 14;
 
   // Get all salespeople
   const { data: salesUsers } = useQuery({
@@ -135,9 +144,25 @@ export function DailyReportPage() {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-xl font-cairo font-bold text-foreground">📋 تقرير اليوم</h2>
-        <span className="text-sm font-cairo text-muted-foreground">{todayLabel}</span>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-xl font-cairo font-bold text-foreground">📋 {isToday ? "تقرير اليوم" : "تقرير يوم"}</h2>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="font-cairo gap-2">
+              <CalendarDays className="h-4 w-4" />
+              {todayLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(d) => d && setSelectedDate(d)}
+              className="p-3 pointer-events-auto"
+              disabled={(date) => date > new Date()}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Alert: uncalled pour clients after 2PM */}
