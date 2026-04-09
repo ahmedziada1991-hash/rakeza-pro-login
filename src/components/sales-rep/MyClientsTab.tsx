@@ -283,7 +283,7 @@ export function MyClientsTab() {
           {clients.map((client: any) => (
             <Card key={client.id}>
               <CardContent className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={() => openEditDialog(client)}>
                   <div>
                     <h3 className="font-cairo font-bold text-foreground">{client.name}</h3>
                     <p className="text-sm text-muted-foreground font-cairo direction-ltr">{client.phone}</p>
