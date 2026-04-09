@@ -50,7 +50,7 @@ export function useNotificationGenerator() {
       // 1. Overdue payments (> 30 days)
       try {
         const { data: clients } = await supabase.from("clients").select("id, name");
-        const { data: orders } = await supabase.from("pour_orders").select("id, client_id, total_amount, status");
+        const { data: orders } = await supabase.from("pour_orders").select("id, client_id, quantity_m3, price_per_m3, status");
         const { data: payments } = await supabase.from("payments").select("client_id, amount, payment_date");
 
         if (clients && orders && payments) {
@@ -64,7 +64,7 @@ export function useNotificationGenerator() {
           const orderMap = new Map<number, number>();
           orders.forEach((o: any) => {
             if (o.status !== "cancelled") {
-              orderMap.set(o.client_id, (orderMap.get(o.client_id) || 0) + Number(o.total_amount || 0));
+              orderMap.set(o.client_id, (orderMap.get(o.client_id) || 0) + Number(o.quantity_m3 || 0) * Number(o.price_per_m3 || 0));
             }
           });
 
