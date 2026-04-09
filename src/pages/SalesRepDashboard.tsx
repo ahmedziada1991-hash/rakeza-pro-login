@@ -43,15 +43,24 @@ const SalesRepDashboard = () => {
         {/* Section 1: Today's Targets */}
         <TodayTargets />
 
-        {/* Monthly Goals Button */}
-        <Button
-          variant="outline"
-          className="w-full font-cairo gap-2"
-          onClick={() => navigate("/dashboard/sales-rep/goals")}
-        >
-          <Target className="h-4 w-4" />
-          أهدافي الشهرية
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            className="font-cairo gap-2"
+            onClick={() => navigate("/dashboard/sales-rep/goals")}
+          >
+            <Target className="h-4 w-4" />
+            أهدافي الشهرية
+          </Button>
+          <Button
+            variant="outline"
+            className="font-cairo gap-2"
+            onClick={() => navigate("/dashboard/sales-rep/calendar")}
+          >
+            <CalendarDays className="h-4 w-4" />
+            تقويم الصبات
+          </Button>
+        </div>
 
         {/* Tabs for Clients & Field */}
         <Tabs defaultValue="clients" dir="rtl">
