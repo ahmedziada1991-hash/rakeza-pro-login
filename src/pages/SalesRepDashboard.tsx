@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TodayTargets } from "@/components/sales-rep/TodayTargets";
+import { MonthlyGoals } from "@/components/sales-rep/MonthlyGoals";
 import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
