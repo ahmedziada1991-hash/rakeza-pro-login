@@ -7,7 +7,7 @@ import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
-import { Users, MapPin, LogOut, Target } from "lucide-react";
+import { Users, MapPin, LogOut, Target, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const SalesRepDashboard = () => {
@@ -43,15 +43,24 @@ const SalesRepDashboard = () => {
         {/* Section 1: Today's Targets */}
         <TodayTargets />
 
-        {/* Monthly Goals Button */}
-        <Button
-          variant="outline"
-          className="w-full font-cairo gap-2"
-          onClick={() => navigate("/dashboard/sales-rep/goals")}
-        >
-          <Target className="h-4 w-4" />
-          أهدافي الشهرية
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            className="font-cairo gap-2"
+            onClick={() => navigate("/dashboard/sales-rep/goals")}
+          >
+            <Target className="h-4 w-4" />
+            أهدافي الشهرية
+          </Button>
+          <Button
+            variant="outline"
+            className="font-cairo gap-2"
+            onClick={() => navigate("/dashboard/sales-rep/calendar")}
+          >
+            <CalendarDays className="h-4 w-4" />
+            تقويم الصبات
+          </Button>
+        </div>
 
         {/* Tabs for Clients & Field */}
         <Tabs defaultValue="clients" dir="rtl">

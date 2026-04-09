@@ -7,6 +7,7 @@ import {
   Building2,
   CreditCard,
   LogOut,
+  CalendarDays,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,7 @@ const navItems = [
   { title: "الماليات", url: "/dashboard/admin/finance", icon: CreditCard },
   { title: "التقارير", url: "/dashboard/admin/reports", icon: TrendingUp },
   { title: "الأهداف الذكية", url: "/dashboard/admin/targets", icon: LayoutDashboard },
+  { title: "تقويم الصبات", url: "/dashboard/admin/calendar", icon: CalendarDays },
   { title: "الإعدادات", url: "/dashboard/admin/settings", icon: Settings },
 ];
 

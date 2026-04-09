@@ -8,6 +8,7 @@ import Index from "./pages/Index.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import SalesRepDashboard from "./pages/SalesRepDashboard.tsx";
 import SalesRepGoals from "./pages/SalesRepGoals.tsx";
+import SalesRepCalendar from "./pages/SalesRepCalendar.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/dashboard/sales-rep" element={<SalesRepDashboard />} />
             <Route path="/dashboard/sales-rep/goals" element={<SalesRepGoals />} />
+            <Route path="/dashboard/sales-rep/calendar" element={<SalesRepCalendar />} />
             <Route path="/dashboard/:role/*" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
