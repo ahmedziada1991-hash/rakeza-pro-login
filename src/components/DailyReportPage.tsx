@@ -144,9 +144,25 @@ export function DailyReportPage() {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-xl font-cairo font-bold text-foreground">📋 تقرير اليوم</h2>
-        <span className="text-sm font-cairo text-muted-foreground">{todayLabel}</span>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-xl font-cairo font-bold text-foreground">📋 {isToday ? "تقرير اليوم" : "تقرير يوم"}</h2>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="font-cairo gap-2">
+              <CalendarDays className="h-4 w-4" />
+              {todayLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(d) => d && setSelectedDate(d)}
+              className="p-3 pointer-events-auto"
+              disabled={(date) => date > new Date()}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Alert: uncalled pour clients after 2PM */}
