@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TodayTargets } from "@/components/sales-rep/TodayTargets";
+import { MonthlyGoals } from "@/components/sales-rep/MonthlyGoals";
 import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -42,6 +43,9 @@ const SalesRepDashboard = () => {
       <main className="p-4 max-w-2xl mx-auto space-y-6 pb-8">
         {/* Section 1: Today's Targets */}
         <TodayTargets />
+
+        {/* Section 2: Monthly Goals */}
+        <MonthlyGoals />
 
         {/* Tabs for Clients & Field */}
         <Tabs defaultValue="clients" dir="rtl">
