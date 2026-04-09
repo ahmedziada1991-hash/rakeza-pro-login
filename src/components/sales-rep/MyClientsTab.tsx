@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus, Contact } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus, Contact, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export function MyClientsTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
@@ -251,6 +252,11 @@ export function MyClientsTab() {
     ) : null;
   };
 
+  const filteredClients = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    return (clients || []).filter((c: any) => !q || (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q));
+  })();
+
   return (
     <div className="space-y-4">
       {/* Add client button */}
@@ -258,6 +264,17 @@ export function MyClientsTab() {
         <Plus className="h-4 w-4" />
         إضافة عميل جديد
       </Button>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="بحث بالاسم أو رقم الهاتف..."
+          className="font-cairo pr-9"
+        />
+      </div>
 
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
@@ -276,11 +293,11 @@ export function MyClientsTab() {
 
       {isLoading ? (
         <p className="text-center font-cairo text-muted-foreground py-8">جاري التحميل...</p>
-      ) : !clients?.length ? (
+      ) : !filteredClients.length ? (
         <p className="text-center font-cairo text-muted-foreground py-8">لا يوجد عملاء</p>
       ) : (
         <div className="space-y-3">
-          {clients.map((client: any) => (
+          {filteredClients.map((client: any) => (
             <Card key={client.id}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={() => openEditDialog(client)}>
