@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import SalesRepDashboard from "./pages/SalesRepDashboard.tsx";
 import SalesRepGoals from "./pages/SalesRepGoals.tsx";
 import SalesRepCalendar from "./pages/SalesRepCalendar.tsx";
+import FollowUpDashboard from "./pages/FollowUpDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
