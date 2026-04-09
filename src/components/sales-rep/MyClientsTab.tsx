@@ -260,6 +260,17 @@ export function MyClientsTab() {
         إضافة عميل جديد
       </Button>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="بحث بالاسم أو رقم الهاتف..."
+          className="font-cairo pr-9"
+        />
+      </div>
+
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
         {CLASSIFICATIONS.map((c) => (
