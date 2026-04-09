@@ -56,6 +56,7 @@ export function MyClientsTab() {
   const [editClassification, setEditClassification] = useState("cold");
   const [editNotes, setEditNotes] = useState("");
   const [editArea, setEditArea] = useState("");
+  const [editPourDate, setEditPourDate] = useState<Date | undefined>();
   // Add form state
   const [addName, setAddName] = useState("");
   const [addPhone, setAddPhone] = useState("");
@@ -157,6 +158,7 @@ export function MyClientsTab() {
           status: editClassification,
           notes: editNotes.trim() || null,
           area: editArea.trim() || null,
+          expected_pour_date: editPourDate ? editPourDate.toISOString() : null,
         })
         .eq("id", selectedClient.id);
       if (error) throw error;
@@ -210,6 +212,7 @@ export function MyClientsTab() {
     setEditClassification(client.status || "active");
     setEditNotes(client.notes || "");
     setEditArea(client.area || "");
+    setEditPourDate(client.expected_pour_date ? new Date(client.expected_pour_date) : undefined);
     setEditDialogOpen(true);
   };
 
@@ -280,7 +283,7 @@ export function MyClientsTab() {
           {clients.map((client: any) => (
             <Card key={client.id}>
               <CardContent className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={() => openEditDialog(client)}>
                   <div>
                     <h3 className="font-cairo font-bold text-foreground">{client.name}</h3>
                     <p className="text-sm text-muted-foreground font-cairo direction-ltr">{client.phone}</p>
@@ -494,6 +497,20 @@ export function MyClientsTab() {
             <div className="space-y-2">
               <Label className="font-cairo">المنطقة</Label>
               <Input value={editArea} onChange={(e) => setEditArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-cairo">موعد الصبة التقريبي</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !editPourDate && "text-muted-foreground")}>
+                    <CalendarDays className="h-4 w-4 ml-2" />
+                    {editPourDate ? format(editPourDate, "yyyy-MM-dd") : "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={editPourDate} onSelect={setEditPourDate} className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
