@@ -16,6 +16,7 @@ import { SettingsPage } from "@/components/SettingsPage";
 import { SalesPage } from "@/components/SalesPage";
 import { SmartTargetsPage } from "@/components/SmartTargetsPage";
 import { PourCalendarPage } from "@/components/PourCalendarPage";
+import { DailyReportPage } from "@/components/DailyReportPage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
@@ -103,6 +104,8 @@ const Dashboard = () => {
                 <SmartTargetsPage />
               ) : subpath === "calendar" ? (
                 <PourCalendarPage />
+              ) : subpath === "daily-report" ? (
+                <DailyReportPage />
               ) : (
                 <Outlet />
               )}
