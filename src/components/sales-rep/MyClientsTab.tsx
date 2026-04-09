@@ -252,6 +252,11 @@ export function MyClientsTab() {
     ) : null;
   };
 
+  const filteredClients = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    return (clients || []).filter((c: any) => !q || (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q));
+  })();
+
   return (
     <div className="space-y-4">
       {/* Add client button */}
