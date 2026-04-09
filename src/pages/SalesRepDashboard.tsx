@@ -44,6 +44,9 @@ const SalesRepDashboard = () => {
         {/* Section 1: Today's Targets */}
         <TodayTargets />
 
+        {/* Section 2: Monthly Goals */}
+        <MonthlyGoals />
+
         {/* Tabs for Clients & Field */}
         <Tabs defaultValue="clients" dir="rtl">
           <TabsList className="w-full grid grid-cols-2">
