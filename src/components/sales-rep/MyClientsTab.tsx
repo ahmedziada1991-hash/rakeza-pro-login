@@ -468,7 +468,7 @@ export function MyClientsTab() {
       </Dialog>
       {/* Edit Client Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-cairo">تعديل بيانات العميل</DialogTitle>
           </DialogHeader>
