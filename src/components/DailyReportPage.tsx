@@ -1,20 +1,29 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Phone, MapPin, CalendarDays, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export function DailyReportPage() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
-  const todayLabel = now.toLocaleDateString("ar-EG", {
+  const todayStr = format(selectedDate, "yyyy-MM-dd");
+  const todayLabel = selectedDate.toLocaleDateString("ar-EG", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
-  const isAfter2PM = now.getHours() >= 14;
+  const isToday = format(now, "yyyy-MM-dd") === todayStr;
+  const isAfter2PM = isToday && now.getHours() >= 14;
 
   // Get all salespeople
   const { data: salesUsers } = useQuery({
