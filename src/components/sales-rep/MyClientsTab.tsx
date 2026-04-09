@@ -212,6 +212,7 @@ export function MyClientsTab() {
     setEditClassification(client.status || "active");
     setEditNotes(client.notes || "");
     setEditArea(client.area || "");
+    setEditPourDate(client.expected_pour_date ? new Date(client.expected_pour_date) : undefined);
     setEditDialogOpen(true);
   };
 
