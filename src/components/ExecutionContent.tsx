@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import {
   Phone, MessageCircle, Play, CheckCircle2, Banknote,
-  ClipboardList, Clock, Loader2, StickyNote, Building2, User, Users
+  ClipboardList, Clock, Loader2, StickyNote, Building2, User, Users, CalendarIcon
 } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -41,17 +43,18 @@ export function ExecutionContent() {
   const [payForm, setPayForm] = useState({ amount: "", method: "cash", notes: "" });
   const [noteDialog, setNoteDialog] = useState<any>(null);
   const [noteText, setNoteText] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const today = format(new Date(), "yyyy-MM-dd");
+  const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
 
   // Fetch today's pour orders
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["execution-orders", today],
+    queryKey: ["execution-orders", selectedDateStr],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pour_orders")
         .select("*")
-        .eq("scheduled_date", today)
+        .eq("scheduled_date", selectedDateStr)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -201,12 +204,41 @@ export function ExecutionContent() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-cairo font-bold text-foreground">صبات اليوم</h2>
-        <p className="text-sm text-muted-foreground font-cairo">
-          {format(new Date(), "EEEE d MMMM yyyy", { locale: ar })}
-        </p>
+      {/* Header with date picker */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-cairo font-bold text-foreground">صبات اليوم</h2>
+          <p className="text-sm text-muted-foreground font-cairo">
+            {format(selectedDate, "EEEE d MMMM yyyy", { locale: ar })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="font-cairo gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {format(selectedDate, "yyyy/MM/dd")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => d && setSelectedDate(d)}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="font-cairo text-xs"
+            onClick={() => setSelectedDate(new Date())}
+          >
+            اليوم
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
