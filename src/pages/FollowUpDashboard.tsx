@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useUsersTableId } from "@/hooks/useUsersTableId";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FollowUpSidebar } from "@/components/FollowUpSidebar";
 import { FollowUpContent } from "@/components/FollowUpContent";
@@ -15,23 +14,11 @@ const FollowUpDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { session, userRole, isLoading, user } = useAuth();
+  const { userName } = useUsersTableId();
 
   const isAssignPage = location.pathname.endsWith("/assign");
   const isGoalsPage = location.pathname.endsWith("/goals");
   const isTargetsPage = location.pathname.endsWith("/targets");
-
-  const { data: userName } = useQuery({
-    queryKey: ["current-user-name", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("users")
-        .select("name")
-        .eq("id", user!.id)
-        .single();
-      return data?.name ?? "المتابع";
-    },
-    enabled: !!user,
-  });
 
   useEffect(() => {
     if (isLoading) return;
