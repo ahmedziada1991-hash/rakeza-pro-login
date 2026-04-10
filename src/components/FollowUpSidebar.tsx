@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, ArrowRightLeft } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -18,18 +18,21 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "لوحة المتابعة", url: "/dashboard/follow-up", icon: LayoutDashboard, end: true },
+  { title: "توزيع العملاء", url: "/dashboard/follow-up/assign", icon: ArrowRightLeft, adminOnly: true },
 ];
 
 export function FollowUpSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { signOut } = useAuth();
+  const { signOut, userRole } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await signOut();
     navigate("/");
   };
+
+  const visibleItems = navItems.filter((item) => !item.adminOnly || userRole === "admin");
 
   return (
     <Sidebar collapsible="icon" side="right">
@@ -49,7 +52,7 @@ export function FollowUpSidebar() {
           <SidebarGroupLabel className="font-cairo text-sidebar-foreground/50">القائمة</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
