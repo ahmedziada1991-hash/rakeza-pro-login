@@ -59,7 +59,12 @@ const FollowUpDashboard = () => {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 overflow-auto">
-            {isOffersPage ? <PriceOffersPage /> : isAssignPage ? <ClientAssignment /> : isTargetsPage ? <FollowUpTargetsAdmin /> : isGoalsPage ? <FollowUpGoals /> : <FollowUpContent />}
+            {isOffersPage ? (
+              <PriceOffersPage
+                prefillName={new URLSearchParams(location.search).get("clientName") || undefined}
+                prefillPhone={new URLSearchParams(location.search).get("phone") || undefined}
+              />
+            ) : isAssignPage ? <ClientAssignment /> : isTargetsPage ? <FollowUpTargetsAdmin /> : isGoalsPage ? <FollowUpGoals /> : <FollowUpContent />}
           </main>
         </div>
       </div>
