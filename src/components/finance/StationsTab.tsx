@@ -18,125 +18,93 @@ function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
 }
 
-interface StationAccount {
+const METHOD_LABELS: Record<string, string> = {
+  cash: "كاش", bank_transfer: "تحويل بنكي", check: "شيك", online: "أونلاين",
+  cement: "أسمنت", concrete_deduction: "خصم خرسانة", mixed: "مختلط",
+};
+
+interface StationSummary {
   id: number;
   name: string;
-  totalOrders: number;
+  totalPours: number;
   totalCost: number;
   totalPaid: number;
-  remaining: number;
-  cementBalance: number; // cement sold to this station (deducted from concrete debt)
-  finalBalance: number; // totalCost - totalPaid - cementBalance
-  orders: any[];
-  payments: any[];
-  cementSales: any[];
+  cementBalance: number;
+  finalBalance: number;
 }
 
 export function StationsTab() {
   const { userRole } = useAuth();
   const isAdmin = userRole === "admin";
   const [search, setSearch] = useState("");
-  const [selectedStation, setSelectedStation] = useState<StationAccount | null>(null);
+  const [selectedStation, setSelectedStation] = useState<StationSummary | null>(null);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-stations-tab"],
     queryFn: async () => {
-      const { data: orders } = await supabase
-        .from("pour_orders")
-        .select("id, station_id, client_id, pour_date, quantity_m3, station_price_per_m3, station_total_amount, concrete_type, status")
-        .not("station_id", "is", null)
-        .order("pour_date", { ascending: false });
-
-      // Get station payments (payment_type = 'station' or linked)
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("id, client_id, pour_order_id, amount, payment_method, payment_date, notes, created_at, payment_type")
-        .eq("payment_type", "station")
-        .order("created_at", { ascending: false });
-
       const { data: stations } = await supabase
         .from("stations")
-        .select("id, name");
+        .select("id, name")
+        .order("name");
 
-      // Cement sales to stations
-      let cementSales: any[] = [];
-      try {
-        const { data } = await supabase
-          .from("cement_sales")
-          .select("id, station_id, quantity_tons, price_per_ton, total_amount, payment_method, cash_amount, concrete_deduction_amount, sale_date")
-          .order("sale_date", { ascending: false });
-        cementSales = data ?? [];
-      } catch { /* table may not exist yet */ }
+      const { data: txns } = await supabase
+        .from("station_accounts" as any)
+        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton")
+        .order("created_at", { ascending: false });
 
-      const stationMap = new Map((stations ?? []).map((s) => [s.id, s.name]));
-      const map = new Map<number, StationAccount>();
-
-      (orders ?? []).forEach((o) => {
-        const sid = o.station_id;
-        if (!sid) return;
-        if (!map.has(sid)) {
-          map.set(sid, {
-            id: sid,
-            name: stationMap.get(sid) ?? "—",
-            totalOrders: 0, totalCost: 0, totalPaid: 0,
-            remaining: 0, cementBalance: 0, finalBalance: 0,
-            orders: [], payments: [], cementSales: [],
-          });
-        }
-        const acc = map.get(sid)!;
-        acc.totalOrders++;
-        acc.totalCost += Number(o.station_total_amount) || 0;
-        acc.orders.push(o);
+      const map = new Map<number, StationSummary>();
+      (stations ?? []).forEach((s: any) => {
+        map.set(s.id, {
+          id: s.id, name: s.name,
+          totalPours: 0, totalCost: 0, totalPaid: 0, cementBalance: 0, finalBalance: 0,
+        });
       });
 
-      // Map payments to stations via pour_orders
-      const orderStationMap = new Map<number, number>();
-      (orders ?? []).forEach((o) => { if (o.station_id) orderStationMap.set(o.id, o.station_id); });
-
-      (payments ?? []).forEach((p) => {
-        const sid = p.pour_order_id ? orderStationMap.get(p.pour_order_id) : null;
-        if (sid && map.has(sid)) {
-          const acc = map.get(sid)!;
-          acc.totalPaid += Number(p.amount) || 0;
-          acc.payments.push(p);
+      (txns ?? []).forEach((t: any) => {
+        const acc = map.get(t.station_id);
+        if (!acc) return;
+        const amt = Number(t.amount) || 0;
+        const type = t.transaction_type;
+        if (type === "pour" || type === "صبة" || type === "concrete") {
+          acc.totalPours++;
+          acc.totalCost += amt;
+        } else if (type === "payment" || type === "دفعة") {
+          acc.totalPaid += amt;
+        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
+          acc.cementBalance += amt;
         }
-      });
-
-      // Cement balance per station (concrete_deduction_amount reduces concrete debt)
-      cementSales.forEach((cs) => {
-        const sid = cs.station_id;
-        if (!map.has(sid)) {
-          // Station exists in cement but not in orders - create entry
-          map.set(sid, {
-            id: sid, name: stationMap.get(sid) ?? "—",
-            totalOrders: 0, totalCost: 0, totalPaid: 0,
-            remaining: 0, cementBalance: 0, finalBalance: 0,
-            orders: [], payments: [], cementSales: [],
-          });
-        }
-        const acc = map.get(sid)!;
-        acc.cementBalance += Number(cs.concrete_deduction_amount) || 0;
-        acc.cementSales.push(cs);
       });
 
       map.forEach((acc) => {
-        acc.remaining = acc.totalCost - acc.totalPaid;
-        acc.finalBalance = acc.remaining - acc.cementBalance;
+        acc.finalBalance = acc.totalCost - acc.totalPaid - acc.cementBalance;
       });
 
-      return [...map.values()].sort((a, b) => b.finalBalance - a.finalBalance);
+      return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
+    },
+  });
+
+  const { data: statement, isLoading: loadingStatement } = useQuery({
+    queryKey: ["station-statement", selectedStation?.id],
+    enabled: !!selectedStation,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("station_accounts" as any)
+        .select("*")
+        .eq("station_id", selectedStation!.id)
+        .order("created_at", { ascending: false });
+      return data ?? [];
     },
   });
 
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   if (isLoading) {
-    return (
-      <div className="space-y-3 p-4">
-        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-      </div>
-    );
+    return <div className="space-y-3 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>;
   }
+
+  const pours = (statement ?? []).filter((t: any) => t.transaction_type === "pour" || t.transaction_type === "صبة" || t.transaction_type === "concrete");
+  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة");
+  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
 
   return (
     <div className="space-y-4">
@@ -167,15 +135,15 @@ export function StationsTab() {
                 return (
                   <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedStation(a)}>
                     <TableCell className="font-cairo font-medium text-primary underline-offset-2 hover:underline">{a.name}</TableCell>
-                    <TableCell className="font-cairo">{a.totalOrders}</TableCell>
+                    <TableCell className="font-cairo">{a.totalPours}</TableCell>
                     {isAdmin && <TableCell className="font-cairo">{fmt(a.totalCost)}</TableCell>}
-                    {isAdmin && <TableCell className="font-cairo text-emerald-600">{fmt(a.totalPaid)}</TableCell>}
-                    {isAdmin && <TableCell className="font-cairo text-blue-600">{fmt(a.cementBalance)}</TableCell>}
-                    {isAdmin && <TableCell className={`font-cairo font-semibold ${a.finalBalance > 0 ? "text-destructive" : "text-emerald-600"}`}>{fmt(a.finalBalance)}</TableCell>}
+                    {isAdmin && <TableCell className="font-cairo text-chart-2">{fmt(a.totalPaid)}</TableCell>}
+                    {isAdmin && <TableCell className="font-cairo text-chart-4">{fmt(a.cementBalance)}</TableCell>}
+                    {isAdmin && <TableCell className={`font-cairo font-semibold ${a.finalBalance > 0 ? "text-destructive" : "text-chart-2"}`}>{fmt(a.finalBalance)}</TableCell>}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-chart-2 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
                         <span className="text-xs font-cairo text-muted-foreground">{pct}%</span>
                       </div>
@@ -207,62 +175,93 @@ export function StationsTab() {
                   </CardContent></Card>
                   <Card><CardContent className="p-3 text-center">
                     <p className="text-xs font-cairo text-muted-foreground">المدفوع</p>
-                    <p className="font-cairo font-bold text-emerald-600">{fmt(selectedStation.totalPaid)}</p>
+                    <p className="font-cairo font-bold text-chart-2">{fmt(selectedStation.totalPaid)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="p-3 text-center">
                     <p className="text-xs font-cairo text-muted-foreground">خصم أسمنت</p>
-                    <p className="font-cairo font-bold text-blue-600">{fmt(selectedStation.cementBalance)}</p>
+                    <p className="font-cairo font-bold text-chart-4">{fmt(selectedStation.cementBalance)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="p-3 text-center">
                     <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
-                    <p className={`font-cairo font-bold ${selectedStation.finalBalance > 0 ? "text-destructive" : "text-emerald-600"}`}>{fmt(selectedStation.finalBalance)}</p>
+                    <p className={`font-cairo font-bold ${selectedStation.finalBalance > 0 ? "text-destructive" : "text-chart-2"}`}>{fmt(selectedStation.finalBalance)}</p>
                   </CardContent></Card>
                 </div>
               )}
 
+              {/* Pours */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-cairo text-sm">الصبات</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">صبات الخرسانة</CardTitle></CardHeader>
                 <CardContent className="p-0">
-                  <div className="overflow-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="font-cairo text-right">التاريخ</TableHead>
-                          <TableHead className="font-cairo text-right">النوع</TableHead>
-                          <TableHead className="font-cairo text-right">الكمية (م³)</TableHead>
-                          {isAdmin && <TableHead className="font-cairo text-right">سعر الشراء</TableHead>}
-                          {isAdmin && <TableHead className="font-cairo text-right">الإجمالي</TableHead>}
-                          <TableHead className="font-cairo text-right">الحالة</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedStation.orders.map((o: any) => (
-                          <TableRow key={o.id}>
-                            <TableCell className="font-cairo text-xs">{o.pour_date ?? "—"}</TableCell>
-                            <TableCell className="font-cairo text-xs">{o.concrete_type ?? "—"}</TableCell>
-                            <TableCell className="font-cairo">{o.quantity_m3 ?? "—"}</TableCell>
-                            {isAdmin && <TableCell className="font-cairo">{fmt(Number(o.station_price_per_m3) || 0)}</TableCell>}
-                            {isAdmin && <TableCell className="font-cairo font-medium">{fmt(Number(o.station_total_amount) || 0)}</TableCell>}
-                            <TableCell>
-                              <Badge variant="outline" className="font-cairo text-[10px]">{o.status ?? "—"}</Badge>
-                            </TableCell>
+                  {loadingStatement ? (
+                    <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+                  ) : !pours.length ? (
+                    <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد صبات</p>
+                  ) : (
+                    <div className="overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
+                            <TableHead className="font-cairo text-right">العميل</TableHead>
+                            <TableHead className="font-cairo text-right">الكمية (م³)</TableHead>
+                            {isAdmin && <TableHead className="font-cairo text-right">سعر الشراء</TableHead>}
+                            {isAdmin && <TableHead className="font-cairo text-right">الإجمالي</TableHead>}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {pours.map((t: any) => (
+                            <TableRow key={t.id}>
+                              <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                              <TableCell className="font-cairo text-xs">{t.client_name ?? "—"}</TableCell>
+                              <TableCell className="font-cairo">{t.quantity_m3 ?? "—"}</TableCell>
+                              {isAdmin && <TableCell className="font-cairo">{t.price_per_m3 ? fmt(Number(t.price_per_m3)) : "—"}</TableCell>}
+                              {isAdmin && <TableCell className="font-cairo font-medium">{fmt(Number(t.amount) || 0)}</TableCell>}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
+              {/* Cement Sales */}
+              {isAdmin && cementSales.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">مبيعات أسمنت للمحطة</CardTitle></CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
+                            <TableHead className="font-cairo text-right">الكمية (طن)</TableHead>
+                            <TableHead className="font-cairo text-right">سعر الطن</TableHead>
+                            <TableHead className="font-cairo text-right">الإجمالي</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {cementSales.map((t: any) => (
+                            <TableRow key={t.id}>
+                              <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                              <TableCell className="font-cairo">{t.cement_tons ?? "—"}</TableCell>
+                              <TableCell className="font-cairo">{t.cement_price_per_ton ? fmt(Number(t.cement_price_per_ton)) : "—"}</TableCell>
+                              <TableCell className="font-cairo font-medium">{fmt(Number(t.amount) || 0)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Payments */}
               {isAdmin && (
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="font-cairo text-sm">المدفوعات</CardTitle>
-                  </CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">المدفوعات</CardTitle></CardHeader>
                   <CardContent className="p-0">
-                    {!selectedStation.payments.length ? (
+                    {!payments.length ? (
                       <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد مدفوعات</p>
                     ) : (
                       <div className="overflow-auto">
@@ -276,63 +275,18 @@ export function StationsTab() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {selectedStation.payments.map((p: any) => (
-                              <TableRow key={p.id}>
-                                <TableCell className="font-cairo text-xs">{p.payment_date ?? new Date(p.created_at).toLocaleDateString("ar-EG")}</TableCell>
-                                <TableCell className="font-cairo text-emerald-600 font-medium">{fmt(Number(p.amount))}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="font-cairo text-[10px]">
-                                    {{ cash: "كاش", bank_transfer: "تحويل بنكي", check: "شيك", online: "أونلاين" }[p.payment_method] ?? p.payment_method}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[150px]">{p.notes ?? "—"}</TableCell>
+                            {payments.map((t: any) => (
+                              <TableRow key={t.id}>
+                                <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                                <TableCell className="font-cairo text-chart-2 font-medium">{fmt(Number(t.amount) || 0)}</TableCell>
+                                <TableCell><Badge variant="outline" className="font-cairo text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge></TableCell>
+                                <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[150px]">{t.notes ?? "—"}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Cement Sales to this station */}
-              {isAdmin && selectedStation.cementSales.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="font-cairo text-sm">مبيعات أسمنت للمحطة</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
-                            <TableHead className="font-cairo text-right">الكمية (طن)</TableHead>
-                            <TableHead className="font-cairo text-right">سعر البيع</TableHead>
-                            <TableHead className="font-cairo text-right">الإجمالي</TableHead>
-                            <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
-                            <TableHead className="font-cairo text-right">خصم خرسانة</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedStation.cementSales.map((cs: any) => (
-                            <TableRow key={cs.id}>
-                              <TableCell className="font-cairo text-xs">{cs.sale_date ?? "—"}</TableCell>
-                              <TableCell className="font-cairo">{cs.quantity_tons}</TableCell>
-                              <TableCell className="font-cairo">{fmt(Number(cs.price_per_ton))}</TableCell>
-                              <TableCell className="font-cairo font-medium">{fmt(Number(cs.total_amount))}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="font-cairo text-[10px]">
-                                  {{ cash: "كاش", concrete_deduction: "خصم خرسانة", mixed: "مختلط" }[cs.payment_method] ?? cs.payment_method}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-cairo text-blue-600">{fmt(Number(cs.concrete_deduction_amount) || 0)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
                   </CardContent>
                 </Card>
               )}
