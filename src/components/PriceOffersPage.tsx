@@ -53,70 +53,148 @@ const emptyItem = (): OfferItem => ({
   notes: "",
 });
 
+function formatPhone(raw: string): string {
+  let phone = raw.replace(/[^0-9]/g, "");
+  if (phone.startsWith("0")) phone = "20" + phone.slice(1);
+  return phone;
+}
+
 function generatePDF(offer: PriceOffer) {
   const doc = new jsPDF({ orientation: "portrait" });
   const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const offerNum = offer.id.slice(0, 8).toUpperCase();
+  const dateStr = new Date(offer.created_at).toLocaleDateString("en-GB");
+  const expiryDate = new Date(new Date(offer.created_at).getTime() + offer.validity_days * 86400000).toLocaleDateString("en-GB");
 
-  // Header
-  doc.setFillColor(37, 99, 235);
-  doc.rect(0, 0, pw, 40, "F");
+  // ─── Header: dark blue background ───
+  doc.setFillColor(27, 58, 107);
+  doc.rect(0, 0, pw, 44, "F");
+
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.text("Rokeeza Pro", pw / 2, 18, { align: "center" });
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.text("ROKEEZA", pw - 15, 18, { align: "right" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Ready-Mix Concrete Supplier | Arab Republic of Egypt", pw - 15, 27, { align: "right" });
+
+  doc.setFontSize(9);
+  doc.text(`Offer #: ${offerNum}`, 15, 14);
+  doc.text(`Date: ${dateStr}`, 15, 21);
+  doc.text(`Valid until: ${expiryDate}`, 15, 28);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("PRICE QUOTATION", 15, 39);
+
+  // ─── Gold stripe ───
+  doc.setFillColor(245, 166, 35);
+  doc.rect(0, 44, pw, 4, "F");
+
+  // ─── Client info section ───
+  const clientY = 56;
+  doc.setFillColor(248, 249, 250);
+  doc.roundedRect(15, clientY, pw - 30, offer.company_name ? 30 : 24, 3, 3, "F");
+
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(27, 58, 107);
+  doc.text(`Client: ${offer.client_name}`, 22, clientY + 10);
+
   doc.setFontSize(10);
-  doc.text("Price Quotation", pw / 2, 28, { align: "center" });
-
-  // Client info
-  doc.setTextColor(30, 30, 30);
-  doc.setFontSize(11);
-  let y = 52;
-  doc.text(`Client: ${offer.client_name}`, pw - 15, y, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  let infoLine = clientY + 18;
   if (offer.company_name) {
-    y += 7;
-    doc.text(`Company: ${offer.company_name}`, pw - 15, y, { align: "right" });
+    doc.text(`Company: ${offer.company_name}`, 22, infoLine);
+    infoLine += 8;
   }
-  y += 7;
-  doc.text(`WhatsApp: ${offer.whatsapp}`, pw - 15, y, { align: "right" });
-  
-  const dateStr = new Date(offer.created_at).toLocaleDateString("ar-EG");
-  doc.text(`Date: ${dateStr}`, 15, 52);
-  doc.text(`Valid for: ${offer.validity_days} days`, 15, 59);
+  doc.text(`Mobile: ${offer.whatsapp}`, 22, infoLine);
 
-  // Items table
-  const head = [["Notes", "Price (EGP/m³)", "Cement", "Content (kg/m³)", "Grade", "#"]];
+  // ─── Items table ───
+  const tableStartY = clientY + (offer.company_name ? 38 : 32);
+  const head = [["#", "Grade", "Content (kg/m3)", "Cement Type", "Price (EGP/m3)", "Notes"]];
   const body = offer.items.map((item, i) => [
-    item.notes || "—",
-    item.price,
-    item.cement_type,
-    item.content_kg,
-    item.grade,
     String(i + 1),
+    item.grade,
+    item.content_kg || "-",
+    item.cement_type,
+    item.price,
+    item.notes || "-",
   ]);
 
   doc.autoTable({
     head,
     body,
-    startY: y + 12,
-    styles: { fontSize: 9, halign: "center", cellPadding: 4 },
-    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [245, 247, 250] },
+    startY: tableStartY,
+    styles: {
+      fontSize: 10,
+      halign: "center",
+      cellPadding: 5,
+      lineColor: [222, 226, 230],
+      lineWidth: 0.3,
+    },
+    headStyles: {
+      fillColor: [27, 58, 107],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 10,
+    },
+    alternateRowStyles: { fillColor: [240, 244, 255] },
+    bodyStyles: { textColor: [50, 50, 50] },
+    columnStyles: {
+      4: { fontStyle: "bold", textColor: [27, 58, 107] },
+    },
     margin: { left: 15, right: 15 },
   });
 
-  // Terms
-  const finalY = (doc as any).lastAutoTable?.finalY || y + 60;
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text("Terms & Conditions:", 15, finalY + 12);
-  const splitTerms = doc.splitTextToSize(offer.terms, pw - 30);
-  doc.text(splitTerms, 15, finalY + 19);
+  // ─── Terms section ───
+  const finalY = (doc as any).lastAutoTable?.finalY || tableStartY + 60;
+  const termsY = finalY + 12;
 
-  // Footer
-  doc.setFillColor(37, 99, 235);
-  doc.rect(0, doc.internal.pageSize.getHeight() - 15, pw, 15, "F");
-  doc.setTextColor(255);
+  const termParts = offer.terms.split(/(\d+\.\s*)/).filter(Boolean);
+  const numTerms = termParts.filter(p => /^\d+\.\s*$/.test(p)).length;
+  const termsHeight = Math.max(numTerms * 8 + 18, 35);
+
+  doc.setFillColor(240, 255, 244);
+  doc.roundedRect(15, termsY, pw - 30, termsHeight, 3, 3, "F");
+  doc.setFillColor(40, 167, 69);
+  doc.rect(pw - 19, termsY, 4, termsHeight, "F");
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 100, 50);
+  doc.text("Terms & Conditions", 22, termsY + 10);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  let ty = termsY + 18;
+  let termText = "";
+  for (const part of termParts) {
+    if (/^\d+\.\s*$/.test(part)) {
+      if (termText) {
+        const wrapped = doc.splitTextToSize(termText.trim(), pw - 50);
+        doc.text(wrapped, 22, ty);
+        ty += wrapped.length * 5;
+      }
+      termText = part;
+    } else {
+      termText += part;
+    }
+  }
+  if (termText) {
+    const wrapped = doc.splitTextToSize(termText.trim(), pw - 50);
+    doc.text(wrapped, 22, ty);
+  }
+
+  // ─── Footer ───
+  doc.setFillColor(245, 166, 35);
+  doc.rect(0, ph - 18, pw, 4, "F");
   doc.setFontSize(8);
-  doc.text("Rokeeza Pro - Concrete Solutions", pw / 2, doc.internal.pageSize.getHeight() - 6, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(120, 120, 120);
+  doc.text("Rokeeza - Ready-Mix Concrete Supplier | Arab Republic of Egypt", pw / 2, ph - 7, { align: "center" });
 
   return doc;
 }
