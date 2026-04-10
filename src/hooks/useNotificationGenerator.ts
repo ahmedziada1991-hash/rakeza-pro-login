@@ -1,12 +1,18 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 /**
  * Checks business conditions and auto-creates notifications.
- * Runs once on mount and every 10 minutes.
+ * Also subscribes to real-time events for instant admin alerts.
  */
 export function useNotificationGenerator() {
+  const { user, userRole } = useAuth();
+  const queryClient = useQueryClient();
+  const subscribedRef = useRef(false);
+
   const { data: session } = useQuery({
     queryKey: ["session-for-notif"],
     queryFn: async () => {
@@ -16,6 +22,99 @@ export function useNotificationGenerator() {
     staleTime: Infinity,
   });
 
+  // Real-time subscriptions for admin
+  useEffect(() => {
+    if (!user?.id || userRole !== "admin" || subscribedRef.current) return;
+    subscribedRef.current = true;
+
+    // Listen for pour_orders status changes to "done"
+    const dealsChannel = supabase
+      .channel("admin-deal-completed")
+      .on(
+        "postgres_changes" as any,
+        { event: "UPDATE", schema: "public", table: "pour_orders", filter: "status=eq.done" },
+        async (payload: any) => {
+          const order = payload.new;
+          // Get client name
+          const { data: client } = await supabase
+            .from("clients")
+            .select("name")
+            .eq("id", order.client_id)
+            .maybeSingle();
+          const clientName = (client as any)?.name || "عميل";
+          const qty = order.quantity_m3 || 0;
+
+          // Create notification
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            type: "deal_completed",
+            title: `✅ صفقة مكتملة: ${clientName}`,
+            body: `تم إتمام صبة ${qty} م³ للعميل ${clientName}`,
+            metadata: { order_id: order.id, client_id: order.client_id },
+            is_read: false,
+          } as any);
+
+          // Show toast
+          toast.success(`✅ صفقة مكتملة: ${clientName}`, {
+            description: `تم إتمام صبة ${qty} م³`,
+          });
+
+          // Refresh notifications
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        }
+      )
+      .subscribe();
+
+    // Listen for new payments
+    const paymentsChannel = supabase
+      .channel("admin-new-payment")
+      .on(
+        "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "payments" },
+        async (payload: any) => {
+          const payment = payload.new;
+          const amount = Number(payment.amount || 0);
+
+          // Get client name
+          let clientName = "عميل";
+          if (payment.client_id) {
+            const { data: client } = await supabase
+              .from("clients")
+              .select("name")
+              .eq("id", payment.client_id)
+              .maybeSingle();
+            clientName = (client as any)?.name || "عميل";
+          }
+
+          // Create notification
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            type: "new_payment",
+            title: `💰 دفعة جديدة: ${clientName}`,
+            body: `تم تسجيل دفعة ${amount.toLocaleString("ar-EG")} ج.م من ${clientName}`,
+            metadata: { payment_id: payment.id, client_id: payment.client_id },
+            is_read: false,
+          } as any);
+
+          // Show toast
+          toast.success(`💰 دفعة جديدة: ${clientName}`, {
+            description: `${amount.toLocaleString("ar-EG")} ج.م`,
+          });
+
+          // Refresh notifications
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscribedRef.current = false;
+      supabase.removeChannel(dealsChannel);
+      supabase.removeChannel(paymentsChannel);
+    };
+  }, [user?.id, userRole, queryClient]);
+
+  // Periodic notification generator (existing logic)
   useEffect(() => {
     if (!session?.user?.id) return;
 
@@ -24,7 +123,6 @@ export function useNotificationGenerator() {
     async function generate() {
       const now = new Date();
 
-      // Get existing notification types created today to avoid duplicates
       const todayStart = new Date(now);
       todayStart.setHours(0, 0, 0, 0);
 
@@ -55,12 +153,10 @@ export function useNotificationGenerator() {
 
         if (clients && orders && payments) {
           const clientMap = new Map(clients.map((c: any) => [c.id, c.name]));
-          // Sum payments per client
           const paidMap = new Map<number, number>();
           payments.forEach((p: any) => {
             paidMap.set(p.client_id, (paidMap.get(p.client_id) || 0) + Number(p.amount));
           });
-          // Sum orders per client
           const orderMap = new Map<number, number>();
           orders.forEach((o: any) => {
             if (o.status !== "cancelled") {
@@ -72,11 +168,10 @@ export function useNotificationGenerator() {
             const paid = paidMap.get(clientId) || 0;
             const remaining = total - paid;
             if (remaining > 0) {
-              // Check oldest unpaid - simplified: if client has remaining balance, flag it
               const clientPayments = payments
                 .filter((p: any) => p.client_id === clientId)
                 .sort((a: any, b: any) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime());
-              
+
               const lastPayment = clientPayments[clientPayments.length - 1];
               const daysSinceLastPayment = lastPayment
                 ? Math.floor((now.getTime() - new Date(lastPayment.payment_date).getTime()) / 86400000)
@@ -95,7 +190,7 @@ export function useNotificationGenerator() {
         }
       } catch (e) { /* silent */ }
 
-      // 2. Today's pour dates - notify sales rep
+      // 2. Today's pour dates
       try {
         const todayStr = now.toISOString().split("T")[0];
         const { data: pourClients } = await supabase
@@ -114,7 +209,6 @@ export function useNotificationGenerator() {
             );
           }
 
-          // Browser push notification
           if ("Notification" in window && Notification.permission === "granted") {
             const names = pourClients.map((c: any) => c.name).join("، ");
             new Notification("🔔 مواعيد صبة اليوم", {
@@ -152,14 +246,13 @@ export function useNotificationGenerator() {
         }
       } catch (e) { /* silent */ }
 
-      // Insert all new notifications
       if (newNotifs.length > 0) {
         await supabase.from("notifications").insert(newNotifs as any);
       }
     }
 
     generate();
-    const interval = setInterval(generate, 10 * 60 * 1000); // every 10 min
+    const interval = setInterval(generate, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, [session?.user?.id]);
 }
