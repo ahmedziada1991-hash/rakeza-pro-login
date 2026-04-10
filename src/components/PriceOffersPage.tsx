@@ -307,9 +307,7 @@ export function PriceOffersPage() {
     setDialogOpen(false);
     resetForm();
     await fetchOffers();
-
-    // Show inline preview instead of auto-downloading PDF
-    setPreviewOffer(data as unknown as PriceOffer);
+  };
   };
 
   const handlePrint = (offer: PriceOffer) => {
