@@ -327,6 +327,19 @@ export function PriceOffersPage() {
     expired: "bg-gray-100 text-gray-600",
   };
 
+  if (previewOffer) {
+    return (
+      <div className="max-w-3xl mx-auto py-4">
+        <OfferPreview
+          offer={previewOffer}
+          onDownloadPDF={handlePrint}
+          onWhatsApp={handleWhatsApp}
+          onClose={() => setPreviewOffer(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
