@@ -281,7 +281,8 @@ export function ProfitsTab() {
                     <TableHead className="font-cairo text-right">المحطة</TableHead>
                     <TableHead className="font-cairo text-right">الكمية</TableHead>
                     <TableHead className="font-cairo text-right">سعر البيع</TableHead>
-                    <TableHead className="font-cairo text-right">سعر الشراء</TableHead>
+                    {isAdmin && <TableHead className="font-cairo text-right">سعر الشراء/م³</TableHead>}
+                    <TableHead className="font-cairo text-right">إجمالي الشراء</TableHead>
                     <TableHead className="font-cairo text-right">ربح الصبة</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -290,6 +291,8 @@ export function ProfitsTab() {
                     const sell = toAmount(o.total_agreed_amount);
                     const buy = toAmount(o.station_total_amount);
                     const profit = sell - buy;
+                    const pricePerM3 = toAmount(o.station_price_per_m3);
+                    const isEditing = editingId === o.id;
                     return (
                       <TableRow key={o.id}>
                         <TableCell className="font-cairo text-xs">{o.scheduled_date ?? o.created_at?.split("T")[0] ?? "—"}</TableCell>
@@ -297,6 +300,36 @@ export function ProfitsTab() {
                         <TableCell className="font-cairo text-xs">{stations?.get(o.station_id) ?? "—"}</TableCell>
                         <TableCell className="font-cairo">{o.quantity_m3 ?? "—"} م³</TableCell>
                         <TableCell className="font-cairo">{fmt(sell)}</TableCell>
+                        {isAdmin && (
+                          <TableCell className="font-cairo">
+                            {isEditing ? (
+                              <Input
+                                ref={inputRef}
+                                type="number"
+                                className="w-24 h-7 text-xs font-cairo"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={() => handleSavePrice(o, parseFloat(editValue))}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSavePrice(o, parseFloat(editValue));
+                                  if (e.key === "Escape") setEditingId(null);
+                                }}
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:bg-muted px-1 py-0.5 rounded text-orange-600"
+                                onClick={() => {
+                                  setEditingId(o.id);
+                                  setEditValue(String(pricePerM3 || ""));
+                                }}
+                                title="اضغط للتعديل"
+                              >
+                                {pricePerM3 ? fmt(pricePerM3) : "—"}
+                              </span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="font-cairo text-orange-600">{fmt(buy)}</TableCell>
                         <TableCell className={`font-cairo font-semibold ${profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>
                           {fmt(profit)}
