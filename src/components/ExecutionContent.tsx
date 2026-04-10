@@ -372,6 +372,21 @@ export function ExecutionContent() {
                     )}
                   </div>
 
+                  {/* Pour history */}
+                  {order.client_id && pourHistory[order.client_id] && (
+                    <div className="flex flex-wrap gap-3 text-xs font-cairo bg-accent/30 rounded-md p-2">
+                      <span className="flex items-center gap-1">
+                        <CalendarIcon className="h-3 w-3" />
+                        آخر صبة: {pourHistory[order.client_id].lastPourDate ? format(new Date(pourHistory[order.client_id].lastPourDate!), "d/M/yyyy") : "—"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Layers className="h-3 w-3" />
+                        {pourHistory[order.client_id].totalQuantity} م³
+                      </span>
+                      <span>{pourHistory[order.client_id].pourCount} صبة سابقة</span>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
                     {client?.phone && (
