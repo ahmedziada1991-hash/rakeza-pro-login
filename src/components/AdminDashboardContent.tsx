@@ -308,6 +308,80 @@ export function AdminDashboardContent() {
 
   return (
     <div className="space-y-6">
+      {/* KPI Panel */}
+      <Card className="shadow-[var(--shadow-card)] border-border/50 bg-gradient-to-l from-primary/5 to-transparent">
+        <CardHeader className="pb-2">
+          <CardTitle className="font-cairo text-base flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            مؤشرات الأداء الرئيسية - اليوم
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Today calls */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-chart-3" />
+                <span className="text-xs font-cairo text-muted-foreground">المكالمات</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{todayCallsCount}<span className="text-sm font-normal text-muted-foreground">/{targetCallsToday}</span></p>
+              <Progress value={callsPercent} className="h-1.5" />
+            </div>
+            {/* Today visits */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-chart-4" />
+                <span className="text-xs font-cairo text-muted-foreground">الزيارات</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{todayVisitsCount}<span className="text-sm font-normal text-muted-foreground">/{targetVisitsToday}</span></p>
+              <Progress value={visitsPercent} className="h-1.5" />
+            </div>
+            {/* Today pours */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <span className="text-xs font-cairo text-muted-foreground">صبات اليوم</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{todayPoursCount}</p>
+            </div>
+            {/* Month calls vs last */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-chart-3" />
+                <span className="text-xs font-cairo text-muted-foreground">مكالمات الشهر</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{thisMonthCalls ?? 0}</p>
+              {(() => {
+                const diff = calcDiff(thisMonthCalls ?? 0, lastMonthCalls ?? 0);
+                return (
+                  <div className="flex items-center gap-1">
+                    {diff > 0 ? <TrendingUp className="h-3 w-3 text-chart-2" /> : diff < 0 ? <TrendingDown className="h-3 w-3 text-destructive" /> : <Minus className="h-3 w-3 text-muted-foreground" />}
+                    <span className={`text-[10px] font-cairo ${diff > 0 ? "text-chart-2" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>{diff > 0 ? "+" : ""}{diff}%</span>
+                  </div>
+                );
+              })()}
+            </div>
+            {/* Month deals vs last */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-chart-2" />
+                <span className="text-xs font-cairo text-muted-foreground">صفقات الشهر</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{thisMonthDeals ?? 0}</p>
+              {(() => {
+                const diff = calcDiff(thisMonthDeals ?? 0, lastMonthDeals ?? 0);
+                return (
+                  <div className="flex items-center gap-1">
+                    {diff > 0 ? <TrendingUp className="h-3 w-3 text-chart-2" /> : diff < 0 ? <TrendingDown className="h-3 w-3 text-destructive" /> : <Minus className="h-3 w-3 text-muted-foreground" />}
+                    <span className={`text-[10px] font-cairo ${diff > 0 ? "text-chart-2" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>{diff > 0 ? "+" : ""}{diff}%</span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
