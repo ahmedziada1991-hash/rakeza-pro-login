@@ -117,7 +117,10 @@ export function CementTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cement-stock-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["cement-sales-outgoing"] });
       queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
       toast({ title: "تم إضافة الوارد بنجاح" });
       setStockDialogOpen(false);
       setStockForm({ supplier_id: "", quantity_tons: "", price_per_ton: "", notes: "" });
@@ -141,7 +144,10 @@ export function CementTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cement-sales-outgoing"] });
+      queryClient.invalidateQueries({ queryKey: ["cement-stock-incoming"] });
       queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
       toast({ title: "تم تسجيل البيع بنجاح" });
       setSaleDialogOpen(false);
       setSaleForm({ station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" });
