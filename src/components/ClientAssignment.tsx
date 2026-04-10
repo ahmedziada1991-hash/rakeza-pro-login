@@ -276,7 +276,7 @@ export function ClientAssignment() {
                               size="sm"
                               onClick={() => {
                                 if (selectedFollower) {
-                                  assignMutation.mutate({ clientId: client.id, userId: selectedFollower });
+                                  assignMutation.mutate({ clientId: client.id, userId: selectedFollower, clientName: client.name });
                                 }
                               }}
                               disabled={!selectedFollower || assignMutation.isPending}
