@@ -30,6 +30,7 @@ const App = () => (
             <Route path="/dashboard/follow-up" element={<FollowUpDashboard />} />
             <Route path="/dashboard/follow-up/assign" element={<FollowUpDashboard />} />
             <Route path="/dashboard/execution" element={<ExecutionDashboard />} />
+            <Route path="/dashboard/execution/report" element={<ExecutionDashboard />} />
             <Route path="/dashboard/:role/*" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
