@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { CalendarIcon, Loader2 } from "lucide-react";
@@ -30,9 +30,21 @@ const PAYMENT_METHODS = [
   { value: "online", label: "أونلاين" },
 ];
 
+const STATION_PAYMENT_METHODS = [
+  { value: "cash", label: "كاش" },
+  { value: "check", label: "شيك" },
+  { value: "account_deduction", label: "خصم من حساب" },
+  { value: "bank_transfer", label: "تحويل بنكي" },
+];
+
 const PAYMENT_TYPES = [
   { value: "client", label: "دفعة عميل" },
   { value: "station", label: "دفعة محطة" },
+];
+
+const STATION_TRANSACTION_TYPES = [
+  { value: "payment", label: "دفع خرسانة" },
+  { value: "cement_payment", label: "تحصيل أسمنت" },
 ];
 
 interface Props {
@@ -45,6 +57,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const [payForm, setPayForm] = useState({
     client_id: "",
+    station_id: "",
+    station_transaction_type: "payment",
     pour_order_id: "",
     amount: "",
     payment_method: "cash",
@@ -55,6 +69,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [checkDateCleared, setCheckDateCleared] = useState<Date | undefined>(undefined);
 
+  const isStation = payForm.payment_type === "station";
+
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
     queryFn: async () => {
@@ -63,9 +79,17 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     },
   });
 
+  const { data: stations } = useQuery({
+    queryKey: ["stations-select"],
+    queryFn: async () => {
+      const { data } = await supabase.from("stations").select("id, name").order("name");
+      return data ?? [];
+    },
+  });
+
   const { data: clientOrders } = useQuery({
     queryKey: ["client-orders", payForm.client_id],
-    enabled: !!payForm.client_id,
+    enabled: !!payForm.client_id && !isStation,
     queryFn: async () => {
       const { data } = await supabase
         .from("pour_orders")
@@ -80,63 +104,97 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     mutationFn: async () => {
       const amount = Number(payForm.amount);
       const isCheck = payForm.payment_method === "check";
-      const clientId = Number(payForm.client_id);
 
-      // Get client name for notification
-      const selectedClientObj = (clients ?? []).find((c) => c.id === clientId);
-      const clientName = selectedClientObj?.name || "عميل";
+      if (isStation) {
+        // --- Station payment ---
+        const stationId = Number(payForm.station_id);
+        const selectedStation = (stations ?? []).find((s) => s.id === stationId);
+        const stationName = selectedStation?.name || "محطة";
 
-      const payload: any = {
-        client_id: clientId,
-        pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
-        amount,
-        payment_method: payForm.payment_method,
-        payment_date: paymentDate ? format(paymentDate, "yyyy-MM-dd") : null,
-        notes: payForm.notes || null,
-      };
-      const { error } = await supabase.from("payments").insert(payload);
-      if (error) throw error;
+        const stationPayload: any = {
+          station_id: stationId,
+          transaction_type: payForm.station_transaction_type,
+          amount,
+          payment_method: payForm.payment_method,
+          notes: payForm.notes || null,
+        };
 
-      // Also insert into client_accounts for the statement view
-      const accountPayload: any = {
-        client_id: clientId,
-        transaction_type: "payment",
-        amount,
-        payment_method: payForm.payment_method,
-        notes: payForm.notes || null,
-        pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
-      };
+        if (isCheck) {
+          stationPayload.check_number = payForm.check_number || null;
+          stationPayload.check_date_cleared = checkDateCleared ? format(checkDateCleared, "yyyy-MM-dd") : null;
+        }
 
-      // Add check fields if payment method is check
-      if (isCheck) {
-        accountPayload.check_number = payForm.check_number || null;
-        accountPayload.check_date_cleared = checkDateCleared ? format(checkDateCleared, "yyyy-MM-dd") : null;
-      }
+        const { error } = await supabase.from("station_accounts" as any).insert(stationPayload);
+        if (error) throw error;
 
-      await supabase.from("client_accounts" as any).insert(accountPayload);
+        // Check notification for station
+        if (isCheck && checkDateCleared && user?.id) {
+          const checkNum = payForm.check_number || "—";
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            type: "check_clearance",
+            title: "موعد صرف شيك 📅",
+            body: `شيك رقم ${checkNum} للمحطة ${stationName} بمبلغ ${amount.toLocaleString("ar-EG")} ج.م — موعد الصرف اليوم`,
+            metadata: { station_id: stationId, check_number: checkNum, amount },
+            is_read: false,
+            scheduled_date: format(checkDateCleared, "yyyy-MM-dd"),
+          } as any);
+        }
+      } else {
+        // --- Client payment (existing logic) ---
+        const clientId = Number(payForm.client_id);
+        const selectedClientObj = (clients ?? []).find((c) => c.id === clientId);
+        const clientName = selectedClientObj?.name || "عميل";
 
-      // Create scheduled notification for check clearance date
-      if (isCheck && checkDateCleared && user?.id) {
-        const checkNum = payForm.check_number || "—";
-        await supabase.from("notifications").insert({
-          user_id: user.id,
-          type: "check_clearance",
-          title: "موعد صرف شيك 📅",
-          body: `شيك رقم ${checkNum} للعميل ${clientName} بمبلغ ${amount.toLocaleString("ar-EG")} ج.م — موعد الصرف اليوم`,
-          metadata: { client_id: clientId, check_number: checkNum, amount },
-          is_read: false,
-          scheduled_date: format(checkDateCleared, "yyyy-MM-dd"),
-        } as any);
-      }
+        const payload: any = {
+          client_id: clientId,
+          pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
+          amount,
+          payment_method: payForm.payment_method,
+          payment_date: paymentDate ? format(paymentDate, "yyyy-MM-dd") : null,
+          notes: payForm.notes || null,
+        };
+        const { error } = await supabase.from("payments").insert(payload);
+        if (error) throw error;
 
-      if (payForm.pour_order_id) {
-        const orderId = Number(payForm.pour_order_id);
-        const { data: order } = await supabase.from("pour_orders").select("amount_paid, amount_remaining").eq("id", orderId).single();
-        if (order) {
-          await supabase.from("pour_orders").update({
-            amount_paid: (Number(order.amount_paid) || 0) + amount,
-            amount_remaining: Math.max(0, (Number(order.amount_remaining) || 0) - amount),
-          }).eq("id", orderId);
+        const accountPayload: any = {
+          client_id: clientId,
+          transaction_type: "payment",
+          amount,
+          payment_method: payForm.payment_method,
+          notes: payForm.notes || null,
+          pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
+        };
+
+        if (isCheck) {
+          accountPayload.check_number = payForm.check_number || null;
+          accountPayload.check_date_cleared = checkDateCleared ? format(checkDateCleared, "yyyy-MM-dd") : null;
+        }
+
+        await supabase.from("client_accounts" as any).insert(accountPayload);
+
+        if (isCheck && checkDateCleared && user?.id) {
+          const checkNum = payForm.check_number || "—";
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            type: "check_clearance",
+            title: "موعد صرف شيك 📅",
+            body: `شيك رقم ${checkNum} للعميل ${clientName} بمبلغ ${amount.toLocaleString("ar-EG")} ج.م — موعد الصرف اليوم`,
+            metadata: { client_id: clientId, check_number: checkNum, amount },
+            is_read: false,
+            scheduled_date: format(checkDateCleared, "yyyy-MM-dd"),
+          } as any);
+        }
+
+        if (payForm.pour_order_id) {
+          const orderId = Number(payForm.pour_order_id);
+          const { data: order } = await supabase.from("pour_orders").select("amount_paid, amount_remaining").eq("id", orderId).single();
+          if (order) {
+            await supabase.from("pour_orders").update({
+              amount_paid: (Number(order.amount_paid) || 0) + amount,
+              amount_remaining: Math.max(0, (Number(order.amount_remaining) || 0) - amount),
+            }).eq("id", orderId);
+          }
         }
       }
     },
@@ -150,22 +208,31 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
       queryClient.invalidateQueries({ queryKey: ["client-statement-pours"] });
       queryClient.invalidateQueries({ queryKey: ["client-statement-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["station-statement"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast({ title: "تم تسجيل الدفعة بنجاح ✅" });
       onOpenChange(false);
-      setPayForm({ client_id: "", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "", check_number: "" });
-      setPaymentDate(new Date());
-      setCheckDateCleared(undefined);
+      resetForm();
     },
     onError: (err: any) => {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
     },
   });
 
+  function resetForm() {
+    setPayForm({ client_id: "", station_id: "", station_transaction_type: "payment", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "", check_number: "" });
+    setPaymentDate(new Date());
+    setCheckDateCleared(undefined);
+  }
+
   const setField = (k: string, v: string) => setPayForm((f) => ({ ...f, [k]: v }));
 
   function handleSubmit() {
-    if (!payForm.client_id) { toast({ title: "اختر العميل", variant: "destructive" }); return; }
+    if (isStation) {
+      if (!payForm.station_id) { toast({ title: "اختر المحطة", variant: "destructive" }); return; }
+    } else {
+      if (!payForm.client_id) { toast({ title: "اختر العميل", variant: "destructive" }); return; }
+    }
     if (!payForm.amount || Number(payForm.amount) <= 0) { toast({ title: "أدخل المبلغ", variant: "destructive" }); return; }
     if (payForm.payment_method === "check" && !payForm.check_number) {
       toast({ title: "أدخل رقم الشيك", variant: "destructive" }); return;
@@ -174,6 +241,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   }
 
   const isCheck = payForm.payment_method === "check";
+  const activeMethods = isStation ? STATION_PAYMENT_METHODS : PAYMENT_METHODS;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -182,9 +250,10 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
           <DialogTitle className="font-cairo text-right">تسجيل دفعة جديدة</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
+          {/* Payment Type */}
           <div className="space-y-1.5">
             <Label className="font-cairo">نوع الدفعة</Label>
-            <Select value={payForm.payment_type} onValueChange={(v) => setField("payment_type", v)}>
+            <Select value={payForm.payment_type} onValueChange={(v) => { setField("payment_type", v); setField("client_id", ""); setField("station_id", ""); setField("pour_order_id", ""); setField("payment_method", "cash"); }}>
               <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PAYMENT_TYPES.map((t) => (
@@ -194,32 +263,70 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="font-cairo">العميل *</Label>
-            <Select value={payForm.client_id} onValueChange={(v) => { setField("client_id", v); setField("pour_order_id", ""); }}>
-              <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر العميل" /></SelectTrigger>
-              <SelectContent>
-                {(clients ?? []).map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)} className="font-cairo">{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isStation ? (
+            <>
+              {/* Station select */}
+              <div className="space-y-1.5">
+                <Label className="font-cairo">المحطة *</Label>
+                <Select value={payForm.station_id} onValueChange={(v) => setField("station_id", v)}>
+                  <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر المحطة" /></SelectTrigger>
+                  <SelectContent>
+                    {(stations ?? []).map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)} className="font-cairo">{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-1.5">
-            <Label className="font-cairo">الطلب (اختياري)</Label>
-            <Select value={payForm.pour_order_id} onValueChange={(v) => setField("pour_order_id", v)} disabled={!payForm.client_id}>
-              <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر الطلب" /></SelectTrigger>
-              <SelectContent>
-                {(clientOrders ?? []).map((o) => (
-                  <SelectItem key={o.id} value={String(o.id)} className="font-cairo">
-                    #{o.id} - {o.concrete_type ?? ""} (متبقي: {fmt(Number(o.amount_remaining) || 0)})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {/* Station transaction type */}
+              <div className="space-y-1.5">
+                <Label className="font-cairo">نوع المعاملة *</Label>
+                <Select value={payForm.station_transaction_type} onValueChange={(v) => setField("station_transaction_type", v)}>
+                  <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STATION_TRANSACTION_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value} className="font-cairo">{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground font-cairo">
+                  {payForm.station_transaction_type === "payment" ? "ركيزة بتدفع للمحطة مقابل خرسانة" : "المحطة بتدفع لركيزة مقابل أسمنت"}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Client select */}
+              <div className="space-y-1.5">
+                <Label className="font-cairo">العميل *</Label>
+                <Select value={payForm.client_id} onValueChange={(v) => { setField("client_id", v); setField("pour_order_id", ""); }}>
+                  <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر العميل" /></SelectTrigger>
+                  <SelectContent>
+                    {(clients ?? []).map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)} className="font-cairo">{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
+              {/* Order select */}
+              <div className="space-y-1.5">
+                <Label className="font-cairo">الطلب (اختياري)</Label>
+                <Select value={payForm.pour_order_id} onValueChange={(v) => setField("pour_order_id", v)} disabled={!payForm.client_id}>
+                  <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر الطلب" /></SelectTrigger>
+                  <SelectContent>
+                    {(clientOrders ?? []).map((o) => (
+                      <SelectItem key={o.id} value={String(o.id)} className="font-cairo">
+                        #{o.id} - {o.concrete_type ?? ""} (متبقي: {fmt(Number(o.amount_remaining) || 0)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {/* Amount & Payment method */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="font-cairo">المبلغ (ج.م) *</Label>
@@ -230,7 +337,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
               <Select value={payForm.payment_method} onValueChange={(v) => setField("payment_method", v)}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PAYMENT_METHODS.map((m) => (
+                  {activeMethods.map((m) => (
                     <SelectItem key={m.value} value={m.value} className="font-cairo">{m.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -238,6 +345,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             </div>
           </div>
 
+          {/* Check fields */}
           {isCheck && (
             <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
               <div className="space-y-1.5">
@@ -266,6 +374,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             </div>
           )}
 
+          {/* Payment date */}
           <div className="space-y-1.5">
             <Label className="font-cairo">تاريخ الدفع</Label>
             <Popover>
@@ -281,6 +390,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             </Popover>
           </div>
 
+          {/* Notes */}
           <div className="space-y-1.5">
             <Label className="font-cairo">ملاحظات</Label>
             <Textarea value={payForm.notes} onChange={(e) => setField("notes", e.target.value)} className="font-cairo" rows={2} />
