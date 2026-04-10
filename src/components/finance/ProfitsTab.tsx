@@ -43,7 +43,7 @@ export function ProfitsTab() {
 
     const { data: orders, error } = await supabase
       .from("pour_orders")
-      .select("id, client_id, station_id, scheduled_date, created_at, quantity_m3, total_agreed_amount, station_total_amount, concrete_type, status")
+      .select("id, client_id, station_id, station_name, scheduled_date, created_at, quantity_m3, station_price_per_m3, total_agreed_amount, station_total_amount, concrete_type, status")
       .eq("status", "done")
       .gte("scheduled_date", start)
       .lte("scheduled_date", end)
