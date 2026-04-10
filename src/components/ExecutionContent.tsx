@@ -98,6 +98,8 @@ export function ExecutionContent() {
   const getFollowerName = (userId: string) =>
     followerProfiles.find((p: any) => p.id === userId)?.full_name || "";
 
+  const { data: pourHistory = {} } = useClientPourHistory(clientIds as number[]);
+
   // Start pour
   const startPour = useMutation({
     mutationFn: async (orderId: number) => {
