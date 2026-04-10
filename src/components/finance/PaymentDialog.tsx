@@ -287,13 +287,18 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             <Textarea value={payForm.notes} onChange={(e) => setField("notes", e.target.value)} className="font-cairo" rows={2} />
           </div>
         </div>
-        <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
-          <Button onClick={handleSubmit} disabled={paymentMutation.isPending} className="font-cairo gap-1">
-            {paymentMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {paymentMutation.isPending ? "جاري الحفظ..." : "تسجيل الدفعة"}
+        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t space-y-2">
+          <Button
+            onClick={handleSubmit}
+            disabled={paymentMutation.isPending}
+            className="w-full font-cairo gap-2 text-white font-bold text-lg"
+            style={{ background: "#28A745", padding: "16px" }}
+          >
+            {paymentMutation.isPending && <Loader2 className="h-5 w-5 animate-spin" />}
+            {paymentMutation.isPending ? "جاري الحفظ..." : "تسجيل الدفعة ✅"}
           </Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="font-cairo">إلغاء</Button>
-        </DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full font-cairo">إلغاء</Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
