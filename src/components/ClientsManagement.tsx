@@ -76,7 +76,7 @@ const POUR_STATUS_MAP: Record<string, string> = {
 
 export function ClientsManagement() {
   const queryClient = useQueryClient();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const isAdmin = userRole === "admin";
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
@@ -124,6 +124,74 @@ export function ClientsManagement() {
     },
   });
 
+  const sendAssignmentNotifications = async (
+    clientName: string,
+    oldSalesId: string | number | null,
+    newSalesId: string | number | null,
+    oldFollowupId: string | number | null,
+    newFollowupId: string | number | null,
+  ) => {
+    const notifications: any[] = [];
+
+    // Notify new sales rep
+    if (newSalesId && String(newSalesId) !== String(oldSalesId)) {
+      notifications.push({
+        user_id: String(newSalesId),
+        title: "تعيين عميل جديد",
+        message: `تم تعيينك كبائع للعميل: ${clientName}`,
+        type: "assignment",
+        is_read: false,
+      });
+    }
+
+    // Notify new followup rep
+    if (newFollowupId && String(newFollowupId) !== String(oldFollowupId)) {
+      notifications.push({
+        user_id: String(newFollowupId),
+        title: "تعيين عميل جديد",
+        message: `تم تعيينك كمتابع للعميل: ${clientName}`,
+        type: "assignment",
+        is_read: false,
+      });
+    }
+
+    // Notify all admins
+    if (notifications.length > 0) {
+      const { data: admins } = await supabase
+        .from("users")
+        .select("id")
+        .eq("role", "admin")
+        .eq("active", true);
+
+      const assigneeNames: string[] = [];
+      if (newSalesId && String(newSalesId) !== String(oldSalesId)) {
+        const name = staffMap.get(newSalesId as number) ?? "بائع";
+        assigneeNames.push(`بائع: ${name}`);
+      }
+      if (newFollowupId && String(newFollowupId) !== String(oldFollowupId)) {
+        const name = staffMap.get(newFollowupId as number) ?? "متابع";
+        assigneeNames.push(`متابع: ${name}`);
+      }
+
+      (admins ?? []).forEach((admin: any) => {
+        // Don't duplicate if admin is the one doing the assignment (current user)
+        if (String(admin.id) !== String(user?.id)) {
+          notifications.push({
+            user_id: admin.id,
+            title: "تعيين موظف لعميل",
+            message: `تم تعيين ${assigneeNames.join(" و ")} للعميل: ${clientName}`,
+            type: "assignment",
+            is_read: false,
+          });
+        }
+      });
+    }
+
+    if (notifications.length > 0) {
+      await supabase.from("notifications").insert(notifications as any);
+    }
+  };
+
   const upsertMutation = useMutation({
     mutationFn: async (payload: { id?: number; data: Partial<ClientForm> }) => {
       if (payload.id) {
@@ -135,6 +203,15 @@ export function ClientsManagement() {
       }
     },
     onSuccess: () => {
+      // Send assignment notifications if assignments changed
+      const clientName = form.name.trim();
+      const oldSalesId = editingClient?.assigned_sales_id ?? null;
+      const newSalesId = form.assigned_sales_id;
+      const oldFollowupId = editingClient?.assigned_followup_id ?? null;
+      const newFollowupId = form.assigned_followup_id;
+
+      sendAssignmentNotifications(clientName, oldSalesId, newSalesId, oldFollowupId, newFollowupId);
+
       queryClient.invalidateQueries({ queryKey: ["clients-list"] });
       queryClient.invalidateQueries({ queryKey: ["clients-count"] });
       toast({ title: editingClient ? "تم تحديث العميل" : "تم إضافة العميل بنجاح" });
