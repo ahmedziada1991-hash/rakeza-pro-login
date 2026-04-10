@@ -27,7 +27,13 @@ function toAmount(value: unknown) {
 }
 
 export function ProfitsTab() {
+  const { userRole } = useAuth();
+  const isAdmin = userRole === "admin";
+  const queryClient = useQueryClient();
   const [monthOffset, setMonthOffset] = useState(0);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const currentMonth = useMemo(() => subMonths(new Date(), monthOffset), [monthOffset]);
   const prevMonth = useMemo(() => subMonths(currentMonth, 1), [currentMonth]);
 
