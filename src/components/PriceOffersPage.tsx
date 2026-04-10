@@ -203,6 +203,7 @@ function generatePDF(offer: PriceOffer) {
 
 export function PriceOffersPage() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [offers, setOffers] = useState<PriceOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -230,6 +231,19 @@ export function PriceOffersPage() {
 
   useEffect(() => {
     fetchOffers();
+  }, []);
+
+  // Auto-open form with client data from URL params
+  useEffect(() => {
+    const name = searchParams.get("clientName");
+    const phone = searchParams.get("phone");
+    if (name) {
+      setClientName(name);
+      setWhatsapp(phone || "");
+      setDialogOpen(true);
+      // Clear params so refreshing doesn't re-trigger
+      setSearchParams({}, { replace: true });
+    }
   }, []);
 
   const addItem = () => setItems([...items, emptyItem()]);
