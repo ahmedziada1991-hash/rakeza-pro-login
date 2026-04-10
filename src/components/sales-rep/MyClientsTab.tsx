@@ -39,7 +39,7 @@ const CALL_RESULTS = [
 
 export function MyClientsTab() {
   const { user } = useAuth();
-  const { usersTableId } = useUsersTableId();
+  const { usersTableId, isLoading: isLoadingUserLookup } = useUsersTableId();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,7 +69,7 @@ export function MyClientsTab() {
   const [addArea, setAddArea] = useState("");
   const [addPourDate, setAddPourDate] = useState<Date>();
 
-  const { data: clients, isLoading } = useQuery({
+  const { data: clients, isLoading: isLoadingClients } = useQuery({
     queryKey: ["my-clients", usersTableId, filter],
     queryFn: async () => {
       let query = (supabase as any)
@@ -88,6 +88,8 @@ export function MyClientsTab() {
     },
     enabled: !!usersTableId,
   });
+
+  const isLoading = isLoadingUserLookup || isLoadingClients;
 
   const saveCallMutation = useMutation({
     mutationFn: async () => {
