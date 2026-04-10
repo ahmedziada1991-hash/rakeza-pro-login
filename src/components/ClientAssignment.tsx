@@ -140,6 +140,7 @@ export function ClientAssignment() {
           .update({ assigned_to: userId } as any)
           .eq("id", (client as any).id);
         if (error) throw error;
+        await sendAssignNotification(userId, (client as any).name || "عميل");
         counts[userId] = (counts[userId] || 0) + 1;
       }
     },
