@@ -55,14 +55,14 @@ export function UsersManagement() {
 
   // Update user details
   const updateUserMutation = useMutation({
-    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; password_hash: string }) => {
+    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; password: string }) => {
       const { error } = await supabase.from("users").update({
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
         role: userData.role,
         active: userData.active,
-        password_hash: userData.password_hash,
+        password: userData.password,
       }).eq("id", userData.id);
       if (error) throw error;
     },
@@ -289,7 +289,7 @@ export function UsersManagement() {
               </div>
               <div className="space-y-1.5">
                 <Label className="font-cairo">كلمة المرور</Label>
-                <Input value={editingUser.password_hash ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, password_hash: e.target.value }))} className="font-cairo" dir="ltr" type="text" />
+                <Input value={editingUser.password ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, password: e.target.value }))} className="font-cairo" dir="ltr" type="text" />
               </div>
               <div className="flex items-center gap-3">
                 <Label className="font-cairo">الحالة</Label>
