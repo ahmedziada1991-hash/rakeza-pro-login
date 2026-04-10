@@ -38,6 +38,9 @@ export function UsersManagement() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [loadingEmail, setLoadingEmail] = useState(false);
   const [newUser, setNewUser] = useState({ email: "", password: "", name: "", role: "sales", whatsapp: "" });
 
   // Fetch users from users table
@@ -53,18 +56,62 @@ export function UsersManagement() {
     },
   });
 
+  // Fetch email from auth.users via edge function
+  const fetchAuthEmail = async (userId: string) => {
+    setLoadingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-user-management", {
+        body: { action: "get-email", user_id: userId },
+      });
+      if (error) throw error;
+      setEditEmail(data.email || "");
+    } catch (err: any) {
+      console.error("Error fetching auth email:", err);
+      setEditEmail("");
+    } finally {
+      setLoadingEmail(false);
+    }
+  };
+
+  const openEditDialog = (user: any) => {
+    setEditingUser({ ...user });
+    setEditPassword("");
+    setEditEmail("");
+    if (user.id) {
+      fetchAuthEmail(user.id);
+    }
+  };
+
   // Update user details
   const updateUserMutation = useMutation({
-    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; password: string }) => {
+    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; newPassword: string }) => {
+      // Update users table
       const { error } = await supabase.from("users").update({
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
         role: userData.role,
         active: userData.active,
-        password: userData.password,
       }).eq("id", userData.id);
       if (error) throw error;
+
+      // Update password in auth.users if provided
+      if (userData.newPassword) {
+        const { data, error: pwError } = await supabase.functions.invoke("admin-user-management", {
+          body: { action: "update-password", user_id: userData.id, password: userData.newPassword },
+        });
+        if (pwError) throw pwError;
+        if (data?.error) throw new Error(data.error);
+      }
+
+      // Update email in auth.users if changed
+      if (userData.email) {
+        const { data, error: emailError } = await supabase.functions.invoke("admin-user-management", {
+          body: { action: "update-email", user_id: userData.id, email: userData.email },
+        });
+        if (emailError) throw emailError;
+        if (data?.error) throw new Error(data.error);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
@@ -94,18 +141,14 @@ export function UsersManagement() {
   // Create new user
   const createUserMutation = useMutation({
     mutationFn: async () => {
-      // Sign up user via Supabase auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newUser.email,
         password: newUser.password,
-        options: {
-          data: { full_name: newUser.name },
-        },
+        options: { data: { full_name: newUser.name } },
       });
       if (authError) throw authError;
       if (!authData.user) throw new Error("فشل إنشاء المستخدم");
 
-      // Add role
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: authData.user.id,
         role: newUser.role,
@@ -113,7 +156,6 @@ export function UsersManagement() {
       });
       if (roleError) throw roleError;
 
-      // Add to users table with hashed password indicator
       const { error: usersError } = await supabase.from("users").insert({
         id: authData.user.id,
         name: newUser.name,
@@ -123,11 +165,8 @@ export function UsersManagement() {
         active: true,
         password: newUser.password,
       });
-      if (usersError) {
-        console.error("Error inserting into users table:", usersError);
-      }
+      if (usersError) console.error("Error inserting into users table:", usersError);
 
-      // Add profile if table exists
       await supabase.from("profiles").upsert({
         id: authData.user.id,
         email: newUser.email,
@@ -186,7 +225,7 @@ export function UsersManagement() {
               </TableHeader>
               <TableBody>
                 {users.map((u: any) => (
-                  <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setEditingUser({ ...u })}>
+                  <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openEditDialog(u)}>
                     <TableCell className="font-cairo font-medium">{u.name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={ROLE_COLORS[u.role] ?? "outline"} className="font-cairo text-[11px]">
@@ -198,7 +237,10 @@ export function UsersManagement() {
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={u.active !== false}
-                          onCheckedChange={(checked) => { event?.stopPropagation?.(); toggleActiveMutation.mutate({ id: u.id, is_active: checked }); }}
+                          onCheckedChange={(checked) => {
+                            toggleActiveMutation.mutate({ id: u.id, is_active: checked });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <span className={`text-xs font-cairo ${u.active !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
                           {u.active !== false ? "مفعّل" : "معطّل"}
@@ -258,6 +300,7 @@ export function UsersManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit User Dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -271,7 +314,11 @@ export function UsersManagement() {
               </div>
               <div className="space-y-1.5">
                 <Label className="font-cairo">البريد الإلكتروني</Label>
-                <Input value={editingUser.email ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, email: e.target.value }))} className="font-cairo" dir="ltr" type="email" />
+                {loadingEmail ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="font-cairo" dir="ltr" type="email" />
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="font-cairo">رقم الهاتف</Label>
@@ -289,8 +336,15 @@ export function UsersManagement() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="font-cairo">كلمة المرور</Label>
-                <Input value={editingUser.password ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, password: e.target.value }))} className="font-cairo" dir="ltr" type="text" />
+                <Label className="font-cairo">كلمة المرور الجديدة</Label>
+                <Input 
+                  value={editPassword} 
+                  onChange={(e) => setEditPassword(e.target.value)} 
+                  className="font-cairo" 
+                  dir="ltr" 
+                  type="text" 
+                  placeholder="اتركها فارغة إذا لا تريد التغيير"
+                />
               </div>
               <div className="flex items-center gap-3">
                 <Label className="font-cairo">الحالة</Label>
@@ -306,11 +360,11 @@ export function UsersManagement() {
               onClick={() => editingUser && updateUserMutation.mutate({
                 id: editingUser.id,
                 name: editingUser.name,
-                email: editingUser.email,
+                email: editEmail,
                 phone: editingUser.phone,
                 role: editingUser.role,
                 active: editingUser.active !== false,
-                password: editingUser.password,
+                newPassword: editPassword,
               })}
               disabled={updateUserMutation.isPending}
               className="font-cairo gap-1"
