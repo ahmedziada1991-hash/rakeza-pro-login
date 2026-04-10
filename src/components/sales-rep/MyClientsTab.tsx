@@ -346,8 +346,8 @@ export function MyClientsTab() {
                 )}
 
                 {/* Followup person */}
-                {client.followup_name && (
-                  <p className="text-xs text-muted-foreground font-cairo">المتابع: {client.followup_name}</p>
+                {client.followup?.name && (
+                  <p className="text-xs text-muted-foreground font-cairo">المتابع: {client.followup.name}</p>
                 )}
 
                 <div className="flex flex-wrap gap-2">
