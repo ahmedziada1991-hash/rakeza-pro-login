@@ -65,7 +65,7 @@ export function StationsTab() {
         if (!acc) return;
         const amt = Number(t.amount) || 0;
         const type = t.transaction_type;
-        if (type === "pour" || type === "صبة" || type === "concrete") {
+        if (type === "concrete") {
           acc.totalPours++;
           acc.totalCost += amt;
         } else if (type === "payment" || type === "دفعة") {
