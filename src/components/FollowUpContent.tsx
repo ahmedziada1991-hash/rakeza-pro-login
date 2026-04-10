@@ -459,12 +459,12 @@ export function FollowUpContent() {
                           تحويل للتنفيذ
                         </Button>
 
-                        {/* Quote PDF */}
+                        {/* Quote - navigate to offers page with client data */}
                         <Button
                           size="sm"
                           variant="outline"
                           className="font-cairo gap-1"
-                          onClick={() => generateQuotePDF(client)}
+                          onClick={() => navigate(`/dashboard/follow-up/offers?clientName=${encodeURIComponent(client.name)}&phone=${encodeURIComponent(client.phone || "")}`)}
                         >
                           <FileText className="h-3.5 w-3.5" />
                           عرض سعر
