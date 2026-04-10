@@ -135,6 +135,9 @@ export function ExecutionContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-clients-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
       toast({ title: "تم", description: "تم تسجيل انتهاء الصبة وتحديث الماليات" });
     },
   });
@@ -172,6 +175,9 @@ export function ExecutionContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-clients-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
       setPayDialog(null);
       setPayForm({ amount: "", method: "cash", notes: "" });
       toast({ title: "تم التحصيل", description: "تم تسجيل المبلغ بنجاح" });

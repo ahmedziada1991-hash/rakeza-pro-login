@@ -103,7 +103,9 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["finance-client-summary"] });
       queryClient.invalidateQueries({ queryKey: ["finance-clients-tab"] });
       queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
       queryClient.invalidateQueries({ queryKey: ["orders-list"] });
+      queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
       toast({ title: "تم تسجيل الدفعة بنجاح" });
       onOpenChange(false);
       setPayForm({ client_id: "", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "" });
