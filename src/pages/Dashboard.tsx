@@ -34,7 +34,17 @@ const ROLE_LABELS: Record<string, string> = {
 const Dashboard = () => {
   const { role, "*": subpath } = useParams();
   const navigate = useNavigate();
-  const { session, userRole, isLoading } = useAuth();
+  const { session, user, userRole, isLoading } = useAuth();
+
+  const { data: currentUserName } = useQuery({
+    queryKey: ["current-user-name", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return "المدير";
+      const { data } = await supabase.from("users").select("name").eq("id", user.id).single();
+      return data?.name ?? "المدير";
+    },
+    enabled: !!user?.id,
+  });
 
   useEffect(() => {
     if (isLoading) return;
