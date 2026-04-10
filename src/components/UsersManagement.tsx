@@ -117,10 +117,11 @@ export function UsersManagement() {
       const { error: usersError } = await supabase.from("users").insert({
         id: authData.user.id,
         name: newUser.name,
+        email: newUser.email,
         phone: newUser.whatsapp || null,
         role: newUser.role,
         active: true,
-        password_hash: "auth_managed",
+        password: newUser.password,
       });
       if (usersError) {
         console.error("Error inserting into users table:", usersError);
