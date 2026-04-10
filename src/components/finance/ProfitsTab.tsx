@@ -50,7 +50,7 @@ export function ProfitsTab() {
   };
 
   const { data: currentOrders, isLoading: loadingCurrent } = useQuery({
-    queryKey: ["finance-profits", format(currentMonth, "yyyy-MM"), "all-done-orders-debug"],
+    queryKey: ["finance-profits", format(currentMonth, "yyyy-MM")],
     queryFn: () => fetchMonthData(currentMonth),
   });
 
