@@ -14,8 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "@/hooks/use-toast";
 import {
   Phone, MessageCircle, Play, CheckCircle2, Banknote,
-  ClipboardList, Clock, Loader2, StickyNote, Building2, User, Users, CalendarIcon
+  ClipboardList, Clock, Loader2, StickyNote, Building2, User, Users, CalendarIcon, Layers
 } from "lucide-react";
+import { useClientPourHistory } from "@/hooks/useClientPourHistory";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
