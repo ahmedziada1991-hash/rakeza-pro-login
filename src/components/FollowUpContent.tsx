@@ -70,25 +70,9 @@ export function FollowUpContent() {
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["followup-clients", user?.id],
     queryFn: async () => {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("auth_id", user!.id)
-        .single();
-
-      if (userError) throw userError;
-
-      const { data: clientsData, error: clientsError } = await supabase
-        .from("clients")
-        .select("*, sales_user:users!clients_assigned_sales_id_fkey(name)")
-        .eq("assigned_followup_id", userData.id)
-        .order("created_at", { ascending: false });
-
-      if (clientsError) throw clientsError;
-      return (clientsData || []).map((c: any) => ({
-        ...c,
-        sales_rep_name: c.sales_user?.name || null,
-      }));
+      const { data, error } = await (supabase as any).rpc("get_my_followup_clients");
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!user,
   });
