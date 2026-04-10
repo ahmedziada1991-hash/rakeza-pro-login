@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -203,7 +203,8 @@ function generatePDF(offer: PriceOffer) {
 
 export function PriceOffersPage() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [offers, setOffers] = useState<PriceOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -235,16 +236,17 @@ export function PriceOffersPage() {
 
   // Auto-open form with client data from URL params
   useEffect(() => {
-    const name = searchParams.get("clientName");
-    const phone = searchParams.get("phone");
+    const params = new URLSearchParams(location.search);
+    const name = params.get("clientName");
+    const phone = params.get("phone");
     if (name) {
       setClientName(name);
       setWhatsapp(phone || "");
       setDialogOpen(true);
       // Clear params so refreshing doesn't re-trigger
-      setSearchParams({}, { replace: true });
+      navigate(location.pathname, { replace: true });
     }
-  }, []);
+  }, [location.search]);
 
   const addItem = () => setItems([...items, emptyItem()]);
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
