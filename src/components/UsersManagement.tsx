@@ -40,34 +40,16 @@ export function UsersManagement() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [newUser, setNewUser] = useState({ email: "", password: "", name: "", role: "sales", whatsapp: "" });
 
-  // Fetch users from user_roles
+  // Fetch users from users table
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("user_roles")
-        .select("id, user_id, role, is_active, created_at")
+        .from("users")
+        .select("*")
         .order("created_at", { ascending: true });
       if (error) throw error;
-
-      // Try to get profile/email info - query profiles if exists
-      if (!data?.length) return [];
-
-      // Get emails from profiles table if available
-      const userIds = data.map((u) => u.user_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email, full_name, whatsapp")
-        .in("id", userIds);
-
-      const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-
-      return data.map((u) => ({
-        ...u,
-        email: profileMap.get(u.user_id)?.email ?? "—",
-        name: profileMap.get(u.user_id)?.full_name ?? "—",
-        whatsapp: profileMap.get(u.user_id)?.whatsapp ?? "—",
-      }));
+      return data ?? [];
     },
   });
 
@@ -87,10 +69,10 @@ export function UsersManagement() {
     },
   });
 
-  // Toggle active
+  // Toggle active in users table
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase.from("user_roles").update({ is_active }).eq("id", id);
+      const { error } = await supabase.from("users").update({ active: is_active }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -189,9 +171,8 @@ export function UsersManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="font-cairo text-right">الاسم</TableHead>
-                  <TableHead className="font-cairo text-right">البريد الإلكتروني</TableHead>
-                  <TableHead className="font-cairo text-right">الواتساب</TableHead>
                   <TableHead className="font-cairo text-right">الدور</TableHead>
+                  <TableHead className="font-cairo text-right">رقم الهاتف</TableHead>
                   <TableHead className="font-cairo text-right">الحالة</TableHead>
                   <TableHead className="font-cairo text-right">إجراءات</TableHead>
                 </TableRow>
@@ -199,22 +180,21 @@ export function UsersManagement() {
               <TableBody>
                 {users.map((u: any) => (
                   <TableRow key={u.id}>
-                    <TableCell className="font-cairo font-medium">{u.name}</TableCell>
-                    <TableCell className="font-cairo text-muted-foreground text-sm" dir="ltr">{u.email}</TableCell>
-                    <TableCell className="font-cairo text-muted-foreground text-sm" dir="ltr">{u.whatsapp}</TableCell>
+                    <TableCell className="font-cairo font-medium">{u.name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={ROLE_COLORS[u.role] ?? "outline"} className="font-cairo text-[11px]">
                         {ROLES.find((r) => r.value === u.role)?.label ?? u.role}
                       </Badge>
                     </TableCell>
+                    <TableCell className="font-cairo text-muted-foreground text-sm" dir="ltr">{u.phone ?? "—"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Switch
-                          checked={u.is_active !== false}
+                          checked={u.active !== false}
                           onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: u.id, is_active: checked })}
                         />
-                        <span className={`text-xs font-cairo ${u.is_active !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
-                          {u.is_active !== false ? "مفعّل" : "معطّل"}
+                        <span className={`text-xs font-cairo ${u.active !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
+                          {u.active !== false ? "مفعّل" : "معطّل"}
                         </span>
                       </div>
                     </TableCell>

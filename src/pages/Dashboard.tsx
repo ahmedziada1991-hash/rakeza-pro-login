@@ -3,6 +3,8 @@ import { Home, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminDashboardContent } from "@/components/AdminDashboardContent";
@@ -83,9 +85,9 @@ const Dashboard = () => {
               </div>
               <div className="flex items-center gap-2">
                 <NotificationBell />
-                <span className="text-sm font-cairo text-muted-foreground">مرحباً، المدير</span>
+                <span className="text-sm font-cairo text-muted-foreground">مرحباً يا {currentUserName}! 👋🎉</span>
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <span className="text-primary-foreground font-cairo font-bold text-sm">م</span>
+                  <span className="text-primary-foreground font-cairo font-bold text-sm">{currentUserName?.charAt(0) ?? "م"}</span>
                 </div>
               </div>
             </header>
