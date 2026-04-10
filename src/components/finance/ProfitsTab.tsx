@@ -67,8 +67,8 @@ export function ProfitsTab() {
   const calcTotals = (orders: any[]) => {
     let revenue = 0, cost = 0;
     orders.forEach((o) => {
-      revenue += Number(o.total_agreed_amount) || 0;
-      cost += Number(o.station_total_amount) || 0;
+      revenue += parseFloat(o.total_agreed_amount) || 0;
+      cost += parseFloat(o.station_total_amount) || 0;
     });
     return { revenue, cost, profit: revenue - cost, count: orders.length };
   };
