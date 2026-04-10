@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
@@ -9,7 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, ArrowRight, Download, Send } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Search, ArrowRight, Download, Send, Trash2, Pencil, Check, X } from "lucide-react";
+import { toast } from "sonner";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -32,6 +38,12 @@ interface ClientSummary {
 export function ClientsTab() {
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientSummary | null>(null);
+  const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null);
+  const [editingPourId, setEditingPourId] = useState<number | null>(null);
+  const [editPriceValue, setEditPriceValue] = useState("");
+  const { userRole } = useAuth();
+  const queryClient = useQueryClient();
+  const isAdmin = userRole === "admin";
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-clients-tab"],
@@ -85,6 +97,21 @@ export function ClientsTab() {
     },
   });
 
+  // Fetch pour-type entries from client_accounts to get price_per_m3
+  const { data: pourAccountEntries } = useQuery({
+    queryKey: ["client-statement-pour-accounts", selectedClient?.id],
+    enabled: !!selectedClient,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_accounts" as any)
+        .select("*")
+        .eq("client_id", selectedClient!.id)
+        .in("transaction_type", ["pour", "صبة"])
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
   const { data: payments, isLoading: loadingPayments } = useQuery({
     queryKey: ["client-statement-payments", selectedClient?.id],
     enabled: !!selectedClient,
@@ -130,14 +157,64 @@ export function ClientsTab() {
 
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => { window.print(); };
 
   const handleWhatsApp = (client: ClientSummary) => {
     const phone = (client.phone || "").replace(/[^0-9]/g, "");
     const msg = encodeURIComponent(`السلام عليكم 👋\nمرفق كشف حساب من شركة ركيزة لتوريد الخرسانة الجاهزة 🏗️\nالعميل: ${client.name}\nالمتبقي: ${fmt(client.remaining)}`);
     window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  };
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["client-statement-payments", selectedClient?.id] });
+    queryClient.invalidateQueries({ queryKey: ["client-statement-totals", selectedClient?.id] });
+    queryClient.invalidateQueries({ queryKey: ["client-statement-pour-accounts", selectedClient?.id] });
+    queryClient.invalidateQueries({ queryKey: ["finance-clients-tab"] });
+  };
+
+  const handleDeletePayment = async () => {
+    if (!deletePaymentId) return;
+    const { error } = await supabase
+      .from("client_accounts" as any)
+      .delete()
+      .eq("id", deletePaymentId);
+    if (error) {
+      toast.error("فشل حذف الدفعة");
+    } else {
+      toast.success("تم حذف الدفعة بنجاح");
+      invalidateAll();
+    }
+    setDeletePaymentId(null);
+  };
+
+  const getPourAccountPrice = (pourOrderId: number) => {
+    const entry = (pourAccountEntries as any[] ?? []).find(
+      (e: any) => e.pour_order_id === pourOrderId
+    );
+    return entry?.price_per_m3 != null ? Number(entry.price_per_m3) : null;
+  };
+
+  const handleSavePourPrice = async (pourOrderId: number, quantityM3: number) => {
+    const newPrice = Number(editPriceValue);
+    if (isNaN(newPrice) || newPrice <= 0) {
+      toast.error("أدخل سعر صحيح");
+      return;
+    }
+    const newAmount = newPrice * quantityM3;
+
+    const { error } = await supabase
+      .from("client_accounts" as any)
+      .update({ price_per_m3: newPrice, amount: newAmount } as any)
+      .eq("pour_order_id", pourOrderId)
+      .in("transaction_type", ["pour", "صبة"]);
+
+    if (error) {
+      toast.error("فشل تحديث السعر");
+    } else {
+      toast.success("تم تحديث السعر بنجاح");
+      invalidateAll();
+    }
+    setEditingPourId(null);
   };
 
   // ──── Full-page statement view ────
@@ -209,19 +286,58 @@ export function ClientsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(pourOrders || []).map((p: any, i: number) => (
-                    <tr key={p.id} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{p.scheduled_date || "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{p.quantity_m3 ?? "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{p.price_per_m3 ? fmt(Number(p.price_per_m3)) : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs font-bold">{p.total_agreed_amount ? fmt(Number(p.total_agreed_amount)) : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">
-                        <Badge variant="outline" className="text-[10px]">
-                          {p.status === "done" ? "تم" : p.status === "in_progress" ? "جاري" : p.status === "scheduled" ? "مجدول" : p.status || "—"}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
+                  {(pourOrders || []).map((p: any, i: number) => {
+                    const accountPrice = getPourAccountPrice(p.id);
+                    const displayPrice = accountPrice ?? (p.price_per_m3 ? Number(p.price_per_m3) : null);
+                    const isEditing = editingPourId === p.id;
+
+                    return (
+                      <tr key={p.id} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
+                        <td className="font-cairo px-3 py-2.5 text-xs">{p.scheduled_date || "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs">{p.quantity_m3 ?? "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={editPriceValue}
+                                onChange={(e) => setEditPriceValue(e.target.value)}
+                                className="h-6 w-20 text-xs font-cairo px-1"
+                                autoFocus
+                              />
+                              <button onClick={() => handleSavePourPrice(p.id, Number(p.quantity_m3) || 0)} className="text-green-600 hover:text-green-800">
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={() => setEditingPourId(null)} className="text-red-500 hover:text-red-700">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              {displayPrice != null ? fmt(displayPrice) : "—"}
+                              {isAdmin && (
+                                <button
+                                  onClick={() => {
+                                    setEditingPourId(p.id);
+                                    setEditPriceValue(displayPrice != null ? String(displayPrice) : "");
+                                  }}
+                                  className="text-muted-foreground hover:text-primary print:hidden"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs font-bold">{p.total_agreed_amount ? fmt(Number(p.total_agreed_amount)) : "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs">
+                          <Badge variant="outline" className="text-[10px]">
+                            {p.status === "done" ? "تم" : p.status === "in_progress" ? "جاري" : p.status === "scheduled" ? "مجدول" : p.status || "—"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -240,8 +356,8 @@ export function ClientsTab() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "المبلغ", "طريقة الدفع", "ملاحظات"].map((h) => (
-                      <th key={h} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
+                    {["التاريخ", "المبلغ", "طريقة الدفع", "ملاحظات", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -254,6 +370,16 @@ export function ClientsTab() {
                         <Badge variant="outline" className="text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge>
                       </td>
                       <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{t.notes ?? "—"}</td>
+                      {isAdmin && (
+                        <td className="px-2 py-2.5 print:hidden">
+                          <button
+                            onClick={() => setDeletePaymentId(t.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -283,6 +409,24 @@ export function ClientsTab() {
             رجوع للقائمة
           </Button>
         </div>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => !open && setDeletePaymentId(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-cairo">هل تريد حذف هذه الدفعة؟</AlertDialogTitle>
+              <AlertDialogDescription className="font-cairo">
+                سيتم حذف الدفعة نهائياً وتحديث أرقام كشف الحساب.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex gap-2">
+              <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeletePayment} className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                حذف
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
