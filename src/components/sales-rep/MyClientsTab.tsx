@@ -21,15 +21,9 @@ import { cn } from "@/lib/utils";
 
 const CLASSIFICATIONS = [
   { value: "all", label: "الكل", color: "" },
-  { value: "new", label: "جديد", color: "bg-chart-1/15 text-chart-1 border-chart-1/30" },
-  { value: "contacted", label: "تم التواصل", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
-  { value: "qualified", label: "مؤهل", color: "bg-chart-2/15 text-chart-2 border-chart-2/30" },
-  { value: "converted", label: "محول", color: "bg-chart-5/15 text-chart-5 border-chart-5/30" },
-  { value: "active", label: "نشط", color: "bg-chart-2/15 text-chart-2 border-chart-2/30" },
   { value: "hot", label: "ساخن", color: "bg-destructive/15 text-destructive border-destructive/30" },
   { value: "warm", label: "دافئ", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
   { value: "cold", label: "بارد", color: "bg-chart-1/15 text-chart-1 border-chart-1/30" },
-  { value: "inactive", label: "خامل", color: "bg-muted-foreground/15 text-muted-foreground border-muted-foreground/30" },
   { value: "followup", label: "متابعة", color: "bg-primary/15 text-primary border-primary/30" },
 ];
 
@@ -85,7 +79,9 @@ export function MyClientsTab() {
   const clients = (() => {
     if (!allClients) return [];
     if (filter === "followup") return allClients.filter((c: any) => c.assigned_followup_id != null);
-    if (filter !== "all") return allClients.filter((c: any) => c.status === filter);
+    if (filter === "hot") return allClients.filter((c: any) => ["hot", "qualified", "active"].includes(c.status));
+    if (filter === "warm") return allClients.filter((c: any) => ["contacted", "new"].includes(c.status));
+    if (filter === "cold") return allClients.filter((c: any) => c.status === "cold");
     return allClients;
   })();
 
