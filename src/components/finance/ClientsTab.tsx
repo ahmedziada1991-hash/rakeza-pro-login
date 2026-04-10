@@ -173,19 +173,19 @@ export function ClientsTab() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">إجمالي المديونية</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#DC2626" }}>{fmt(selectedClient.totalAmount)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#DC2626" }}>{fmt(statementTotals?.totalAmount ?? selectedClient.totalAmount)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">إجمالي المدفوع</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(selectedClient.totalPaid)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(statementTotals?.totalPaid ?? selectedClient.totalPaid)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">المتبقي</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#1B3A6B" }}>{fmt(selectedClient.remaining)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#1B3A6B" }}>{fmt(statementTotals?.remaining ?? selectedClient.remaining)}</p>
               </CardContent>
             </Card>
           </div>
