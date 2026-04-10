@@ -63,7 +63,7 @@ function generatePDF(offer: PriceOffer) {
   const doc = new jsPDF({ orientation: "portrait" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const offerNum = offer.id.slice(0, 8).toUpperCase();
+  const offerNum = String(offer.id).slice(0, 8).toUpperCase();
   const dateStr = new Date(offer.created_at).toLocaleDateString("en-GB");
   const expiryDate = new Date(new Date(offer.created_at).getTime() + offer.validity_days * 86400000).toLocaleDateString("en-GB");
 
@@ -408,7 +408,7 @@ export function PriceOffersPage({ prefillName, prefillPhone }: { prefillName?: s
                   <p className="text-white/80 text-sm mt-1 font-cairo">لتوريد الخرسانة الجاهزة | جمهورية مصر العربية</p>
                 </div>
                 <div className="text-left text-white/90 text-xs space-y-1">
-                  <p>رقم العرض: {viewOffer.id.slice(0, 8).toUpperCase()}</p>
+                  <p>رقم العرض: {String(viewOffer.id).slice(0, 8).toUpperCase()}</p>
                   <p>التاريخ: {new Date(viewOffer.created_at).toLocaleDateString("ar-EG")}</p>
                   <p>صالح حتى: {new Date(new Date(viewOffer.created_at).getTime() + viewOffer.validity_days * 86400000).toLocaleDateString("ar-EG")}</p>
                 </div>
