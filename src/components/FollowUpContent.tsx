@@ -289,6 +289,26 @@ export function FollowUpContent() {
           />
         </div>
 
+        {/* Pour filter */}
+        <div className="flex gap-2 flex-wrap mt-2">
+          {[
+            { value: "all", label: "الكل" },
+            { value: "has_pours", label: "لديه صبات" },
+            { value: "no_pours", label: "بدون صبات" },
+            { value: "high_volume", label: "حجم كبير (٥٠+ م³)" },
+          ].map((f) => (
+            <Button
+              key={f.value}
+              variant={pourFilter === f.value ? "default" : "outline"}
+              size="sm"
+              className="font-cairo text-xs"
+              onClick={() => setPourFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+
         <TabsContent value={activeTab} className="mt-3">
           {isLoading ? (
             <p className="text-center font-cairo text-muted-foreground py-8">جاري التحميل...</p>
