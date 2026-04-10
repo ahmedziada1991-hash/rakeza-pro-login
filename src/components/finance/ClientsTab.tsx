@@ -99,6 +99,35 @@ export function ClientsTab() {
     },
   });
 
+  // Fetch all client_accounts to compute accurate totals
+  const { data: allClientTxns } = useQuery({
+    queryKey: ["client-statement-totals", selectedClient?.id],
+    enabled: !!selectedClient,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_accounts" as any)
+        .select("transaction_type, amount")
+        .eq("client_id", selectedClient!.id);
+      return data ?? [];
+    },
+  });
+
+  // Compute totals from client_accounts
+  const statementTotals = (() => {
+    if (!allClientTxns) return null;
+    let totalAmount = 0;
+    let totalPaid = 0;
+    (allClientTxns as any[]).forEach((t: any) => {
+      const amt = Number(t.amount) || 0;
+      if (t.transaction_type === "pour" || t.transaction_type === "صبة") {
+        totalAmount += amt;
+      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "تحصيل") {
+        totalPaid += amt;
+      }
+    });
+    return { totalAmount, totalPaid, remaining: totalAmount - totalPaid };
+  })();
+
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   const handlePrint = () => {
