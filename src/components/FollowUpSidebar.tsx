@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, LogOut, ArrowRightLeft } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, ArrowRightLeft, Target } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "لوحة المتابعة", url: "/dashboard/follow-up", icon: LayoutDashboard, end: true },
+  { title: "أهدافي", url: "/dashboard/follow-up/goals", icon: Target },
   { title: "توزيع العملاء", url: "/dashboard/follow-up/assign", icon: ArrowRightLeft, adminOnly: true },
 ];
 
