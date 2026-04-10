@@ -54,6 +54,7 @@ export function FollowUpContent() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("potential");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pourFilter, setPourFilter] = useState("all"); // all, has_pours, no_pours, high_volume
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [callLogViewId, setCallLogViewId] = useState<string | null>(null);
 
@@ -112,6 +113,18 @@ export function FollowUpContent() {
         (c: any) => (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q)
       );
     }
+
+    // Pour history filter
+    if (pourFilter !== "all") {
+      filtered = filtered.filter((c: any) => {
+        const h = pourHistory[c.id];
+        if (pourFilter === "no_pours") return !h || h.pourCount === 0;
+        if (pourFilter === "has_pours") return h && h.pourCount > 0;
+        if (pourFilter === "high_volume") return h && h.totalQuantity >= 50;
+        return true;
+      });
+    }
+
     return filtered;
   };
 
@@ -274,6 +287,26 @@ export function FollowUpContent() {
             placeholder="بحث بالاسم أو رقم الهاتف..."
             className="font-cairo pr-9"
           />
+        </div>
+
+        {/* Pour filter */}
+        <div className="flex gap-2 flex-wrap mt-2">
+          {[
+            { value: "all", label: "الكل" },
+            { value: "has_pours", label: "لديه صبات" },
+            { value: "no_pours", label: "بدون صبات" },
+            { value: "high_volume", label: "حجم كبير (٥٠+ م³)" },
+          ].map((f) => (
+            <Button
+              key={f.value}
+              variant={pourFilter === f.value ? "default" : "outline"}
+              size="sm"
+              className="font-cairo text-xs"
+              onClick={() => setPourFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
         </div>
 
         <TabsContent value={activeTab} className="mt-3">
