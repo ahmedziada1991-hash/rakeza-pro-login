@@ -247,8 +247,21 @@ export function MyClientsTab() {
     }
   };
 
+  const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    new: { label: "جديد", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
+    contacted: { label: "تم التواصل", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
+    qualified: { label: "مؤهل", color: "bg-destructive/15 text-destructive border-destructive/30" },
+    converted: { label: "محول", color: "bg-chart-5/15 text-chart-5 border-chart-5/30" },
+    active: { label: "نشط", color: "bg-destructive/15 text-destructive border-destructive/30" },
+    hot: { label: "ساخن", color: "bg-destructive/15 text-destructive border-destructive/30" },
+    warm: { label: "دافئ", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
+    cold: { label: "بارد", color: "bg-chart-1/15 text-chart-1 border-chart-1/30" },
+    inactive: { label: "خامل", color: "bg-muted-foreground/15 text-muted-foreground border-muted-foreground/30" },
+    followup: { label: "متابعة", color: "bg-primary/15 text-primary border-primary/30" },
+  };
+
   const getClassBadge = (classification: string) => {
-    const cls = CLASSIFICATIONS.find((c) => c.value === classification);
+    const cls = STATUS_LABELS[classification];
     return cls ? (
       <Badge className={`${cls.color} font-cairo text-xs`}>{cls.label}</Badge>
     ) : null;
