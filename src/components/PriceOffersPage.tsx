@@ -484,7 +484,7 @@ export function PriceOffersPage({ prefillName, prefillPhone }: { prefillName?: s
         </DialogContent>
       </Dialog>
 
-      {/* View Offer Dialog */}
+      {/* View offer is now handled as full-page above */}
       {viewOffer && (
         <Dialog open={true} onOpenChange={() => setViewOffer(null)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0" dir="rtl">
