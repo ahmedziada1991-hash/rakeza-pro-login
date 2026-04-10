@@ -55,9 +55,10 @@ export function UsersManagement() {
 
   // Update user details
   const updateUserMutation = useMutation({
-    mutationFn: async (userData: { id: string; name: string; phone: string; role: string; active: boolean; password_hash: string }) => {
+    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; password_hash: string }) => {
       const { error } = await supabase.from("users").update({
         name: userData.name,
+        email: userData.email,
         phone: userData.phone,
         role: userData.role,
         active: userData.active,
