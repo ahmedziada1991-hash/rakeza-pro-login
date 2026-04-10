@@ -308,7 +308,6 @@ export function PriceOffersPage() {
     resetForm();
     await fetchOffers();
   };
-  };
 
   const handlePrint = (offer: PriceOffer) => {
     const doc = generatePDF(offer);
