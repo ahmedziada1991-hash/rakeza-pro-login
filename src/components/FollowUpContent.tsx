@@ -110,7 +110,7 @@ export function FollowUpContent() {
     if (activeTab === "all") {
       filtered = [...clients];
     } else if (activeTab === "appointments") {
-      filtered = clients.filter((c: any) => c.next_followup_date);
+      filtered = clients.filter((c: any) => c.confirmed_pour_date);
       filtered.sort((a: any, b: any) =>
         new Date(a.next_followup_date).getTime() - new Date(b.next_followup_date).getTime()
       );
