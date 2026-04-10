@@ -3,16 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Users, FileText, Building2, TrendingUp, Clock, CheckCircle2,
-  AlertCircle, Loader2, Banknote, BarChart3,
+  Users, FileText, Building2, TrendingUp, TrendingDown, Clock, CheckCircle2,
+  AlertCircle, Loader2, Banknote, BarChart3, Phone, MapPin, Minus, Target,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line,
 } from "recharts";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: typeof CheckCircle2; color: string }> = {
   done: { label: "مكتمل", variant: "default", icon: CheckCircle2, color: "hsl(var(--primary))" },
