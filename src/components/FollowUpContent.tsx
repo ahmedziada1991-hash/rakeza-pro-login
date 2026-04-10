@@ -115,6 +115,9 @@ export function FollowUpContent() {
     return filtered;
   };
 
+  const allClientIds = clients.map((c: any) => c.id);
+  const { data: pourHistory = {} } = useClientPourHistory(allClientIds);
+
   // Save follow-up call
   const saveCallMutation = useMutation({
     mutationFn: async () => {
