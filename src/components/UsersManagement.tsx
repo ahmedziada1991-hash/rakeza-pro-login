@@ -55,14 +55,14 @@ export function UsersManagement() {
 
   // Update user details
   const updateUserMutation = useMutation({
-    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; password_hash: string }) => {
+    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; password: string }) => {
       const { error } = await supabase.from("users").update({
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
         role: userData.role,
         active: userData.active,
-        password_hash: userData.password_hash,
+        password: userData.password,
       }).eq("id", userData.id);
       if (error) throw error;
     },
@@ -117,10 +117,11 @@ export function UsersManagement() {
       const { error: usersError } = await supabase.from("users").insert({
         id: authData.user.id,
         name: newUser.name,
+        email: newUser.email,
         phone: newUser.whatsapp || null,
         role: newUser.role,
         active: true,
-        password_hash: "auth_managed",
+        password: newUser.password,
       });
       if (usersError) {
         console.error("Error inserting into users table:", usersError);
@@ -289,7 +290,7 @@ export function UsersManagement() {
               </div>
               <div className="space-y-1.5">
                 <Label className="font-cairo">كلمة المرور</Label>
-                <Input value={editingUser.password_hash ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, password_hash: e.target.value }))} className="font-cairo" dir="ltr" type="text" />
+                <Input value={editingUser.password ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, password: e.target.value }))} className="font-cairo" dir="ltr" type="text" />
               </div>
               <div className="flex items-center gap-3">
                 <Label className="font-cairo">الحالة</Label>
@@ -309,7 +310,7 @@ export function UsersManagement() {
                 phone: editingUser.phone,
                 role: editingUser.role,
                 active: editingUser.active !== false,
-                password_hash: editingUser.password_hash,
+                password: editingUser.password,
               })}
               disabled={updateUserMutation.isPending}
               className="font-cairo gap-1"
