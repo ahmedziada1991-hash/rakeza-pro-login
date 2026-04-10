@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
@@ -18,6 +18,12 @@ function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
 }
 
+function toAmount(value: unknown) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return parseFloat(value) || 0;
+  return 0;
+}
+
 export function ProfitsTab() {
   const [monthOffset, setMonthOffset] = useState(0);
   const currentMonth = useMemo(() => subMonths(new Date(), monthOffset), [monthOffset]);
@@ -27,25 +33,39 @@ export function ProfitsTab() {
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
 
-    const { data: orders } = await supabase
+    const { data: orders, error } = await supabase
       .from("pour_orders")
-      .select("id, client_id, station_id, pour_date, quantity_m3, agreed_price_per_m3, total_agreed_amount, station_price_per_m3, station_total_amount, concrete_type, status")
+      .select("id, client_id, station_id, scheduled_date, created_at, quantity_m3, total_agreed_amount, station_total_amount, concrete_type, status")
       .eq("status", "done")
-      .gte("pour_date", start)
-      .lte("pour_date", end)
-      .order("pour_date", { ascending: false });
+      .order("created_at", { ascending: false });
+
+    console.log("[ProfitsTab] pour_orders response", {
+      debugMode: "without-month-filter",
+      selectedMonth: format(month, "yyyy-MM"),
+      start,
+      end,
+      count: orders?.length ?? 0,
+      error,
+      orders,
+    });
+
+    if (error) {
+      console.error("[ProfitsTab] failed to load pour_orders", error);
+      return [];
+    }
 
     return orders ?? [];
   };
 
   const { data: currentOrders, isLoading: loadingCurrent } = useQuery({
-    queryKey: ["finance-profits", format(currentMonth, "yyyy-MM")],
+    queryKey: ["finance-profits", format(currentMonth, "yyyy-MM"), "all-done-orders-debug"],
     queryFn: () => fetchMonthData(currentMonth),
   });
 
   const { data: prevOrders, isLoading: loadingPrev } = useQuery({
-    queryKey: ["finance-profits", format(prevMonth, "yyyy-MM")],
-    queryFn: () => fetchMonthData(prevMonth),
+    queryKey: ["finance-profits", format(prevMonth, "yyyy-MM"), "previous-month-disabled-debug"],
+    queryFn: async () => [],
+    initialData: [],
   });
 
   const { data: clients } = useQuery({
@@ -67,8 +87,8 @@ export function ProfitsTab() {
   const calcTotals = (orders: any[]) => {
     let revenue = 0, cost = 0;
     orders.forEach((o) => {
-      revenue += parseFloat(o.total_agreed_amount) || 0;
-      cost += parseFloat(o.station_total_amount) || 0;
+      revenue += toAmount(o.total_agreed_amount);
+      cost += toAmount(o.station_total_amount);
     });
     return { revenue, cost, profit: revenue - cost, count: orders.length };
   };
@@ -78,6 +98,22 @@ export function ProfitsTab() {
   const isLoading = loadingCurrent || loadingPrev;
 
   const profitChange = prev.profit !== 0 ? ((current.profit - prev.profit) / Math.abs(prev.profit)) * 100 : 0;
+
+  useEffect(() => {
+    console.log("[ProfitsTab] calculated totals", {
+      debugMode: "without-month-filter",
+      revenue: current.revenue,
+      cost: current.cost,
+      profit: current.profit,
+      count: current.count,
+      sampleOrders: (currentOrders ?? []).slice(0, 5).map((order: any) => ({
+        id: order.id,
+        scheduled_date: order.scheduled_date,
+        total_agreed_amount: order.total_agreed_amount,
+        station_total_amount: order.station_total_amount,
+      })),
+    });
+  }, [currentOrders]);
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = subMonths(new Date(), i);
@@ -179,7 +215,7 @@ export function ProfitsTab() {
         </CardHeader>
         <CardContent className="p-0">
           {!(currentOrders ?? []).length ? (
-            <p className="text-center text-muted-foreground font-cairo py-8 text-sm">لا توجد صبات هذا الشهر</p>
+            <p className="text-center text-muted-foreground font-cairo py-8 text-sm">لا توجد صبات مكتملة</p>
           ) : (
             <div className="overflow-auto">
               <Table>
@@ -196,12 +232,12 @@ export function ProfitsTab() {
                 </TableHeader>
                 <TableBody>
                   {(currentOrders ?? []).map((o: any) => {
-                    const sell = Number(o.total_agreed_amount) || 0;
-                    const buy = Number(o.station_total_amount) || 0;
+                    const sell = toAmount(o.total_agreed_amount);
+                    const buy = toAmount(o.station_total_amount);
                     const profit = sell - buy;
                     return (
                       <TableRow key={o.id}>
-                        <TableCell className="font-cairo text-xs">{o.pour_date ?? "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs">{o.scheduled_date ?? o.created_at?.split("T")[0] ?? "—"}</TableCell>
                         <TableCell className="font-cairo text-xs">{clients?.get(o.client_id) ?? "—"}</TableCell>
                         <TableCell className="font-cairo text-xs">{stations?.get(o.station_id) ?? "—"}</TableCell>
                         <TableCell className="font-cairo">{o.quantity_m3 ?? "—"} م³</TableCell>
