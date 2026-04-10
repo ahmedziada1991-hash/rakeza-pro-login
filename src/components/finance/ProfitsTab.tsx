@@ -109,30 +109,11 @@ export function ProfitsTab() {
       if (pourErr) throw pourErr;
 
       if (order.station_id) {
-        const clientName = clients?.get(order.client_id) ?? "";
-
-        const { error: stationErr } = await supabase
+        await supabase
           .from("station_accounts")
           .update({ price_per_m3: newPrice, amount: newTotal })
-          .eq("station_id", order.station_id)
-          .eq("transaction_type", "concrete")
-          .like("notes", `%${clientName}%`);
-
-        if (stationErr) {
-          console.warn("station_accounts update failed, trying insert", stationErr);
-          await supabase
-            .from("station_accounts")
-            .insert({
-              station_id: order.station_id,
-              client_id: order.client_id,
-              transaction_type: "concrete",
-              quantity_m3: qty,
-              price_per_m3: newPrice,
-              amount: newTotal,
-              concrete_type: order.concrete_type,
-              pour_order_id: order.id,
-            });
-        }
+          .eq("pour_order_id", order.id)
+          .eq("transaction_type", "concrete");
       }
 
       toast.success("تم تحديث سعر الشراء");
