@@ -28,6 +28,7 @@ const App = () => (
             <Route path="/dashboard/sales-rep/goals" element={<SalesRepGoals />} />
             <Route path="/dashboard/sales-rep/calendar" element={<SalesRepCalendar />} />
             <Route path="/dashboard/follow-up" element={<FollowUpDashboard />} />
+            <Route path="/dashboard/follow-up/goals" element={<FollowUpDashboard />} />
             <Route path="/dashboard/follow-up/assign" element={<FollowUpDashboard />} />
             <Route path="/dashboard/execution" element={<ExecutionDashboard />} />
             <Route path="/dashboard/execution/report" element={<ExecutionDashboard />} />
