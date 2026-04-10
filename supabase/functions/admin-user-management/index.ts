@@ -81,6 +81,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === "delete-user") {
+      // Delete from users table, user_roles, profiles, then auth
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
+      await supabaseAdmin.from("profiles").delete().eq("id", user_id);
+      await supabaseAdmin.from("users").delete().eq("id", user_id);
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+      if (error) throw error;
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: "Invalid action" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
