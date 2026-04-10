@@ -74,17 +74,22 @@ export function MyClientsTab() {
     queryFn: async () => {
       let query = (supabase as any)
         .from("clients")
-        .select("*")
+        .select("*, followup_user:users!clients_assigned_followup_id_fkey(name)")
         .eq("assigned_sales_id", usersTableId)
         .order("created_at", { ascending: false });
 
-      if (filter !== "all") {
+      if (filter === "followup") {
+        query = query.not("assigned_followup_id", "is", null);
+      } else if (filter !== "all") {
         query = query.eq("status", filter);
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []).map((c: any) => ({
+        ...c,
+        followup_name: c.followup_user?.name || null,
+      }));
     },
     enabled: !!usersTableId,
   });
@@ -332,9 +337,9 @@ export function MyClientsTab() {
                   </div>
                 )}
 
-                {/* Salesperson */}
-                {client.salesperson_name && (
-                  <p className="text-xs text-muted-foreground font-cairo">البائع: {client.salesperson_name}</p>
+                {/* Followup person */}
+                {client.followup_name && (
+                  <p className="text-xs text-muted-foreground font-cairo">المتابع: {client.followup_name}</p>
                 )}
 
                 <div className="flex flex-wrap gap-2">
