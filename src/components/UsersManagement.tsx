@@ -53,15 +53,21 @@ export function UsersManagement() {
     },
   });
 
-  // Update role
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      const { error } = await supabase.from("user_roles").update({ role }).eq("id", id);
+  // Update user details
+  const updateUserMutation = useMutation({
+    mutationFn: async (userData: { id: string; name: string; phone: string; role: string; active: boolean; password_hash: string }) => {
+      const { error } = await supabase.from("users").update({
+        name: userData.name,
+        phone: userData.phone,
+        role: userData.role,
+        active: userData.active,
+        password_hash: userData.password_hash,
+      }).eq("id", userData.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      toast({ title: "تم تحديث الدور بنجاح" });
+      toast({ title: "تم تحديث بيانات المستخدم بنجاح" });
       setEditingUser(null);
     },
     onError: (err: any) => {
@@ -174,12 +180,11 @@ export function UsersManagement() {
                   <TableHead className="font-cairo text-right">الدور</TableHead>
                   <TableHead className="font-cairo text-right">رقم الهاتف</TableHead>
                   <TableHead className="font-cairo text-right">الحالة</TableHead>
-                  <TableHead className="font-cairo text-right">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((u: any) => (
-                  <TableRow key={u.id}>
+                  <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setEditingUser({ ...u })}>
                     <TableCell className="font-cairo font-medium">{u.name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={ROLE_COLORS[u.role] ?? "outline"} className="font-cairo text-[11px]">
@@ -191,22 +196,12 @@ export function UsersManagement() {
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={u.active !== false}
-                          onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: u.id, is_active: checked })}
+                          onCheckedChange={(checked) => { event?.stopPropagation?.(); toggleActiveMutation.mutate({ id: u.id, is_active: checked }); }}
                         />
                         <span className={`text-xs font-cairo ${u.active !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
                           {u.active !== false ? "مفعّل" : "معطّل"}
                         </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingUser(u)}
-                        className="font-cairo text-xs"
-                      >
-                        تعديل الدور
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -261,20 +256,24 @@ export function UsersManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Role Dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-cairo text-right">تعديل دور المستخدم</DialogTitle>
+            <DialogTitle className="font-cairo text-right">تعديل بيانات المستخدم</DialogTitle>
           </DialogHeader>
           {editingUser && (
             <div className="space-y-4">
-              <p className="font-cairo text-sm text-muted-foreground">
-                {editingUser.name} ({editingUser.email})
-              </p>
               <div className="space-y-1.5">
-                <Label className="font-cairo">الدور الجديد</Label>
-                <Select defaultValue={editingUser.role} onValueChange={(v) => setEditingUser((u: any) => ({ ...u, role: v }))}>
+                <Label className="font-cairo">الاسم</Label>
+                <Input value={editingUser.name ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, name: e.target.value }))} className="font-cairo" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-cairo">رقم الهاتف</Label>
+                <Input value={editingUser.phone ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, phone: e.target.value }))} className="font-cairo" dir="ltr" placeholder="+201xxxxxxxxx" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-cairo">الدور</Label>
+                <Select value={editingUser.role} onValueChange={(v) => setEditingUser((u: any) => ({ ...u, role: v }))}>
                   <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ROLES.map((r) => (
@@ -283,16 +282,34 @@ export function UsersManagement() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label className="font-cairo">كلمة المرور</Label>
+                <Input value={editingUser.password_hash ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, password_hash: e.target.value }))} className="font-cairo" dir="ltr" type="text" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Label className="font-cairo">الحالة</Label>
+                <Switch checked={editingUser.active !== false} onCheckedChange={(checked) => setEditingUser((u: any) => ({ ...u, active: checked }))} />
+                <span className={`text-xs font-cairo ${editingUser.active !== false ? "text-emerald-600" : "text-muted-foreground"}`}>
+                  {editingUser.active !== false ? "مفعّل" : "معطّل"}
+                </span>
+              </div>
             </div>
           )}
           <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button
-              onClick={() => editingUser && updateRoleMutation.mutate({ id: editingUser.id, role: editingUser.role })}
-              disabled={updateRoleMutation.isPending}
+              onClick={() => editingUser && updateUserMutation.mutate({
+                id: editingUser.id,
+                name: editingUser.name,
+                phone: editingUser.phone,
+                role: editingUser.role,
+                active: editingUser.active !== false,
+                password_hash: editingUser.password_hash,
+              })}
+              disabled={updateUserMutation.isPending}
               className="font-cairo gap-1"
             >
-              {updateRoleMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              حفظ
+              {updateUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              حفظ التعديلات
             </Button>
             <Button variant="outline" onClick={() => setEditingUser(null)} className="font-cairo">إلغاء</Button>
           </DialogFooter>
