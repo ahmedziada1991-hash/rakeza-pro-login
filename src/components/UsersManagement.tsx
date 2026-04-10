@@ -156,38 +156,18 @@ export function UsersManagement() {
   // Create new user
   const createUserMutation = useMutation({
     mutationFn: async () => {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-        options: { data: { full_name: newUser.name } },
+      const { data, error } = await supabase.functions.invoke("admin-user-management", {
+        body: {
+          action: "create-user",
+          email: newUser.email,
+          password: newUser.password,
+          name: newUser.name,
+          role: newUser.role,
+          phone: newUser.whatsapp || null,
+        },
       });
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("فشل إنشاء المستخدم");
-
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: authData.user.id,
-        role: newUser.role,
-        is_active: true,
-      });
-      if (roleError) throw roleError;
-
-      const { error: usersError } = await supabase.from("users").insert({
-        id: authData.user.id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.whatsapp || null,
-        role: newUser.role,
-        active: true,
-        password: newUser.password,
-      });
-      if (usersError) console.error("Error inserting into users table:", usersError);
-
-      await supabase.from("profiles").upsert({
-        id: authData.user.id,
-        email: newUser.email,
-        full_name: newUser.name,
-        whatsapp: newUser.whatsapp || null,
-      }).select();
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
