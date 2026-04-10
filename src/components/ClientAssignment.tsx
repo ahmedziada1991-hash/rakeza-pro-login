@@ -84,21 +84,33 @@ export function ClientAssignment() {
     ).id;
   };
 
+  // Send notification to the assigned follower
+  const sendAssignNotification = async (userId: string, clientName: string) => {
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title: "عميل جديد",
+      message: `تم تعيينك لمتابعة العميل: ${clientName}`,
+      type: "assignment",
+      is_read: false,
+    } as any);
+  };
+
   // Mutation to assign client
   const assignMutation = useMutation({
-    mutationFn: async ({ clientId, userId }: { clientId: number; userId: string }) => {
+    mutationFn: async ({ clientId, userId, clientName }: { clientId: number; userId: string; clientName: string }) => {
       const { error } = await supabase
         .from("clients")
         .update({ assigned_to: userId } as any)
         .eq("id", clientId);
       if (error) throw error;
+      await sendAssignNotification(userId, clientName);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["followup-clients-assign"] });
       queryClient.invalidateQueries({ queryKey: ["followup-users"] });
       setChangingClient(null);
       setSelectedFollower("");
-      toast({ title: "تم التعيين", description: "تم تعيين المتابع بنجاح" });
+      toast({ title: "تم التعيين", description: "تم تعيين المتابع وإرسال إشعار له" });
     },
     onError: () => {
       toast({ title: "خطأ", description: "فشل في تعيين المتابع", variant: "destructive" });
@@ -128,6 +140,7 @@ export function ClientAssignment() {
           .update({ assigned_to: userId } as any)
           .eq("id", (client as any).id);
         if (error) throw error;
+        await sendAssignNotification(userId, (client as any).name || "عميل");
         counts[userId] = (counts[userId] || 0) + 1;
       }
     },
@@ -264,7 +277,7 @@ export function ClientAssignment() {
                               size="sm"
                               onClick={() => {
                                 if (selectedFollower) {
-                                  assignMutation.mutate({ clientId: client.id, userId: selectedFollower });
+                                  assignMutation.mutate({ clientId: client.id, userId: selectedFollower, clientName: client.name });
                                 }
                               }}
                               disabled={!selectedFollower || assignMutation.isPending}
