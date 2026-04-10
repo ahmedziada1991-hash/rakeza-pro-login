@@ -109,20 +109,17 @@ export function ProfitsTab() {
       if (pourErr) throw pourErr;
 
       if (order.station_id) {
-        const { data: matchRow } = await supabase
-          .from("station_accounts")
-          .select("id")
-          .eq("pour_order_id", order.id)
-          .eq("transaction_type", "concrete")
-          .limit(1)
-          .maybeSingle();
+        const clientName = clients?.get(order.client_id) ?? "";
 
-        if (matchRow) {
-          await supabase
-            .from("station_accounts")
-            .update({ price_per_m3: newPrice, amount: newTotal })
-            .eq("id", matchRow.id);
-        } else {
+        const { error: stationErr } = await supabase
+          .from("station_accounts")
+          .update({ price_per_m3: newPrice, amount: newTotal })
+          .eq("station_id", order.station_id)
+          .eq("transaction_type", "concrete")
+          .like("notes", `%${clientName}%`);
+
+        if (stationErr) {
+          console.warn("station_accounts update failed, trying insert", stationErr);
           await supabase
             .from("station_accounts")
             .insert({
