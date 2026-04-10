@@ -102,7 +102,11 @@ export function StationsTab() {
     return <div className="space-y-3 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>;
   }
 
-  const pours = (statement ?? []).filter((t: any) => t.transaction_type === "pour" || t.transaction_type === "صبة" || t.transaction_type === "concrete");
+  const poursRaw = (statement ?? []).filter((t: any) => t.transaction_type === "pour" || t.transaction_type === "صبة" || t.transaction_type === "concrete");
+  const pours = poursRaw.filter((t: any, i: number, arr: any[]) => {
+    if (!t.pour_order_id) return true;
+    return arr.findIndex((x: any) => x.pour_order_id === t.pour_order_id) === i;
+  });
   const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة");
   const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
 
