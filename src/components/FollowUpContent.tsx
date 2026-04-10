@@ -65,13 +65,21 @@ export function FollowUpContent() {
   const [callNotes, setCallNotes] = useState("");
   const [nextFollowupDate, setNextFollowupDate] = useState<Date | undefined>();
 
-  // Fetch clients with followup status or assigned to followup
+  // Fetch clients assigned to this followup user
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ["followup-clients"],
+    queryKey: ["followup-clients", user?.id],
     queryFn: async () => {
+      // Get the numeric user ID from the users table
+      const { data: userData } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user!.id)
+        .single();
+
       const { data, error } = await (supabase as any)
         .from("clients")
         .select("*")
+        .eq("assigned_followup_id", userData?.id ?? user!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
