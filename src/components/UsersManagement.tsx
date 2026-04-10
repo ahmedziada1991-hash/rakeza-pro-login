@@ -76,9 +76,15 @@ export function UsersManagement() {
   const openEditDialog = (user: any) => {
     setEditingUser({ ...user });
     setEditPassword("");
-    setEditEmail("");
-    if (user.id) {
+    // Use email from users table first, fallback to auth.users
+    if (user.email) {
+      setEditEmail(user.email);
+      setLoadingEmail(false);
+    } else if (user.id) {
+      setEditEmail("");
       fetchAuthEmail(user.id);
+    } else {
+      setEditEmail("");
     }
   };
 
