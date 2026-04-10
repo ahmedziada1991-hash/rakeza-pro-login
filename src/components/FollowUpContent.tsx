@@ -57,6 +57,7 @@ const TAB_FILTERS: Record<string, string[]> = {
 
 export function FollowUpContent() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
