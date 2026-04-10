@@ -10,6 +10,7 @@ import SalesRepDashboard from "./pages/SalesRepDashboard.tsx";
 import SalesRepGoals from "./pages/SalesRepGoals.tsx";
 import SalesRepCalendar from "./pages/SalesRepCalendar.tsx";
 import FollowUpDashboard from "./pages/FollowUpDashboard.tsx";
+import ExecutionDashboard from "./pages/ExecutionDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/dashboard/sales-rep/calendar" element={<SalesRepCalendar />} />
             <Route path="/dashboard/follow-up" element={<FollowUpDashboard />} />
             <Route path="/dashboard/follow-up/assign" element={<FollowUpDashboard />} />
+            <Route path="/dashboard/execution" element={<ExecutionDashboard />} />
             <Route path="/dashboard/:role/*" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

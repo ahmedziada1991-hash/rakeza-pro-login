@@ -46,6 +46,10 @@ const Dashboard = () => {
       navigate("/dashboard/follow-up", { replace: true });
       return;
     }
+    if (userRole === "execution") {
+      navigate("/dashboard/execution", { replace: true });
+      return;
+    }
     if (userRole && userRole !== role) {
       navigate(`/dashboard/${userRole}`);
     }
