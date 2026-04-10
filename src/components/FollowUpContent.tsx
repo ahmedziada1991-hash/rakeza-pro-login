@@ -52,6 +52,7 @@ const TAB_FILTERS: Record<string, string[]> = {
 
 export function FollowUpContent() {
   const { user } = useAuth();
+  const { usersTableId } = useUsersTableId();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("potential");
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,45 +67,19 @@ export function FollowUpContent() {
   const [callNotes, setCallNotes] = useState("");
   const [nextFollowupDate, setNextFollowupDate] = useState<Date | undefined>();
 
-  // Get the numeric user ID from users table by matching auth email/phone
-  const { data: myUserId } = useQuery({
-    queryKey: ["my-users-table-id", user?.id],
-    queryFn: async () => {
-      const email = user!.email;
-      const phone = user!.phone;
-      // Try matching by email first, then phone
-      let result: any = null;
-      if (email) {
-        const { data } = await supabase.from("users").select("id").eq("email", email).maybeSingle();
-        result = data;
-      }
-      if (!result && phone) {
-        const { data } = await supabase.from("users").select("id").eq("phone", phone).maybeSingle();
-        result = data;
-      }
-      // Fallback: try matching by auth UUID (in case users.id = auth.id)
-      if (!result) {
-        const { data } = await supabase.from("users").select("id").eq("id", user!.id).maybeSingle();
-        result = data;
-      }
-      return result?.id ?? null;
-    },
-    enabled: !!user,
-  });
-
   // Fetch clients assigned to this followup user
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ["followup-clients", myUserId],
+    queryKey: ["followup-clients", usersTableId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("clients")
         .select("*")
-        .eq("assigned_followup_id", myUserId)
+        .eq("assigned_followup_id", usersTableId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!myUserId,
+    enabled: !!usersTableId,
   });
 
   // Today's followup alerts
