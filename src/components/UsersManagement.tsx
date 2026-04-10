@@ -18,7 +18,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Loader2, UserPlus, Shield } from "lucide-react";
+import { Plus, Loader2, UserPlus, Shield, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ROLES = [
   { value: "admin", label: "أدمن" },
@@ -129,7 +133,26 @@ export function UsersManagement() {
     },
   });
 
-  // Toggle active in users table
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // Delete user
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke("admin-user-management", {
+        body: { action: "delete-user", user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast({ title: "تم حذف المستخدم بنجاح" });
+      setEditingUser(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" });
+    },
+  });
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase.from("users").update({ active: is_active }).eq("id", id);
@@ -361,27 +384,60 @@ export function UsersManagement() {
               </div>
             </div>
           )}
-          <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+          <DialogFooter className="flex items-center justify-between sm:justify-between">
             <Button
-              onClick={() => editingUser && updateUserMutation.mutate({
-                id: editingUser.id,
-                name: editingUser.name,
-                email: editEmail,
-                phone: editingUser.phone,
-                role: editingUser.role,
-                active: editingUser.active !== false,
-                newPassword: editPassword,
-              })}
-              disabled={updateUserMutation.isPending}
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(true)}
+              disabled={deleteUserMutation.isPending}
               className="font-cairo gap-1"
             >
-              {updateUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              حفظ التعديلات
+              <Trash2 className="h-4 w-4" />
+              حذف المستخدم
             </Button>
-            <Button variant="outline" onClick={() => setEditingUser(null)} className="font-cairo">إلغاء</Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => editingUser && updateUserMutation.mutate({
+                  id: editingUser.id,
+                  name: editingUser.name,
+                  email: editEmail,
+                  phone: editingUser.phone,
+                  role: editingUser.role,
+                  active: editingUser.active !== false,
+                  newPassword: editPassword,
+                })}
+                disabled={updateUserMutation.isPending}
+                className="font-cairo gap-1"
+              >
+                {updateUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                حفظ التعديلات
+              </Button>
+              <Button variant="outline" onClick={() => setEditingUser(null)} className="font-cairo">إلغاء</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cairo text-right">تأكيد حذف المستخدم</AlertDialogTitle>
+            <AlertDialogDescription className="font-cairo text-right">
+              هل أنت متأكد من حذف "{editingUser?.name}"؟ هذا الإجراء لا يمكن التراجع عنه.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+            <AlertDialogAction
+              onClick={() => editingUser && deleteUserMutation.mutate(editingUser.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-cairo"
+            >
+              {deleteUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "نعم، احذف"}
+            </AlertDialogAction>
+            <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
