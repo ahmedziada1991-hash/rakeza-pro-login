@@ -1,14 +1,18 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FollowUpSidebar } from "@/components/FollowUpSidebar";
 import { FollowUpContent } from "@/components/FollowUpContent";
+import { ClientAssignment } from "@/components/ClientAssignment";
 import { NotificationBell } from "@/components/NotificationBell";
 
 const FollowUpDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session, userRole, isLoading, user } = useAuth();
+
+  const isAssignPage = location.pathname.endsWith("/assign");
 
   useEffect(() => {
     if (isLoading) return;
@@ -16,10 +20,14 @@ const FollowUpDashboard = () => {
       navigate("/");
       return;
     }
+    if (isAssignPage && userRole !== "admin") {
+      navigate("/dashboard/follow-up", { replace: true });
+      return;
+    }
     if (userRole && userRole !== "followup" && userRole !== "admin") {
       navigate(`/dashboard/${userRole}`);
     }
-  }, [session, userRole, isLoading, navigate]);
+  }, [session, userRole, isLoading, navigate, isAssignPage]);
 
   if (isLoading) return null;
 
@@ -41,7 +49,7 @@ const FollowUpDashboard = () => {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 overflow-auto">
-            <FollowUpContent />
+            {isAssignPage ? <ClientAssignment /> : <FollowUpContent />}
           </main>
         </div>
       </div>

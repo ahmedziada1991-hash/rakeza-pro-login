@@ -24,13 +24,15 @@ const navItems = [
 export function FollowUpSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { signOut } = useAuth();
+  const { signOut, userRole } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await signOut();
     navigate("/");
   };
+
+  const visibleItems = navItems.filter((item) => !item.adminOnly || userRole === "admin");
 
   return (
     <Sidebar collapsible="icon" side="right">
@@ -50,7 +52,7 @@ export function FollowUpSidebar() {
           <SidebarGroupLabel className="font-cairo text-sidebar-foreground/50">القائمة</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
