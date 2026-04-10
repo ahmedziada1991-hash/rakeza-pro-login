@@ -398,46 +398,99 @@ export function PriceOffersPage({ prefillName, prefillPhone }: { prefillName?: s
 
       {/* View Offer Dialog */}
       <Dialog open={!!viewOffer} onOpenChange={() => setViewOffer(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="font-cairo">تفاصيل العرض — {viewOffer?.client_name}</DialogTitle>
-          </DialogHeader>
-          {viewOffer && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-muted-foreground">الشركة:</span> {viewOffer.company_name || "—"}</div>
-                <div><span className="text-muted-foreground">واتساب:</span> {viewOffer.whatsapp}</div>
-                <div><span className="text-muted-foreground">التاريخ:</span> {new Date(viewOffer.created_at).toLocaleDateString("ar-EG")}</div>
-                <div><span className="text-muted-foreground">الصلاحية:</span> {viewOffer.validity_days} أيام</div>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0" dir="rtl">
+          {viewOffer && (() => {
+            const offerItems: OfferItem[] = Array.isArray(viewOffer.items)
+              ? viewOffer.items
+              : typeof viewOffer.items === "string"
+                ? JSON.parse(viewOffer.items)
+                : [];
+            const dateStr = new Date(viewOffer.created_at).toLocaleDateString("ar-EG");
+            const expiryDate = new Date(
+              new Date(viewOffer.created_at).getTime() + viewOffer.validity_days * 86400000
+            ).toLocaleDateString("ar-EG");
+            const offerNum = viewOffer.id.slice(0, 8).toUpperCase();
+            const termsList = viewOffer.terms.split(/(?=\d+\.\s)/).map(t => t.trim()).filter(Boolean);
+
+            return (
+              <div id="offer-preview-content">
+                {/* Header */}
+                <div style={{ background: "#1B3A6B" }} className="px-6 py-5">
+                  <div className="flex justify-between items-start">
+                    <div className="text-right">
+                      <h2 className="text-2xl font-bold text-white font-cairo">شركة ركيزة</h2>
+                      <p className="text-white/80 text-sm mt-1 font-cairo">لتوريد الخرسانة الجاهزة | جمهورية مصر العربية</p>
+                    </div>
+                    <div className="text-left text-white/90 text-xs space-y-1">
+                      <p>رقم العرض: {offerNum}</p>
+                      <p>التاريخ: {dateStr}</p>
+                      <p>صالح حتى: {expiryDate}</p>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ background: "#F5A623", height: 4 }} />
+
+                {/* Client info */}
+                <div className="mx-4 mt-4 rounded-lg p-4" style={{ background: "#F8F9FA" }}>
+                  <h3 className="text-lg font-bold font-cairo" style={{ color: "#1B3A6B" }}>{viewOffer.client_name}</h3>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm text-gray-500 font-cairo">
+                    {viewOffer.company_name && <span>الشركة: {viewOffer.company_name}</span>}
+                    <span>الجوال: {viewOffer.whatsapp}</span>
+                    <span>الصلاحية: {viewOffer.validity_days} أيام</span>
+                  </div>
+                </div>
+
+                {/* Items table */}
+                <div className="mx-4 mt-3 rounded-lg overflow-hidden border" style={{ borderColor: "#DEE2E6" }}>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ background: "#1B3A6B" }}>
+                        {["#", "الجريد", "المحتوى", "الأسمنت", "السعر", "ملاحظات"].map(h => (
+                          <th key={h} className="px-3 py-2 text-white font-cairo font-semibold text-center text-xs">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {offerItems.map((item, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#F0F4FF" }}>
+                          <td className="px-3 py-2 text-center">{i + 1}</td>
+                          <td className="px-3 py-2 text-center">{item.grade}</td>
+                          <td className="px-3 py-2 text-center">{item.content_kg || "—"}</td>
+                          <td className="px-3 py-2 text-center">{item.cement_type}</td>
+                          <td className="px-3 py-2 text-center font-bold" style={{ color: "#1B3A6B" }}>{item.price}</td>
+                          <td className="px-3 py-2 text-center text-gray-500">{item.notes || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Terms */}
+                <div className="mx-4 mt-3 rounded-lg p-4" style={{ background: "#F0FFF4", borderRight: "4px solid #28A745" }}>
+                  <h4 className="font-bold font-cairo mb-2" style={{ color: "#1e6432" }}>الشروط والأحكام</h4>
+                  <div className="space-y-1 text-sm text-gray-600 font-cairo">
+                    {termsList.map((term, i) => <p key={i}>{term}</p>)}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-3">
+                  <div style={{ background: "#F5A623", height: 4 }} />
+                  <p className="text-center text-xs text-gray-400 py-2 font-cairo">شركة ركيزة لتوريد الخرسانة الجاهزة | جمهورية مصر العربية</p>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 p-4 pt-0">
+                  <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => handlePrint(viewOffer)}>
+                    <Printer className="h-4 w-4" /> تحميل PDF
+                  </Button>
+                  <Button size="sm" className="font-cairo gap-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleWhatsApp(viewOffer)}>
+                    <Send className="h-4 w-4" /> إرسال واتساب
+                  </Button>
+                </div>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-cairo text-right">الجريد</TableHead>
-                    <TableHead className="font-cairo text-right">المحتوى</TableHead>
-                    <TableHead className="font-cairo text-right">الأسمنت</TableHead>
-                    <TableHead className="font-cairo text-right">السعر</TableHead>
-                    <TableHead className="font-cairo text-right">ملاحظات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {viewOffer.items.map((it, i) => (
-                    <TableRow key={i}>
-                      <TableCell>{it.grade}</TableCell>
-                      <TableCell>{it.content_kg || "—"}</TableCell>
-                      <TableCell>{it.cement_type}</TableCell>
-                      <TableCell>{it.price}</TableCell>
-                      <TableCell>{it.notes || "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <div className="text-sm text-muted-foreground whitespace-pre-wrap">{viewOffer.terms}</div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => handlePrint(viewOffer)}>
-                  <Printer className="h-4 w-4" /> تحميل PDF
-                </Button>
-                <Button size="sm" className="font-cairo gap-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleWhatsApp(viewOffer)}>
+            );
+          })()}
                   <Send className="h-4 w-4" /> إرسال واتساب
                 </Button>
               </div>
