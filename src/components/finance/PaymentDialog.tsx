@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ interface Props {
 
 export function PaymentDialog({ open, onOpenChange }: Props) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [payForm, setPayForm] = useState({
     client_id: "",
     pour_order_id: "",
@@ -48,8 +50,10 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     payment_method: "cash",
     payment_type: "client",
     notes: "",
+    check_number: "",
   });
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
+  const [checkDateCleared, setCheckDateCleared] = useState<Date | undefined>(undefined);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
@@ -75,8 +79,15 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   const paymentMutation = useMutation({
     mutationFn: async () => {
       const amount = Number(payForm.amount);
+      const isCheck = payForm.payment_method === "check";
+      const clientId = Number(payForm.client_id);
+
+      // Get client name for notification
+      const selectedClientObj = (clients ?? []).find((c) => c.id === clientId);
+      const clientName = selectedClientObj?.name || "عميل";
+
       const payload: any = {
-        client_id: Number(payForm.client_id),
+        client_id: clientId,
         pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
         amount,
         payment_method: payForm.payment_method,
@@ -87,14 +98,36 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       if (error) throw error;
 
       // Also insert into client_accounts for the statement view
-      await supabase.from("client_accounts" as any).insert({
-        client_id: Number(payForm.client_id),
+      const accountPayload: any = {
+        client_id: clientId,
         transaction_type: "payment",
         amount,
         payment_method: payForm.payment_method,
         notes: payForm.notes || null,
         pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
-      });
+      };
+
+      // Add check fields if payment method is check
+      if (isCheck) {
+        accountPayload.check_number = payForm.check_number || null;
+        accountPayload.check_date_cleared = checkDateCleared ? format(checkDateCleared, "yyyy-MM-dd") : null;
+      }
+
+      await supabase.from("client_accounts" as any).insert(accountPayload);
+
+      // Create scheduled notification for check clearance date
+      if (isCheck && checkDateCleared && user?.id) {
+        const checkNum = payForm.check_number || "—";
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          type: "check_clearance",
+          title: "موعد صرف شيك 📅",
+          body: `شيك رقم ${checkNum} للعميل ${clientName} بمبلغ ${amount.toLocaleString("ar-EG")} ج.م — موعد الصرف اليوم`,
+          metadata: { client_id: clientId, check_number: checkNum, amount },
+          is_read: false,
+          scheduled_date: format(checkDateCleared, "yyyy-MM-dd"),
+        } as any);
+      }
 
       if (payForm.pour_order_id) {
         const orderId = Number(payForm.pour_order_id);
@@ -117,10 +150,12 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
       queryClient.invalidateQueries({ queryKey: ["client-statement-pours"] });
       queryClient.invalidateQueries({ queryKey: ["client-statement-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast({ title: "تم تسجيل الدفعة بنجاح ✅" });
       onOpenChange(false);
-      setPayForm({ client_id: "", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "" });
+      setPayForm({ client_id: "", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "", check_number: "" });
       setPaymentDate(new Date());
+      setCheckDateCleared(undefined);
     },
     onError: (err: any) => {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
@@ -132,8 +167,13 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   function handleSubmit() {
     if (!payForm.client_id) { toast({ title: "اختر العميل", variant: "destructive" }); return; }
     if (!payForm.amount || Number(payForm.amount) <= 0) { toast({ title: "أدخل المبلغ", variant: "destructive" }); return; }
+    if (payForm.payment_method === "check" && !payForm.check_number) {
+      toast({ title: "أدخل رقم الشيك", variant: "destructive" }); return;
+    }
     paymentMutation.mutate();
   }
+
+  const isCheck = payForm.payment_method === "check";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -197,6 +237,35 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
               </Select>
             </div>
           </div>
+
+          {/* Check-specific fields */}
+          {isCheck && (
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
+              <div className="space-y-1.5">
+                <Label className="font-cairo text-xs">رقم الشيك *</Label>
+                <Input
+                  value={payForm.check_number}
+                  onChange={(e) => setField("check_number", e.target.value)}
+                  className="font-cairo h-8 text-sm"
+                  placeholder="رقم الشيك"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-cairo text-xs">تاريخ صرف الشيك</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start font-cairo gap-2 h-8 text-sm", !checkDateCleared && "text-muted-foreground")}>
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {checkDateCleared ? format(checkDateCleared, "yyyy/MM/dd") : "اختر التاريخ"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={checkDateCleared} onSelect={setCheckDateCleared} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label className="font-cairo">تاريخ الدفع</Label>
