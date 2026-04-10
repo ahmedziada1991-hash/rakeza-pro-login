@@ -491,11 +491,6 @@ export function PriceOffersPage({ prefillName, prefillPhone }: { prefillName?: s
               </div>
             );
           })()}
-                  <Send className="h-4 w-4" /> إرسال واتساب
-                </Button>
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 
