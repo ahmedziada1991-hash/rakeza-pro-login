@@ -300,7 +300,7 @@ export function ClientsManagement() {
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg" dir="rtl">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-cairo">
               {editingClient ? "تعديل بيانات العميل" : "إضافة عميل جديد"}
@@ -310,7 +310,7 @@ export function ClientsManagement() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-2">
+          <div className="grid gap-4 py-2 overflow-y-auto flex-1 min-h-0">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="font-cairo">الاسم *</Label>
