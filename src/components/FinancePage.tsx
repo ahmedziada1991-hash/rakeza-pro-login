@@ -1,11 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Plus, Users, Building2, TrendingUp } from "lucide-react";
+import { CreditCard, Plus, Users, Building2, TrendingUp, Truck, Package } from "lucide-react";
 import { ClientsTab } from "@/components/finance/ClientsTab";
 import { StationsTab } from "@/components/finance/StationsTab";
 import { ProfitsTab } from "@/components/finance/ProfitsTab";
+import { SuppliersTab } from "@/components/finance/SuppliersTab";
+import { CementTab } from "@/components/finance/CementTab";
 import { PaymentDialog } from "@/components/finance/PaymentDialog";
 
 export function FinancePage() {
@@ -27,18 +29,30 @@ export function FinancePage() {
       </div>
 
       <Tabs defaultValue="clients" dir="rtl" className="w-full">
-        <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 h-auto">
-          <TabsTrigger value="clients" className="font-cairo gap-1.5 py-2">
-            <Users className="h-4 w-4" />
+        <TabsList className={`w-full grid h-auto ${isAdmin ? "grid-cols-3 sm:grid-cols-5" : "grid-cols-2"}`}>
+          <TabsTrigger value="clients" className="font-cairo gap-1.5 py-2 text-xs sm:text-sm">
+            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             العملاء
           </TabsTrigger>
-          <TabsTrigger value="stations" className="font-cairo gap-1.5 py-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger value="stations" className="font-cairo gap-1.5 py-2 text-xs sm:text-sm">
+            <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             المحطات
           </TabsTrigger>
           {isAdmin && (
-            <TabsTrigger value="profits" className="font-cairo gap-1.5 py-2">
-              <TrendingUp className="h-4 w-4" />
+            <TabsTrigger value="suppliers" className="font-cairo gap-1.5 py-2 text-xs sm:text-sm">
+              <Truck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              الموردين
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="cement" className="font-cairo gap-1.5 py-2 text-xs sm:text-sm">
+              <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              الأسمنت
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="profits" className="font-cairo gap-1.5 py-2 text-xs sm:text-sm">
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               الأرباح
             </TabsTrigger>
           )}
@@ -50,6 +64,16 @@ export function FinancePage() {
         <TabsContent value="stations" className="mt-4">
           <StationsTab />
         </TabsContent>
+        {isAdmin && (
+          <TabsContent value="suppliers" className="mt-4">
+            <SuppliersTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="cement" className="mt-4">
+            <CementTab />
+          </TabsContent>
+        )}
         {isAdmin && (
           <TabsContent value="profits" className="mt-4">
             <ProfitsTab />

@@ -295,6 +295,47 @@ export function StationsTab() {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Cement Sales to this station */}
+              {isAdmin && selectedStation.cementSales.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-cairo text-sm">مبيعات أسمنت للمحطة</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
+                            <TableHead className="font-cairo text-right">الكمية (طن)</TableHead>
+                            <TableHead className="font-cairo text-right">سعر البيع</TableHead>
+                            <TableHead className="font-cairo text-right">الإجمالي</TableHead>
+                            <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
+                            <TableHead className="font-cairo text-right">خصم خرسانة</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedStation.cementSales.map((cs: any) => (
+                            <TableRow key={cs.id}>
+                              <TableCell className="font-cairo text-xs">{cs.sale_date ?? "—"}</TableCell>
+                              <TableCell className="font-cairo">{cs.quantity_tons}</TableCell>
+                              <TableCell className="font-cairo">{fmt(Number(cs.price_per_ton))}</TableCell>
+                              <TableCell className="font-cairo font-medium">{fmt(Number(cs.total_amount))}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="font-cairo text-[10px]">
+                                  {{ cash: "كاش", concrete_deduction: "خصم خرسانة", mixed: "مختلط" }[cs.payment_method] ?? cs.payment_method}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-cairo text-blue-600">{fmt(Number(cs.concrete_deduction_amount) || 0)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </DialogContent>
