@@ -18,6 +18,7 @@ import { SmartTargetsPage } from "@/components/SmartTargetsPage";
 import { PourCalendarPage } from "@/components/PourCalendarPage";
 import { DailyReportPage } from "@/components/DailyReportPage";
 import { WeeklyReportPage } from "@/components/WeeklyReportPage";
+import { MonthlyReportPage } from "@/components/MonthlyReportPage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
@@ -117,6 +118,8 @@ const Dashboard = () => {
                 <DailyReportPage />
               ) : subpath === "weekly-report" ? (
                 <WeeklyReportPage />
+              ) : subpath === "monthly-report" ? (
+                <MonthlyReportPage />
               ) : (
                 <Outlet />
               )}
