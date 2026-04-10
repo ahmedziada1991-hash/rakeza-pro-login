@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FollowUpSidebar } from "@/components/FollowUpSidebar";
 import { FollowUpContent } from "@/components/FollowUpContent";
@@ -17,6 +19,20 @@ const FollowUpDashboard = () => {
   const isAssignPage = location.pathname.endsWith("/assign");
   const isGoalsPage = location.pathname.endsWith("/goals");
   const isTargetsPage = location.pathname.endsWith("/targets");
+
+  const { data: userName } = useQuery({
+    queryKey: ["current-user-name", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("users")
+        .select("name")
+        .eq("id", user!.id)
+        .single();
+      return data?.name ?? "المتابع";
+    },
+    enabled: !!user,
+  });
+
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
@@ -45,9 +61,11 @@ const FollowUpDashboard = () => {
             </div>
             <div className="flex items-center gap-2">
               <NotificationBell />
-              <span className="text-sm font-cairo text-muted-foreground">مرحباً، المتابع</span>
+              <span className="text-sm font-cairo text-muted-foreground">مرحباً يا {userName ?? "المتابع"}! 👋</span>
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-cairo font-bold text-sm">م</span>
+                <span className="text-primary-foreground font-cairo font-bold text-sm">
+                  {(userName ?? "م").charAt(0)}
+                </span>
               </div>
             </div>
           </header>
