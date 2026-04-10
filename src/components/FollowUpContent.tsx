@@ -375,8 +375,8 @@ export function FollowUpContent() {
                       )}
 
                       {/* Salesperson info */}
-                      {client.sales_rep_name && (
-                        <p className="text-xs text-muted-foreground font-cairo">البائع: {client.sales_rep_name}</p>
+                      {client.sales_name && (
+                        <p className="text-xs text-muted-foreground font-cairo">البائع: {client.sales_name}</p>
                       )}
 
                       {/* Action buttons */}
