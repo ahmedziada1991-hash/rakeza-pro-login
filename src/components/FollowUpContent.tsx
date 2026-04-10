@@ -43,6 +43,7 @@ const CALL_RESULTS = [
 ];
 
 const TAB_FILTERS: Record<string, string[]> = {
+  all: [], // no filter - show all
   potential: ["hot", "warm"],
   dormant: ["cold", "inactive"],
   current: ["active", "followup"],
@@ -52,7 +53,7 @@ const TAB_FILTERS: Record<string, string[]> = {
 export function FollowUpContent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("potential");
+  const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [pourFilter, setPourFilter] = useState("all"); // all, has_pours, no_pours, high_volume
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
@@ -106,9 +107,10 @@ export function FollowUpContent() {
 
   const getFilteredClients = () => {
     let filtered: any[] = [];
-    if (activeTab === "appointments") {
+    if (activeTab === "all") {
+      filtered = [...clients];
+    } else if (activeTab === "appointments") {
       filtered = clients.filter((c: any) => c.next_followup_date);
-      // Sort by nearest date
       filtered.sort((a: any, b: any) =>
         new Date(a.next_followup_date).getTime() - new Date(b.next_followup_date).getTime()
       );
@@ -274,7 +276,8 @@ export function FollowUpContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
-        <TabsList className="w-full grid grid-cols-4 font-cairo">
+        <TabsList className="w-full grid grid-cols-5 font-cairo">
+          <TabsTrigger value="all" className="font-cairo text-xs sm:text-sm">الكل</TabsTrigger>
           <TabsTrigger value="potential" className="font-cairo text-xs sm:text-sm">محتملين</TabsTrigger>
           <TabsTrigger value="dormant" className="font-cairo text-xs sm:text-sm">خاملين</TabsTrigger>
           <TabsTrigger value="current" className="font-cairo text-xs sm:text-sm">حاليين</TabsTrigger>
