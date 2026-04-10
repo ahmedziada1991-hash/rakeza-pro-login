@@ -26,7 +26,7 @@ export function FollowUpGoals() {
       if (!user?.id) return null;
       const { data } = await supabase
         .from("daily_performance")
-        .select("target_calls, actual_calls")
+        .select("target_calls, actual_calls, target_visits")
         .eq("user_id", user.id)
         .eq("date", today)
         .single();
