@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, FileText, Printer, Send, Eye } from "lucide-react";
+import { Plus, Trash2, FileText, Printer, Send, Eye, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -286,6 +286,94 @@ export function PriceOffersPage({ prefillName, prefillPhone }: { prefillName?: s
     rejected: "bg-red-100 text-red-800", expired: "bg-gray-100 text-gray-600",
   };
 
+  // ── Full-page offer view (mobile-friendly, screenshot-ready) ──
+  if (viewOffer) {
+    const offerItems: OfferItem[] = Array.isArray(viewOffer.items) ? viewOffer.items : [];
+    const termsList = (viewOffer.terms || "").split(/(?=\d+\.\s)/).map(t => t.trim()).filter(Boolean);
+
+    return (
+      <div dir="rtl" className="min-h-screen" style={{ background: "#fff" }}>
+        {/* Header */}
+        <div style={{ background: "#1B3A6B" }} className="w-full px-5 py-5">
+          <div className="flex justify-between items-start">
+            <div className="text-right">
+              <h2 style={{ fontSize: 28 }} className="font-bold text-white font-cairo">شركة ركيزة</h2>
+              <p style={{ fontSize: 14 }} className="text-white/70 mt-1 font-cairo">لتوريد الخرسانة الجاهزة | جمهورية مصر العربية</p>
+            </div>
+            <div className="text-left text-white text-sm space-y-1">
+              <p className="font-bold font-cairo">رقم العرض: <span className="font-mono">{String(viewOffer.id).slice(0, 8).toUpperCase()}</span></p>
+              <p className="font-cairo">التاريخ: {new Date(viewOffer.created_at).toLocaleDateString("ar-EG")}</p>
+              <p className="font-cairo">صالح حتى: <span className="font-semibold text-yellow-300">{new Date(new Date(viewOffer.created_at).getTime() + viewOffer.validity_days * 86400000).toLocaleDateString("ar-EG")}</span></p>
+            </div>
+          </div>
+        </div>
+        <div style={{ background: "#F5A623", height: 4 }} className="w-full" />
+
+        {/* Client info */}
+        <div style={{ background: "#F8F9FA", padding: 16 }} className="w-full">
+          <h3 style={{ fontSize: 18, color: "#1B3A6B" }} className="font-bold font-cairo">{viewOffer.client_name}</h3>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 font-cairo" style={{ fontSize: 14, color: "#6b7280" }}>
+            {viewOffer.company_name && <span>الشركة: {viewOffer.company_name}</span>}
+            <span>الجوال: {viewOffer.whatsapp}</span>
+            <span>الصلاحية: {viewOffer.validity_days} أيام</span>
+          </div>
+        </div>
+
+        {/* Items table */}
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#1B3A6B" }}>
+                {["#", "الجريد", "المحتوى (كجم/م³)", "نوع الأسمنت", "السعر (ج.م/م³)", "ملاحظات"].map(h => (
+                  <th key={h} className="px-4 py-3 text-white font-cairo font-semibold text-center text-xs">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {offerItems.map((item, i) => (
+                <tr key={i} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
+                  <td className="px-4 py-3 text-center font-cairo">{i + 1}</td>
+                  <td className="px-4 py-3 text-center font-cairo font-semibold">{item.grade}</td>
+                  <td className="px-4 py-3 text-center font-cairo">{item.content_kg || "—"}</td>
+                  <td className="px-4 py-3 text-center font-cairo">{item.cement_type}</td>
+                  <td className="px-4 py-3 text-center font-cairo font-bold" style={{ color: "#1B3A6B", fontSize: 16 }}>{item.price} ج.م</td>
+                  <td className="px-4 py-3 text-center font-cairo text-gray-500">{item.notes || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Terms */}
+        <div style={{ background: "#F0FFF4", borderRight: "4px solid #28A745", padding: 16 }} className="w-full">
+          <h4 className="font-bold font-cairo mb-3" style={{ color: "#1e6432" }}>الشروط والأحكام</h4>
+          <div className="space-y-2 font-cairo" style={{ fontSize: 14, color: "#4b5563" }}>
+            {termsList.map((term, i) => <p key={i} className="leading-relaxed">{term}</p>)}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ background: "#F5A623", height: 4 }} className="w-full" />
+        <p className="text-center text-xs py-3 font-cairo" style={{ color: "#9ca3af" }}>شركة ركيزة لتوريد الخرسانة الجاهزة | جمهورية مصر العربية</p>
+
+        {/* Action buttons - outside the offer view */}
+        <div className="flex flex-col gap-3 px-5 py-5 border-t" style={{ borderColor: "#E5E7EB" }}>
+          <div className="flex gap-3">
+            <Button className="flex-1 font-cairo gap-2 text-white" style={{ background: "#1B3A6B" }} onClick={() => handlePrint(viewOffer)}>
+              <Printer className="h-4 w-4" /> تحميل PDF
+            </Button>
+            <Button className="flex-1 font-cairo gap-2 text-white" style={{ background: "#28A745" }} onClick={() => handleWhatsApp(viewOffer)}>
+              <Send className="h-4 w-4" /> إرسال واتساب
+            </Button>
+          </div>
+          <Button variant="outline" className="w-full font-cairo gap-2" onClick={() => setViewOffer(null)}>
+            <ArrowRight className="h-4 w-4" /> رجوع للقائمة
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -396,89 +484,6 @@ export function PriceOffersPage({ prefillName, prefillPhone }: { prefillName?: s
         </DialogContent>
       </Dialog>
 
-      {/* View Offer Dialog */}
-      {viewOffer && (
-        <Dialog open={true} onOpenChange={() => setViewOffer(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0" dir="rtl">
-            {/* Header */}
-            <div style={{ background: "#1B3A6B" }} className="px-6 py-6 rounded-t-lg">
-              <div className="flex justify-between items-start">
-                <div className="text-right">
-                  <h2 className="text-3xl font-bold text-white font-cairo">شركة ركيزة</h2>
-                  <p className="text-white/70 text-sm mt-1 font-cairo">لتوريد الخرسانة الجاهزة | جمهورية مصر العربية</p>
-                </div>
-                <div className="text-left text-white text-sm space-y-1.5">
-                  <p className="font-bold">رقم العرض: <span className="font-mono">{String(viewOffer.id).slice(0, 8).toUpperCase()}</span></p>
-                  <p>التاريخ: {new Date(viewOffer.created_at).toLocaleDateString("ar-EG")}</p>
-                  <p>صالح حتى: <span className="font-semibold text-yellow-300">{new Date(new Date(viewOffer.created_at).getTime() + viewOffer.validity_days * 86400000).toLocaleDateString("ar-EG")}</span></p>
-                </div>
-              </div>
-            </div>
-            <div style={{ background: "#F5A623", height: 5 }} />
-
-            {/* Client info */}
-            <div className="mx-5 mt-5 rounded-lg p-5" style={{ background: "#F8F9FA" }}>
-              <h3 className="text-xl font-bold font-cairo" style={{ color: "#1B3A6B" }}>{viewOffer.client_name}</h3>
-              <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-gray-500 font-cairo">
-                {viewOffer.company_name && <span>🏢 الشركة: {viewOffer.company_name}</span>}
-                <span>📱 الجوال: {viewOffer.whatsapp}</span>
-                <span>📅 الصلاحية: {viewOffer.validity_days} أيام</span>
-              </div>
-            </div>
-
-            {/* Items table */}
-            <div className="mx-5 mt-4 rounded-lg overflow-hidden border" style={{ borderColor: "#DEE2E6" }}>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ background: "#1B3A6B" }}>
-                    {["#", "الجريد", "المحتوى (كجم/م³)", "نوع الأسمنت", "السعر (ج.م/م³)", "ملاحظات"].map(h => (
-                      <th key={h} className="px-4 py-3 text-white font-cairo font-semibold text-center text-xs">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(Array.isArray(viewOffer.items) ? viewOffer.items : []).map((item: OfferItem, i: number) => (
-                    <tr key={i} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#F0F4FF" }}>
-                      <td className="px-4 py-3 text-center">{i + 1}</td>
-                      <td className="px-4 py-3 text-center font-semibold">{item.grade}</td>
-                      <td className="px-4 py-3 text-center">{item.content_kg || "—"}</td>
-                      <td className="px-4 py-3 text-center">{item.cement_type}</td>
-                      <td className="px-4 py-3 text-center font-bold text-lg" style={{ color: "#1B3A6B" }}>{item.price} ج.م</td>
-                      <td className="px-4 py-3 text-center text-gray-500">{item.notes || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Terms */}
-            <div className="mx-5 mt-4 rounded-lg p-5" style={{ background: "#F0FFF4", borderRight: "4px solid #28A745" }}>
-              <h4 className="font-bold font-cairo mb-3" style={{ color: "#1e6432" }}>الشروط والأحكام</h4>
-              <div className="space-y-2 text-sm text-gray-600 font-cairo">
-                {(viewOffer.terms || "").split(/(?=\d+\.\s)/).map(t => t.trim()).filter(Boolean).map((term, i) => (
-                  <p key={i} className="leading-relaxed">{term}</p>
-                ))}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="mt-4">
-              <div style={{ background: "#F5A623", height: 5 }} />
-              <p className="text-center text-xs text-gray-400 py-3 font-cairo">شركة ركيزة لتوريد الخرسانة الجاهزة | جمهورية مصر العربية</p>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex gap-3 px-5 pb-5">
-              <Button className="flex-1 font-cairo gap-2 text-white" style={{ background: "#1B3A6B" }} onClick={() => handlePrint(viewOffer)}>
-                <Printer className="h-4 w-4" /> تحميل PDF
-              </Button>
-              <Button className="flex-1 font-cairo gap-2 text-white" style={{ background: "#28A745" }} onClick={() => handleWhatsApp(viewOffer)}>
-                <Send className="h-4 w-4" /> إرسال واتساب
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {/* Offers List */}
       <Card>
