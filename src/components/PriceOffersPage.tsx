@@ -304,12 +304,14 @@ export function PriceOffersPage() {
   };
 
   const handleWhatsApp = (offer: PriceOffer) => {
-    let phone = offer.whatsapp.replace(/[^0-9]/g, "");
-    if (phone.startsWith("0")) {
-      phone = "20" + phone.slice(1);
-    }
+    // Download PDF first
+    const doc = generatePDF(offer);
+    doc.save("عرض-سعر-ركيزة.pdf");
+
+    // Open WhatsApp
+    const phone = formatPhone(offer.whatsapp);
     const msg = encodeURIComponent(
-      `السلام عليكم، هذا عرض سعر خرسانة جاهزة من شركة ركيزة 🏗️`
+      `السلام عليكم 👋 مرفق عرض سعر خرسانة جاهزة من شركة ركيزة 🏗️ يسعدنا خدمتكم`
     );
     window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   };
