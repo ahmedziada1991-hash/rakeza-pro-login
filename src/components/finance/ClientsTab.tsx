@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -19,84 +17,85 @@ function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
 }
 
-interface ClientAccount {
+const METHOD_LABELS: Record<string, string> = {
+  cash: "كاش", bank_transfer: "تحويل بنكي", check: "شيك", online: "أونلاين", cement: "أسمنت",
+};
+
+interface ClientSummary {
   id: number;
   name: string;
-  totalOrders: number;
+  phone: string | null;
+  totalPours: number;
   totalAmount: number;
   totalPaid: number;
   remaining: number;
-  orders: any[];
-  payments: any[];
 }
 
 export function ClientsTab() {
   const [search, setSearch] = useState("");
-  const [selectedClient, setSelectedClient] = useState<ClientAccount | null>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientSummary | null>(null);
 
+  // Get client list with summary from client_accounts
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-clients-tab"],
     queryFn: async () => {
-      const { data: orders } = await supabase
-        .from("pour_orders")
-        .select("id, client_id, pour_date, quantity_m3, agreed_price_per_m3, total_agreed_amount, concrete_type, status")
-        .order("pour_date", { ascending: false });
-
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("id, client_id, pour_order_id, amount, payment_method, payment_date, notes, created_at")
-        .order("created_at", { ascending: false });
-
       const { data: clients } = await supabase
         .from("clients")
-        .select("id, name");
+        .select("id, name, phone")
+        .order("name");
 
-      const clientMap = new Map((clients ?? []).map((c) => [c.id, c.name]));
-      const map = new Map<number, ClientAccount>();
+      const { data: txns } = await supabase
+        .from("client_accounts" as any)
+        .select("client_id, transaction_type, amount")
+        .order("created_at", { ascending: false });
 
-      (orders ?? []).forEach((o) => {
-        if (!map.has(o.client_id)) {
-          map.set(o.client_id, {
-            id: o.client_id,
-            name: clientMap.get(o.client_id) ?? "—",
-            totalOrders: 0,
-            totalAmount: 0,
-            totalPaid: 0,
-            remaining: 0,
-            orders: [],
-            payments: [],
-          });
+      const map = new Map<number, ClientSummary>();
+      (clients ?? []).forEach((c: any) => {
+        map.set(c.id, {
+          id: c.id, name: c.name, phone: c.phone,
+          totalPours: 0, totalAmount: 0, totalPaid: 0, remaining: 0,
+        });
+      });
+
+      (txns ?? []).forEach((t: any) => {
+        const acc = map.get(t.client_id);
+        if (!acc) return;
+        const amt = Number(t.amount) || 0;
+        if (t.transaction_type === "pour" || t.transaction_type === "صبة") {
+          acc.totalPours++;
+          acc.totalAmount += amt;
+        } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "تحصيل") {
+          acc.totalPaid += amt;
         }
-        const acc = map.get(o.client_id)!;
-        acc.totalOrders++;
-        acc.totalAmount += Number(o.total_agreed_amount) || 0;
-        acc.orders.push(o);
       });
 
-      (payments ?? []).forEach((p) => {
-        if (!map.has(p.client_id)) return;
-        const acc = map.get(p.client_id)!;
-        acc.totalPaid += Number(p.amount) || 0;
-        acc.payments.push(p);
-      });
+      map.forEach((acc) => { acc.remaining = acc.totalAmount - acc.totalPaid; });
+      return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0).sort((a, b) => b.remaining - a.remaining);
+    },
+  });
 
-      map.forEach((acc) => {
-        acc.remaining = acc.totalAmount - acc.totalPaid;
-      });
-
-      return [...map.values()].sort((a, b) => b.remaining - a.remaining);
+  // Fetch statement for selected client
+  const { data: statement, isLoading: loadingStatement } = useQuery({
+    queryKey: ["client-statement", selectedClient?.id],
+    enabled: !!selectedClient,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_accounts" as any)
+        .select("*")
+        .eq("client_id", selectedClient!.id)
+        .order("created_at", { ascending: false });
+      return data ?? [];
     },
   });
 
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   if (isLoading) {
-    return (
-      <div className="space-y-3 p-4">
-        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-      </div>
-    );
+    return <div className="space-y-3 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>;
   }
+
+  const pours = (statement ?? []).filter((t: any) => t.transaction_type === "pour" || t.transaction_type === "صبة");
+  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "تحصيل");
 
   return (
     <div className="space-y-4">
@@ -126,14 +125,14 @@ export function ClientsTab() {
                 return (
                   <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedClient(a)}>
                     <TableCell className="font-cairo font-medium text-primary underline-offset-2 hover:underline">{a.name}</TableCell>
-                    <TableCell className="font-cairo">{a.totalOrders}</TableCell>
+                    <TableCell className="font-cairo">{a.totalPours}</TableCell>
                     <TableCell className="font-cairo">{fmt(a.totalAmount)}</TableCell>
-                    <TableCell className="font-cairo text-emerald-600">{fmt(a.totalPaid)}</TableCell>
+                    <TableCell className="font-cairo text-chart-2">{fmt(a.totalPaid)}</TableCell>
                     <TableCell className="font-cairo text-destructive font-semibold">{fmt(a.remaining)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-chart-2 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-xs font-cairo text-muted-foreground">{pct}%</span>
                       </div>
@@ -165,7 +164,7 @@ export function ClientsTab() {
                 </CardContent></Card>
                 <Card><CardContent className="p-3 text-center">
                   <p className="text-xs font-cairo text-muted-foreground">المدفوع</p>
-                  <p className="font-cairo font-bold text-emerald-600">{fmt(selectedClient.totalPaid)}</p>
+                  <p className="font-cairo font-bold text-chart-2">{fmt(selectedClient.totalPaid)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 text-center">
                   <p className="text-xs font-cairo text-muted-foreground">المتبقي</p>
@@ -173,50 +172,50 @@ export function ClientsTab() {
                 </CardContent></Card>
               </div>
 
-              {/* Orders */}
+              {/* Pours */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-cairo text-sm">الصبات</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">الصبات</CardTitle></CardHeader>
                 <CardContent className="p-0">
-                  <div className="overflow-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="font-cairo text-right">التاريخ</TableHead>
-                          <TableHead className="font-cairo text-right">النوع</TableHead>
-                          <TableHead className="font-cairo text-right">الكمية (م³)</TableHead>
-                          <TableHead className="font-cairo text-right">سعر البيع</TableHead>
-                          <TableHead className="font-cairo text-right">الإجمالي</TableHead>
-                          <TableHead className="font-cairo text-right">الحالة</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedClient.orders.map((o: any) => (
-                          <TableRow key={o.id}>
-                            <TableCell className="font-cairo text-xs">{o.pour_date ?? "—"}</TableCell>
-                            <TableCell className="font-cairo text-xs">{o.concrete_type ?? "—"}</TableCell>
-                            <TableCell className="font-cairo">{o.quantity_m3 ?? "—"}</TableCell>
-                            <TableCell className="font-cairo">{fmt(Number(o.agreed_price_per_m3) || 0)}</TableCell>
-                            <TableCell className="font-cairo font-medium">{fmt(Number(o.total_agreed_amount) || 0)}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="font-cairo text-[10px]">{o.status ?? "—"}</Badge>
-                            </TableCell>
+                  {loadingStatement ? (
+                    <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+                  ) : !pours.length ? (
+                    <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد صبات</p>
+                  ) : (
+                    <div className="overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
+                            <TableHead className="font-cairo text-right">المحطة</TableHead>
+                            <TableHead className="font-cairo text-right">الكمية (م³)</TableHead>
+                            <TableHead className="font-cairo text-right">سعر البيع</TableHead>
+                            <TableHead className="font-cairo text-right">الإجمالي</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {pours.map((t: any) => (
+                            <TableRow key={t.id}>
+                              <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                              <TableCell className="font-cairo text-xs">{t.station_name ?? "—"}</TableCell>
+                              <TableCell className="font-cairo">{t.quantity_m3 ?? "—"}</TableCell>
+                              <TableCell className="font-cairo">{t.price_per_m3 ? fmt(Number(t.price_per_m3)) : "—"}</TableCell>
+                              <TableCell className="font-cairo font-medium">{fmt(Number(t.amount) || 0)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               {/* Payments */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-cairo text-sm">المدفوعات</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">المدفوعات</CardTitle></CardHeader>
                 <CardContent className="p-0">
-                  {!selectedClient.payments.length ? (
+                  {loadingStatement ? (
+                    <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+                  ) : !payments.length ? (
                     <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد مدفوعات</p>
                   ) : (
                     <div className="overflow-auto">
@@ -230,16 +229,16 @@ export function ClientsTab() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedClient.payments.map((p: any) => (
-                            <TableRow key={p.id}>
-                              <TableCell className="font-cairo text-xs">{p.payment_date ?? new Date(p.created_at).toLocaleDateString("ar-EG")}</TableCell>
-                              <TableCell className="font-cairo text-emerald-600 font-medium">{fmt(Number(p.amount))}</TableCell>
+                          {payments.map((t: any) => (
+                            <TableRow key={t.id}>
+                              <TableCell className="font-cairo text-xs">{t.payment_date ?? (t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—")}</TableCell>
+                              <TableCell className="font-cairo text-chart-2 font-medium">{fmt(Number(t.amount) || 0)}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="font-cairo text-[10px]">
-                                  {{ cash: "كاش", bank_transfer: "تحويل بنكي", check: "شيك", online: "أونلاين" }[p.payment_method] ?? p.payment_method}
+                                  {METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[150px]">{p.notes ?? "—"}</TableCell>
+                              <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[150px]">{t.notes ?? "—"}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
