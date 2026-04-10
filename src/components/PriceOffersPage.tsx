@@ -226,9 +226,12 @@ export function PriceOffersPage() {
   };
 
   const handleWhatsApp = (offer: PriceOffer) => {
-    const phone = offer.whatsapp.replace(/[^0-9]/g, "");
+    let phone = offer.whatsapp.replace(/[^0-9]/g, "");
+    if (phone.startsWith("0")) {
+      phone = "20" + phone.slice(1);
+    }
     const msg = encodeURIComponent(
-      `مرحباً ${offer.client_name}، مرفق عرض السعر من ركيزة Pro. العرض ساري لمدة ${offer.validity_days} أيام.`
+      `السلام عليكم، هذا عرض سعر خرسانة جاهزة من شركة ركيزة 🏗️`
     );
     window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   };
