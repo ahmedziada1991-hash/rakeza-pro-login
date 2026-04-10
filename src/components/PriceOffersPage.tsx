@@ -549,7 +549,7 @@ export function PriceOffersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => setViewOffer(offer)} title="عرض">
+                        <Button variant="ghost" size="icon" onClick={() => setPreviewOffer(offer)} title="عرض">
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handlePrint(offer)} title="طباعة">
