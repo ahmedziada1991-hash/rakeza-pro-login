@@ -68,39 +68,22 @@ export function MyClientsTab() {
   const [addArea, setAddArea] = useState("");
   const [addPourDate, setAddPourDate] = useState<Date>();
 
-  const { data: clients, isLoading: isLoadingClients } = useQuery({
-    queryKey: ["my-clients", user?.id, filter],
+  const { data: allClients, isLoading: isLoadingClients } = useQuery({
+    queryKey: ["my-clients", user?.id],
     queryFn: async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      const authId = authData?.user?.id;
-      if (!authId) return [];
-
-      const { data: userData } = await supabase
-        .from("users")
-        .select("id, name")
-        .eq("auth_id", authId)
-        .single();
-
-      if (!userData) return [];
-
-      let query = supabase
-        .from("clients")
-        .select("*, followup:users!assigned_followup_id(name)")
-        .eq("assigned_sales_id", userData.id)
-        .order("created_at", { ascending: false });
-
-      if (filter === "followup") {
-        query = query.not("assigned_followup_id", "is", null);
-      } else if (filter !== "all") {
-        query = query.eq("status", filter);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await (supabase as any).rpc("get_my_clients");
       if (error) throw error;
       return data || [];
     },
     enabled: !!user,
   });
+
+  const clients = (() => {
+    if (!allClients) return [];
+    if (filter === "followup") return allClients.filter((c: any) => c.assigned_followup_id != null);
+    if (filter !== "all") return allClients.filter((c: any) => c.status === filter);
+    return allClients;
+  })();
 
   const isLoading = isLoadingClients;
 
