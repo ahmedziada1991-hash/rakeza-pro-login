@@ -40,6 +40,13 @@ const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو
 export function AdminDashboardContent() {
   const navigate = useNavigate();
 
+  const now = new Date();
+  const todayStr = format(now, "yyyy-MM-dd");
+  const thisMonthStart = format(startOfMonth(now), "yyyy-MM-dd");
+  const thisMonthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+  const lastMonthStart = format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
+  const lastMonthEnd = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
+
   const { data: clientsCount, isLoading: loadingClients } = useQuery({
     queryKey: ["clients-count"],
     queryFn: async () => {
@@ -90,7 +97,103 @@ export function AdminDashboardContent() {
     },
   });
 
+  // KPI: Today's calls
+  const { data: todayCalls } = useQuery({
+    queryKey: ["kpi-today-calls", todayStr],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("call_logs").select("id")
+        .gte("call_date", `${todayStr}T00:00:00`).lte("call_date", `${todayStr}T23:59:59`);
+      return data || [];
+    },
+  });
+
+  // KPI: Today's visits
+  const { data: todayVisits } = useQuery({
+    queryKey: ["kpi-today-visits", todayStr],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("field_locations").select("id")
+        .gte("created_at", `${todayStr}T00:00:00`).lte("created_at", `${todayStr}T23:59:59`);
+      return data || [];
+    },
+  });
+
+  // KPI: Today's pours
+  const { data: todayPours } = useQuery({
+    queryKey: ["kpi-today-pours", todayStr],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("pour_orders").select("id").eq("scheduled_date", todayStr);
+      return data || [];
+    },
+  });
+
+  // KPI: This month calls vs last month
+  const { data: thisMonthCalls } = useQuery({
+    queryKey: ["kpi-month-calls", thisMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("call_logs").select("id")
+        .gte("call_date", `${thisMonthStart}T00:00:00`).lte("call_date", `${thisMonthEnd}T23:59:59`);
+      return (data || []).length;
+    },
+  });
+
+  const { data: lastMonthCalls } = useQuery({
+    queryKey: ["kpi-last-month-calls", lastMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("call_logs").select("id")
+        .gte("call_date", `${lastMonthStart}T00:00:00`).lte("call_date", `${lastMonthEnd}T23:59:59`);
+      return (data || []).length;
+    },
+  });
+
+  // KPI: This month deals vs last month
+  const { data: thisMonthDeals } = useQuery({
+    queryKey: ["kpi-month-deals", thisMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("pour_orders").select("id")
+        .eq("status", "done").gte("scheduled_date", thisMonthStart).lte("scheduled_date", thisMonthEnd);
+      return (data || []).length;
+    },
+  });
+
+  const { data: lastMonthDeals } = useQuery({
+    queryKey: ["kpi-last-month-deals", lastMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("pour_orders").select("id")
+        .eq("status", "done").gte("scheduled_date", lastMonthStart).lte("scheduled_date", lastMonthEnd);
+      return (data || []).length;
+    },
+  });
+
+  // KPI: Targets
+  const { data: targets } = useQuery({
+    queryKey: ["kpi-targets"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("targets").select("calls_per_day, visits_per_day")
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      return data;
+    },
+  });
+
+  // KPI: Sales team size
+  const { data: salesTeamCount } = useQuery({
+    queryKey: ["kpi-sales-count"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("user_roles").select("user_id").eq("role", "sales");
+      return (data || []).length;
+    },
+  });
+
   const isLoading = loadingClients || loadingOrders || loadingStations || loadingPayments;
+
+  const targetCallsToday = (targets?.calls_per_day || 15) * (salesTeamCount || 1);
+  const targetVisitsToday = (targets?.visits_per_day || 5) * (salesTeamCount || 1);
+  const todayCallsCount = (todayCalls || []).length;
+  const todayVisitsCount = (todayVisits || []).length;
+  const todayPoursCount = (todayPours || []).length;
+  const callsPercent = Math.min(100, Math.round((todayCallsCount / targetCallsToday) * 100));
+  const visitsPercent = Math.min(100, Math.round((todayVisitsCount / targetVisitsToday) * 100));
+
+  const calcDiff = (cur: number, prev: number) => prev > 0 ? Math.round(((cur - prev) / prev) * 100) : cur > 0 ? 100 : 0;
 
   // Computed stats
   const ordersData = useMemo(() => {
