@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,6 +57,7 @@ const TAB_FILTERS: Record<string, string[]> = {
 
 export function FollowUpContent() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -459,12 +461,12 @@ export function FollowUpContent() {
                           تحويل للتنفيذ
                         </Button>
 
-                        {/* Quote PDF */}
+                        {/* Quote - navigate to offers page with client data */}
                         <Button
                           size="sm"
                           variant="outline"
                           className="font-cairo gap-1"
-                          onClick={() => generateQuotePDF(client)}
+                          onClick={() => navigate(`/dashboard/follow-up/offers?clientName=${encodeURIComponent(client.name)}&phone=${encodeURIComponent(client.phone || "")}`)}
                         >
                           <FileText className="h-3.5 w-3.5" />
                           عرض سعر
