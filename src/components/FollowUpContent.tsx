@@ -54,6 +54,7 @@ export function FollowUpContent() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("potential");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pourFilter, setPourFilter] = useState("all"); // all, has_pours, no_pours, high_volume
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [callLogViewId, setCallLogViewId] = useState<string | null>(null);
 
@@ -112,6 +113,18 @@ export function FollowUpContent() {
         (c: any) => (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q)
       );
     }
+
+    // Pour history filter
+    if (pourFilter !== "all") {
+      filtered = filtered.filter((c: any) => {
+        const h = pourHistory[c.id];
+        if (pourFilter === "no_pours") return !h || h.pourCount === 0;
+        if (pourFilter === "has_pours") return h && h.pourCount > 0;
+        if (pourFilter === "high_volume") return h && h.totalQuantity >= 50;
+        return true;
+      });
+    }
+
     return filtered;
   };
 
