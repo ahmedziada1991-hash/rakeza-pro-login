@@ -40,6 +40,7 @@ const navItems = [
   { title: "تقويم الصبات", url: "/dashboard/admin/calendar", icon: CalendarDays },
   { title: "تقرير اليوم", url: "/dashboard/admin/daily-report", icon: ClipboardList },
   { title: "التقرير الأسبوعي", url: "/dashboard/admin/weekly-report", icon: TrendingUp },
+  { title: "التقرير الشهري", url: "/dashboard/admin/monthly-report", icon: TrendingUp },
   { title: "الإعدادات", url: "/dashboard/admin/settings", icon: Settings },
 ];
 
