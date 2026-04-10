@@ -205,15 +205,19 @@ export function PriceOffersPage() {
       return;
     }
 
-    toast.success("تم إنشاء العرض بنجاح");
-    const offer = data as unknown as PriceOffer;
-    const doc = generatePDF(offer);
-    doc.save(`عرض_سعر_${offer.client_name}.pdf`);
-    
+    toast.success("تم إنشاء العرض بنجاح ✅");
+    setSubmitting(false);
     setDialogOpen(false);
     resetForm();
-    fetchOffers();
-    setSubmitting(false);
+    await fetchOffers();
+
+    try {
+      const offer = data as unknown as PriceOffer;
+      const doc = generatePDF(offer);
+      doc.save(`عرض_سعر_${offer.client_name}.pdf`);
+    } catch (pdfErr) {
+      console.error("PDF generation error:", pdfErr);
+    }
   };
 
   const handlePrint = (offer: PriceOffer) => {
