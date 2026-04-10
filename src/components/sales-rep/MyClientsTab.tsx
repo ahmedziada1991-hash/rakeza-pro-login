@@ -39,7 +39,6 @@ const CALL_RESULTS = [
 
 export function MyClientsTab() {
   const { user } = useAuth();
-  const { usersTableId, isLoading: isLoadingUserLookup } = useUsersTableId();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,12 +69,24 @@ export function MyClientsTab() {
   const [addPourDate, setAddPourDate] = useState<Date>();
 
   const { data: clients, isLoading: isLoadingClients } = useQuery({
-    queryKey: ["my-clients", usersTableId, filter],
+    queryKey: ["my-clients", user?.id, filter],
     queryFn: async () => {
-      let query = (supabase as any)
+      const { data: authData } = await supabase.auth.getUser();
+      const authId = authData?.user?.id;
+      if (!authId) return [];
+
+      const { data: userData } = await supabase
+        .from("users")
+        .select("id, name")
+        .eq("auth_id", authId)
+        .single();
+
+      if (!userData) return [];
+
+      let query = supabase
         .from("clients")
-        .select("*, followup_user:users!clients_assigned_followup_id_fkey(name)")
-        .eq("assigned_sales_id", usersTableId)
+        .select("*, followup:users!assigned_followup_id(name)")
+        .eq("assigned_sales_id", userData.id)
         .order("created_at", { ascending: false });
 
       if (filter === "followup") {
@@ -86,15 +97,12 @@ export function MyClientsTab() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []).map((c: any) => ({
-        ...c,
-        followup_name: c.followup_user?.name || null,
-      }));
+      return data || [];
     },
-    enabled: !!usersTableId,
+    enabled: !!user,
   });
 
-  const isLoading = isLoadingUserLookup || isLoadingClients;
+  const isLoading = isLoadingClients;
 
   const saveCallMutation = useMutation({
     mutationFn: async () => {
