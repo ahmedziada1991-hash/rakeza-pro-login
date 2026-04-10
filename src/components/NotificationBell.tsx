@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Bell, Check, CheckCheck, Clock, AlertTriangle, X } from "lucide-react";
+import { Bell, Check, CheckCheck, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Popover,
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Notification {
   id: number;
@@ -30,6 +30,7 @@ const TYPE_ICONS: Record<string, typeof AlertTriangle> = {
   no_contact: Clock,
   low_stock: AlertTriangle,
   daily_target: AlertTriangle,
+  assignment: Bell,
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -40,10 +41,32 @@ const TYPE_COLORS: Record<string, string> = {
   no_contact: "text-muted-foreground",
   low_stock: "text-destructive",
   daily_target: "text-orange-500",
+  assignment: "text-primary",
 };
+
+// Play a short notification sound using Web Audio API
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {
+    // Audio not supported, ignore
+  }
+}
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const [hasNew, setHasNew] = useState(false);
+  const prevUnreadRef = useRef<number | null>(null);
   const queryClient = useQueryClient();
 
   const { data: notifications = [] } = useQuery<Notification[]>({
@@ -57,10 +80,26 @@ export function NotificationBell() {
       if (error) throw error;
       return (data as Notification[]) ?? [];
     },
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  // Detect new notifications and play sound
+  useEffect(() => {
+    if (prevUnreadRef.current !== null && unreadCount > prevUnreadRef.current) {
+      playNotificationSound();
+      setHasNew(true);
+      const timer = setTimeout(() => setHasNew(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount]);
+
+  // Reset "new" animation when popover opens
+  useEffect(() => {
+    if (open) setHasNew(false);
+  }, [open]);
 
   const markRead = useMutation({
     mutationFn: async (id: number) => {
@@ -88,8 +127,19 @@ export function NotificationBell() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+          <Bell className={cn("h-5 w-5 transition-transform", hasNew && "animate-bounce")} />
           {unreadCount > 0 && (
+            <span
+              className={cn(
+                "absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-bold transition-transform",
+                hasNew && "animate-ping"
+              )}
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+          {/* Static badge underneath the pinging one */}
+          {unreadCount > 0 && hasNew && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-bold">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
