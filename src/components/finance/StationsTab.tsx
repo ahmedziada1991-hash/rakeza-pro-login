@@ -154,22 +154,24 @@ export function StationsTab() {
               <TableRow>
                 <TableHead className="font-cairo text-right">المحطة</TableHead>
                 <TableHead className="font-cairo text-right">عدد الصبات</TableHead>
-                {isAdmin && <TableHead className="font-cairo text-right">إجمالي التكلفة</TableHead>}
+                {isAdmin && <TableHead className="font-cairo text-right">مديونية خرسانة</TableHead>}
                 {isAdmin && <TableHead className="font-cairo text-right">المدفوع</TableHead>}
-                {isAdmin && <TableHead className="font-cairo text-right">المتبقي</TableHead>}
+                {isAdmin && <TableHead className="font-cairo text-right">خصم أسمنت</TableHead>}
+                {isAdmin && <TableHead className="font-cairo text-right">الرصيد النهائي</TableHead>}
                 <TableHead className="font-cairo text-right">نسبة السداد</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((a) => {
-                const pct = a.totalCost > 0 ? Math.round((a.totalPaid / a.totalCost) * 100) : 0;
+                const pct = a.totalCost > 0 ? Math.round(((a.totalPaid + a.cementBalance) / a.totalCost) * 100) : 0;
                 return (
                   <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedStation(a)}>
                     <TableCell className="font-cairo font-medium text-primary underline-offset-2 hover:underline">{a.name}</TableCell>
                     <TableCell className="font-cairo">{a.totalOrders}</TableCell>
                     {isAdmin && <TableCell className="font-cairo">{fmt(a.totalCost)}</TableCell>}
                     {isAdmin && <TableCell className="font-cairo text-emerald-600">{fmt(a.totalPaid)}</TableCell>}
-                    {isAdmin && <TableCell className="font-cairo text-destructive font-semibold">{fmt(a.remaining)}</TableCell>}
+                    {isAdmin && <TableCell className="font-cairo text-blue-600">{fmt(a.cementBalance)}</TableCell>}
+                    {isAdmin && <TableCell className={`font-cairo font-semibold ${a.finalBalance > 0 ? "text-destructive" : "text-emerald-600"}`}>{fmt(a.finalBalance)}</TableCell>}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
