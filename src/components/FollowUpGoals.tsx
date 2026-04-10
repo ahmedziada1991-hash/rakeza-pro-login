@@ -114,7 +114,7 @@ export function FollowUpGoals() {
   const actualCalls = dailyPerf?.actual_calls || todayCalls;
   const callProgress = Math.min(100, Math.round((actualCalls / targetCalls) * 100));
 
-  const monthlyTarget = 15; // default monthly target
+  const monthlyTarget = dailyPerf?.target_visits || 15; // reads admin-set monthly target
   const monthlyClosed = monthlyDeals?.closed || 0;
   const monthlyProgress = Math.min(100, Math.round((monthlyClosed / monthlyTarget) * 100));
   const closeRate = monthlyDeals?.transferred
