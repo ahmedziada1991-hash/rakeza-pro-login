@@ -80,12 +80,15 @@ export function FollowUpContent() {
 
       const { data: clientsData, error: clientsError } = await supabase
         .from("clients")
-        .select("*")
+        .select("*, sales_user:users!clients_assigned_sales_id_fkey(name)")
         .eq("assigned_followup_id", userData.id)
         .order("created_at", { ascending: false });
 
       if (clientsError) throw clientsError;
-      return clientsData || [];
+      return (clientsData || []).map((c: any) => ({
+        ...c,
+        sales_rep_name: c.sales_user?.name || null,
+      }));
     },
     enabled: !!user,
   });
@@ -388,8 +391,8 @@ export function FollowUpContent() {
                       )}
 
                       {/* Salesperson info */}
-                      {client.salesperson_name && (
-                        <p className="text-xs text-muted-foreground font-cairo">البائع الأصلي: {client.salesperson_name}</p>
+                      {client.sales_rep_name && (
+                        <p className="text-xs text-muted-foreground font-cairo">البائع: {client.sales_rep_name}</p>
                       )}
 
                       {/* Action buttons */}
