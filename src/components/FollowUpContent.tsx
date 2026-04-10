@@ -276,7 +276,8 @@ export function FollowUpContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
-        <TabsList className="w-full grid grid-cols-4 font-cairo">
+        <TabsList className="w-full grid grid-cols-5 font-cairo">
+          <TabsTrigger value="all" className="font-cairo text-xs sm:text-sm">الكل</TabsTrigger>
           <TabsTrigger value="potential" className="font-cairo text-xs sm:text-sm">محتملين</TabsTrigger>
           <TabsTrigger value="dormant" className="font-cairo text-xs sm:text-sm">خاملين</TabsTrigger>
           <TabsTrigger value="current" className="font-cairo text-xs sm:text-sm">حاليين</TabsTrigger>
