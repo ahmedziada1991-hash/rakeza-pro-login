@@ -55,9 +55,8 @@ export function ProfitsTab() {
   });
 
   const { data: prevOrders, isLoading: loadingPrev } = useQuery({
-    queryKey: ["finance-profits", format(prevMonth, "yyyy-MM"), "previous-month-disabled-debug"],
-    queryFn: async () => [],
-    initialData: [],
+    queryKey: ["finance-profits", format(prevMonth, "yyyy-MM")],
+    queryFn: () => fetchMonthData(prevMonth),
   });
 
   const { data: clients } = useQuery({
