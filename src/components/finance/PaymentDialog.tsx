@@ -80,7 +80,6 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
         amount,
         payment_method: payForm.payment_method,
-        payment_type: payForm.payment_type,
         payment_date: paymentDate ? format(paymentDate, "yyyy-MM-dd") : null,
         notes: payForm.notes || null,
       };
