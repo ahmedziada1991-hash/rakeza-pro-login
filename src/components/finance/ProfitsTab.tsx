@@ -92,6 +92,62 @@ export function ProfitsTab() {
     return { revenue, cost, profit: revenue - cost, count: orders.length };
   };
 
+  const handleSavePrice = async (order: any, newPrice: number) => {
+    if (isNaN(newPrice) || newPrice < 0) {
+      toast.error("سعر غير صحيح");
+      setEditingId(null);
+      return;
+    }
+    const qty = toAmount(order.quantity_m3);
+    const newTotal = newPrice * qty;
+
+    try {
+      const { error: pourErr } = await supabase
+        .from("pour_orders")
+        .update({ station_price_per_m3: newPrice, station_total_amount: newTotal })
+        .eq("id", order.id);
+      if (pourErr) throw pourErr;
+
+      if (order.station_id) {
+        const { data: matchRow } = await supabase
+          .from("station_accounts")
+          .select("id")
+          .eq("station_id", order.station_id)
+          .eq("transaction_type", "concrete")
+          .eq("quantity_m3", qty)
+          .limit(1)
+          .maybeSingle();
+
+        if (matchRow) {
+          await supabase
+            .from("station_accounts")
+            .update({ price_per_m3: newPrice, amount: newTotal })
+            .eq("id", matchRow.id);
+        } else {
+          await supabase
+            .from("station_accounts")
+            .insert({
+              station_id: order.station_id,
+              client_id: order.client_id,
+              transaction_type: "concrete",
+              quantity_m3: qty,
+              price_per_m3: newPrice,
+              amount: newTotal,
+              concrete_type: order.concrete_type,
+            });
+        }
+      }
+
+      toast.success("تم تحديث سعر الشراء");
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
+      queryClient.invalidateQueries({ queryKey: ["station-accounts"] });
+    } catch (err: any) {
+      console.error("Failed to save price", err);
+      toast.error("فشل حفظ السعر: " + (err.message || "خطأ غير معروف"));
+    }
+    setEditingId(null);
+  };
+
   const current = calcTotals(currentOrders ?? []);
   const prev = calcTotals(prevOrders ?? []);
   const isLoading = loadingCurrent || loadingPrev;
