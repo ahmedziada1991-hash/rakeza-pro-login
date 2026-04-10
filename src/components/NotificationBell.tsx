@@ -26,6 +26,7 @@ const TYPE_ICONS: Record<string, typeof AlertTriangle> = {
   overdue_payment: AlertTriangle,
   pending_order: Clock,
   check_due: AlertTriangle,
+  check_clearance: AlertTriangle,
   low_activity: Clock,
   no_contact: Clock,
   low_stock: AlertTriangle,
@@ -37,6 +38,7 @@ const TYPE_COLORS: Record<string, string> = {
   overdue_payment: "text-destructive",
   pending_order: "text-yellow-500",
   check_due: "text-orange-500",
+  check_clearance: "text-orange-500",
   low_activity: "text-muted-foreground",
   no_contact: "text-muted-foreground",
   low_stock: "text-destructive",
@@ -72,9 +74,11 @@ export function NotificationBell() {
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["notifications"],
     queryFn: async () => {
+      const todayStr = new Date().toISOString().split("T")[0];
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
+        .or(`scheduled_date.is.null,scheduled_date.lte.${todayStr}`)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
