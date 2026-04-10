@@ -25,8 +25,11 @@ interface StationAccount {
   totalCost: number;
   totalPaid: number;
   remaining: number;
+  cementBalance: number; // cement sold to this station (deducted from concrete debt)
+  finalBalance: number; // totalCost - totalPaid - cementBalance
   orders: any[];
   payments: any[];
+  cementSales: any[];
 }
 
 export function StationsTab() {
@@ -55,6 +58,16 @@ export function StationsTab() {
         .from("stations")
         .select("id, name");
 
+      // Cement sales to stations
+      let cementSales: any[] = [];
+      try {
+        const { data } = await supabase
+          .from("cement_sales")
+          .select("id, station_id, quantity_tons, price_per_ton, total_amount, payment_method, cash_amount, concrete_deduction_amount, sale_date")
+          .order("sale_date", { ascending: false });
+        cementSales = data ?? [];
+      } catch { /* table may not exist yet */ }
+
       const stationMap = new Map((stations ?? []).map((s) => [s.id, s.name]));
       const map = new Map<number, StationAccount>();
 
@@ -65,12 +78,9 @@ export function StationsTab() {
           map.set(sid, {
             id: sid,
             name: stationMap.get(sid) ?? "—",
-            totalOrders: 0,
-            totalCost: 0,
-            totalPaid: 0,
-            remaining: 0,
-            orders: [],
-            payments: [],
+            totalOrders: 0, totalCost: 0, totalPaid: 0,
+            remaining: 0, cementBalance: 0, finalBalance: 0,
+            orders: [], payments: [], cementSales: [],
           });
         }
         const acc = map.get(sid)!;
@@ -92,11 +102,29 @@ export function StationsTab() {
         }
       });
 
-      map.forEach((acc) => {
-        acc.remaining = acc.totalCost - acc.totalPaid;
+      // Cement balance per station (concrete_deduction_amount reduces concrete debt)
+      cementSales.forEach((cs) => {
+        const sid = cs.station_id;
+        if (!map.has(sid)) {
+          // Station exists in cement but not in orders - create entry
+          map.set(sid, {
+            id: sid, name: stationMap.get(sid) ?? "—",
+            totalOrders: 0, totalCost: 0, totalPaid: 0,
+            remaining: 0, cementBalance: 0, finalBalance: 0,
+            orders: [], payments: [], cementSales: [],
+          });
+        }
+        const acc = map.get(sid)!;
+        acc.cementBalance += Number(cs.concrete_deduction_amount) || 0;
+        acc.cementSales.push(cs);
       });
 
-      return [...map.values()].sort((a, b) => b.remaining - a.remaining);
+      map.forEach((acc) => {
+        acc.remaining = acc.totalCost - acc.totalPaid;
+        acc.finalBalance = acc.remaining - acc.cementBalance;
+      });
+
+      return [...map.values()].sort((a, b) => b.finalBalance - a.finalBalance);
     },
   });
 
