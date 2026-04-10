@@ -124,6 +124,19 @@ export function UsersManagement() {
       });
       if (roleError) throw roleError;
 
+      // Add to users table with hashed password indicator
+      const { error: usersError } = await supabase.from("users").insert({
+        id: authData.user.id,
+        name: newUser.name,
+        phone: newUser.whatsapp || null,
+        role: newUser.role,
+        active: true,
+        password_hash: "auth_managed",
+      });
+      if (usersError) {
+        console.error("Error inserting into users table:", usersError);
+      }
+
       // Add profile if table exists
       await supabase.from("profiles").upsert({
         id: authData.user.id,
