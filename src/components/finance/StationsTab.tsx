@@ -25,8 +25,11 @@ interface StationAccount {
   totalCost: number;
   totalPaid: number;
   remaining: number;
+  cementBalance: number; // cement sold to this station (deducted from concrete debt)
+  finalBalance: number; // totalCost - totalPaid - cementBalance
   orders: any[];
   payments: any[];
+  cementSales: any[];
 }
 
 export function StationsTab() {
@@ -55,6 +58,16 @@ export function StationsTab() {
         .from("stations")
         .select("id, name");
 
+      // Cement sales to stations
+      let cementSales: any[] = [];
+      try {
+        const { data } = await supabase
+          .from("cement_sales")
+          .select("id, station_id, quantity_tons, price_per_ton, total_amount, payment_method, cash_amount, concrete_deduction_amount, sale_date")
+          .order("sale_date", { ascending: false });
+        cementSales = data ?? [];
+      } catch { /* table may not exist yet */ }
+
       const stationMap = new Map((stations ?? []).map((s) => [s.id, s.name]));
       const map = new Map<number, StationAccount>();
 
@@ -65,12 +78,9 @@ export function StationsTab() {
           map.set(sid, {
             id: sid,
             name: stationMap.get(sid) ?? "—",
-            totalOrders: 0,
-            totalCost: 0,
-            totalPaid: 0,
-            remaining: 0,
-            orders: [],
-            payments: [],
+            totalOrders: 0, totalCost: 0, totalPaid: 0,
+            remaining: 0, cementBalance: 0, finalBalance: 0,
+            orders: [], payments: [], cementSales: [],
           });
         }
         const acc = map.get(sid)!;
@@ -92,11 +102,29 @@ export function StationsTab() {
         }
       });
 
-      map.forEach((acc) => {
-        acc.remaining = acc.totalCost - acc.totalPaid;
+      // Cement balance per station (concrete_deduction_amount reduces concrete debt)
+      cementSales.forEach((cs) => {
+        const sid = cs.station_id;
+        if (!map.has(sid)) {
+          // Station exists in cement but not in orders - create entry
+          map.set(sid, {
+            id: sid, name: stationMap.get(sid) ?? "—",
+            totalOrders: 0, totalCost: 0, totalPaid: 0,
+            remaining: 0, cementBalance: 0, finalBalance: 0,
+            orders: [], payments: [], cementSales: [],
+          });
+        }
+        const acc = map.get(sid)!;
+        acc.cementBalance += Number(cs.concrete_deduction_amount) || 0;
+        acc.cementSales.push(cs);
       });
 
-      return [...map.values()].sort((a, b) => b.remaining - a.remaining);
+      map.forEach((acc) => {
+        acc.remaining = acc.totalCost - acc.totalPaid;
+        acc.finalBalance = acc.remaining - acc.cementBalance;
+      });
+
+      return [...map.values()].sort((a, b) => b.finalBalance - a.finalBalance);
     },
   });
 
@@ -126,22 +154,24 @@ export function StationsTab() {
               <TableRow>
                 <TableHead className="font-cairo text-right">المحطة</TableHead>
                 <TableHead className="font-cairo text-right">عدد الصبات</TableHead>
-                {isAdmin && <TableHead className="font-cairo text-right">إجمالي التكلفة</TableHead>}
+                {isAdmin && <TableHead className="font-cairo text-right">مديونية خرسانة</TableHead>}
                 {isAdmin && <TableHead className="font-cairo text-right">المدفوع</TableHead>}
-                {isAdmin && <TableHead className="font-cairo text-right">المتبقي</TableHead>}
+                {isAdmin && <TableHead className="font-cairo text-right">خصم أسمنت</TableHead>}
+                {isAdmin && <TableHead className="font-cairo text-right">الرصيد النهائي</TableHead>}
                 <TableHead className="font-cairo text-right">نسبة السداد</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((a) => {
-                const pct = a.totalCost > 0 ? Math.round((a.totalPaid / a.totalCost) * 100) : 0;
+                const pct = a.totalCost > 0 ? Math.round(((a.totalPaid + a.cementBalance) / a.totalCost) * 100) : 0;
                 return (
                   <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedStation(a)}>
                     <TableCell className="font-cairo font-medium text-primary underline-offset-2 hover:underline">{a.name}</TableCell>
                     <TableCell className="font-cairo">{a.totalOrders}</TableCell>
                     {isAdmin && <TableCell className="font-cairo">{fmt(a.totalCost)}</TableCell>}
                     {isAdmin && <TableCell className="font-cairo text-emerald-600">{fmt(a.totalPaid)}</TableCell>}
-                    {isAdmin && <TableCell className="font-cairo text-destructive font-semibold">{fmt(a.remaining)}</TableCell>}
+                    {isAdmin && <TableCell className="font-cairo text-blue-600">{fmt(a.cementBalance)}</TableCell>}
+                    {isAdmin && <TableCell className={`font-cairo font-semibold ${a.finalBalance > 0 ? "text-destructive" : "text-emerald-600"}`}>{fmt(a.finalBalance)}</TableCell>}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
@@ -170,9 +200,9 @@ export function StationsTab() {
           {selectedStation && (
             <div className="space-y-4">
               {isAdmin && (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <Card><CardContent className="p-3 text-center">
-                    <p className="text-xs font-cairo text-muted-foreground">إجمالي التكلفة</p>
+                    <p className="text-xs font-cairo text-muted-foreground">مديونية خرسانة</p>
                     <p className="font-cairo font-bold text-primary">{fmt(selectedStation.totalCost)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="p-3 text-center">
@@ -180,8 +210,12 @@ export function StationsTab() {
                     <p className="font-cairo font-bold text-emerald-600">{fmt(selectedStation.totalPaid)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="p-3 text-center">
-                    <p className="text-xs font-cairo text-muted-foreground">المتبقي</p>
-                    <p className="font-cairo font-bold text-destructive">{fmt(selectedStation.remaining)}</p>
+                    <p className="text-xs font-cairo text-muted-foreground">خصم أسمنت</p>
+                    <p className="font-cairo font-bold text-blue-600">{fmt(selectedStation.cementBalance)}</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="p-3 text-center">
+                    <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
+                    <p className={`font-cairo font-bold ${selectedStation.finalBalance > 0 ? "text-destructive" : "text-emerald-600"}`}>{fmt(selectedStation.finalBalance)}</p>
                   </CardContent></Card>
                 </div>
               )}
@@ -258,6 +292,47 @@ export function StationsTab() {
                         </Table>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Cement Sales to this station */}
+              {isAdmin && selectedStation.cementSales.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-cairo text-sm">مبيعات أسمنت للمحطة</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
+                            <TableHead className="font-cairo text-right">الكمية (طن)</TableHead>
+                            <TableHead className="font-cairo text-right">سعر البيع</TableHead>
+                            <TableHead className="font-cairo text-right">الإجمالي</TableHead>
+                            <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
+                            <TableHead className="font-cairo text-right">خصم خرسانة</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedStation.cementSales.map((cs: any) => (
+                            <TableRow key={cs.id}>
+                              <TableCell className="font-cairo text-xs">{cs.sale_date ?? "—"}</TableCell>
+                              <TableCell className="font-cairo">{cs.quantity_tons}</TableCell>
+                              <TableCell className="font-cairo">{fmt(Number(cs.price_per_ton))}</TableCell>
+                              <TableCell className="font-cairo font-medium">{fmt(Number(cs.total_amount))}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="font-cairo text-[10px]">
+                                  {{ cash: "كاش", concrete_deduction: "خصم خرسانة", mixed: "مختلط" }[cs.payment_method] ?? cs.payment_method}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-cairo text-blue-600">{fmt(Number(cs.concrete_deduction_amount) || 0)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </CardContent>
                 </Card>
               )}
