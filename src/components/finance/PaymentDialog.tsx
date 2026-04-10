@@ -181,7 +181,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="font-cairo text-right">تسجيل دفعة جديدة</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="space-y-1.5">
             <Label className="font-cairo">نوع الدفعة</Label>
             <Select value={payForm.payment_type} onValueChange={(v) => setField("payment_type", v)}>
@@ -238,7 +238,6 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Check-specific fields */}
           {isCheck && (
             <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
               <div className="space-y-1.5">
@@ -287,7 +286,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             <Textarea value={payForm.notes} onChange={(e) => setField("notes", e.target.value)} className="font-cairo" rows={2} />
           </div>
         </div>
-        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t space-y-2">
+        <div className="shrink-0 pt-4 border-t space-y-2">
           <Button
             onClick={handleSubmit}
             disabled={paymentMutation.isPending}
