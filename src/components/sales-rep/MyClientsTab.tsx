@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUsersTableId } from "@/hooks/useUsersTableId";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ const CALL_RESULTS = [
 
 export function MyClientsTab() {
   const { user } = useAuth();
+  const { usersTableId } = useUsersTableId();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,11 +70,12 @@ export function MyClientsTab() {
   const [addPourDate, setAddPourDate] = useState<Date>();
 
   const { data: clients, isLoading } = useQuery({
-    queryKey: ["my-clients", user?.id, filter],
+    queryKey: ["my-clients", usersTableId, filter],
     queryFn: async () => {
       let query = (supabase as any)
         .from("clients")
         .select("*")
+        .eq("assigned_sales_id", usersTableId)
         .order("created_at", { ascending: false });
 
       if (filter !== "all") {
@@ -83,7 +86,7 @@ export function MyClientsTab() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!usersTableId,
   });
 
   const saveCallMutation = useMutation({
