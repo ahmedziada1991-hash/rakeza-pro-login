@@ -26,7 +26,7 @@ export function FollowUpGoals() {
       if (!user?.id) return null;
       const { data } = await supabase
         .from("daily_performance")
-        .select("target_calls, actual_calls")
+        .select("target_calls, actual_calls, target_visits")
         .eq("user_id", user.id)
         .eq("date", today)
         .single();
@@ -114,7 +114,7 @@ export function FollowUpGoals() {
   const actualCalls = dailyPerf?.actual_calls || todayCalls;
   const callProgress = Math.min(100, Math.round((actualCalls / targetCalls) * 100));
 
-  const monthlyTarget = 15; // default monthly target
+  const monthlyTarget = dailyPerf?.target_visits || 15; // reads admin-set monthly target
   const monthlyClosed = monthlyDeals?.closed || 0;
   const monthlyProgress = Math.min(100, Math.round((monthlyClosed / monthlyTarget) * 100));
   const closeRate = monthlyDeals?.transferred
