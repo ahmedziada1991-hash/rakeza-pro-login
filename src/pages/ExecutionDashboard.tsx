@@ -1,14 +1,18 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ExecutionSidebar } from "@/components/ExecutionSidebar";
 import { ExecutionContent } from "@/components/ExecutionContent";
+import { ExecutionDailyReport } from "@/components/ExecutionDailyReport";
 import { NotificationBell } from "@/components/NotificationBell";
 
 const ExecutionDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session, userRole, isLoading } = useAuth();
+
+  const isReportPage = location.pathname.endsWith("/report");
 
   useEffect(() => {
     if (isLoading) return;
@@ -41,7 +45,7 @@ const ExecutionDashboard = () => {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 overflow-auto">
-            <ExecutionContent />
+            {isReportPage ? <ExecutionDailyReport /> : <ExecutionContent />}
           </main>
         </div>
       </div>
