@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, FileText, Printer, Send, Eye } from "lucide-react";
+import { Plus, Trash2, FileText, Printer, Send, Eye, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
