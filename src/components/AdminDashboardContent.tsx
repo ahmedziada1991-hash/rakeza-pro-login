@@ -3,16 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Users, FileText, Building2, TrendingUp, Clock, CheckCircle2,
-  AlertCircle, Loader2, Banknote, BarChart3,
+  Users, FileText, Building2, TrendingUp, TrendingDown, Clock, CheckCircle2,
+  AlertCircle, Loader2, Banknote, BarChart3, Phone, MapPin, Minus, Target,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line,
 } from "recharts";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: typeof CheckCircle2; color: string }> = {
   done: { label: "مكتمل", variant: "default", icon: CheckCircle2, color: "hsl(var(--primary))" },
@@ -37,6 +39,13 @@ const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو
 
 export function AdminDashboardContent() {
   const navigate = useNavigate();
+
+  const now = new Date();
+  const todayStr = format(now, "yyyy-MM-dd");
+  const thisMonthStart = format(startOfMonth(now), "yyyy-MM-dd");
+  const thisMonthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+  const lastMonthStart = format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
+  const lastMonthEnd = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
 
   const { data: clientsCount, isLoading: loadingClients } = useQuery({
     queryKey: ["clients-count"],
@@ -88,7 +97,103 @@ export function AdminDashboardContent() {
     },
   });
 
+  // KPI: Today's calls
+  const { data: todayCalls } = useQuery({
+    queryKey: ["kpi-today-calls", todayStr],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("call_logs").select("id")
+        .gte("call_date", `${todayStr}T00:00:00`).lte("call_date", `${todayStr}T23:59:59`);
+      return data || [];
+    },
+  });
+
+  // KPI: Today's visits
+  const { data: todayVisits } = useQuery({
+    queryKey: ["kpi-today-visits", todayStr],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("field_locations").select("id")
+        .gte("created_at", `${todayStr}T00:00:00`).lte("created_at", `${todayStr}T23:59:59`);
+      return data || [];
+    },
+  });
+
+  // KPI: Today's pours
+  const { data: todayPours } = useQuery({
+    queryKey: ["kpi-today-pours", todayStr],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("pour_orders").select("id").eq("scheduled_date", todayStr);
+      return data || [];
+    },
+  });
+
+  // KPI: This month calls vs last month
+  const { data: thisMonthCalls } = useQuery({
+    queryKey: ["kpi-month-calls", thisMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("call_logs").select("id")
+        .gte("call_date", `${thisMonthStart}T00:00:00`).lte("call_date", `${thisMonthEnd}T23:59:59`);
+      return (data || []).length;
+    },
+  });
+
+  const { data: lastMonthCalls } = useQuery({
+    queryKey: ["kpi-last-month-calls", lastMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("call_logs").select("id")
+        .gte("call_date", `${lastMonthStart}T00:00:00`).lte("call_date", `${lastMonthEnd}T23:59:59`);
+      return (data || []).length;
+    },
+  });
+
+  // KPI: This month deals vs last month
+  const { data: thisMonthDeals } = useQuery({
+    queryKey: ["kpi-month-deals", thisMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("pour_orders").select("id")
+        .eq("status", "done").gte("scheduled_date", thisMonthStart).lte("scheduled_date", thisMonthEnd);
+      return (data || []).length;
+    },
+  });
+
+  const { data: lastMonthDeals } = useQuery({
+    queryKey: ["kpi-last-month-deals", lastMonthStart],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("pour_orders").select("id")
+        .eq("status", "done").gte("scheduled_date", lastMonthStart).lte("scheduled_date", lastMonthEnd);
+      return (data || []).length;
+    },
+  });
+
+  // KPI: Targets
+  const { data: targets } = useQuery({
+    queryKey: ["kpi-targets"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("targets").select("calls_per_day, visits_per_day")
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      return data;
+    },
+  });
+
+  // KPI: Sales team size
+  const { data: salesTeamCount } = useQuery({
+    queryKey: ["kpi-sales-count"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("user_roles").select("user_id").eq("role", "sales");
+      return (data || []).length;
+    },
+  });
+
   const isLoading = loadingClients || loadingOrders || loadingStations || loadingPayments;
+
+  const targetCallsToday = (targets?.calls_per_day || 15) * (salesTeamCount || 1);
+  const targetVisitsToday = (targets?.visits_per_day || 5) * (salesTeamCount || 1);
+  const todayCallsCount = (todayCalls || []).length;
+  const todayVisitsCount = (todayVisits || []).length;
+  const todayPoursCount = (todayPours || []).length;
+  const callsPercent = Math.min(100, Math.round((todayCallsCount / targetCallsToday) * 100));
+  const visitsPercent = Math.min(100, Math.round((todayVisitsCount / targetVisitsToday) * 100));
+
+  const calcDiff = (cur: number, prev: number) => prev > 0 ? Math.round(((cur - prev) / prev) * 100) : cur > 0 ? 100 : 0;
 
   // Computed stats
   const ordersData = useMemo(() => {
@@ -203,6 +308,80 @@ export function AdminDashboardContent() {
 
   return (
     <div className="space-y-6">
+      {/* KPI Panel */}
+      <Card className="shadow-[var(--shadow-card)] border-border/50 bg-gradient-to-l from-primary/5 to-transparent">
+        <CardHeader className="pb-2">
+          <CardTitle className="font-cairo text-base flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            مؤشرات الأداء الرئيسية - اليوم
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Today calls */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-chart-3" />
+                <span className="text-xs font-cairo text-muted-foreground">المكالمات</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{todayCallsCount}<span className="text-sm font-normal text-muted-foreground">/{targetCallsToday}</span></p>
+              <Progress value={callsPercent} className="h-1.5" />
+            </div>
+            {/* Today visits */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-chart-4" />
+                <span className="text-xs font-cairo text-muted-foreground">الزيارات</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{todayVisitsCount}<span className="text-sm font-normal text-muted-foreground">/{targetVisitsToday}</span></p>
+              <Progress value={visitsPercent} className="h-1.5" />
+            </div>
+            {/* Today pours */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <span className="text-xs font-cairo text-muted-foreground">صبات اليوم</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{todayPoursCount}</p>
+            </div>
+            {/* Month calls vs last */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-chart-3" />
+                <span className="text-xs font-cairo text-muted-foreground">مكالمات الشهر</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{thisMonthCalls ?? 0}</p>
+              {(() => {
+                const diff = calcDiff(thisMonthCalls ?? 0, lastMonthCalls ?? 0);
+                return (
+                  <div className="flex items-center gap-1">
+                    {diff > 0 ? <TrendingUp className="h-3 w-3 text-chart-2" /> : diff < 0 ? <TrendingDown className="h-3 w-3 text-destructive" /> : <Minus className="h-3 w-3 text-muted-foreground" />}
+                    <span className={`text-[10px] font-cairo ${diff > 0 ? "text-chart-2" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>{diff > 0 ? "+" : ""}{diff}%</span>
+                  </div>
+                );
+              })()}
+            </div>
+            {/* Month deals vs last */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-chart-2" />
+                <span className="text-xs font-cairo text-muted-foreground">صفقات الشهر</span>
+              </div>
+              <p className="text-xl font-cairo font-bold text-foreground">{thisMonthDeals ?? 0}</p>
+              {(() => {
+                const diff = calcDiff(thisMonthDeals ?? 0, lastMonthDeals ?? 0);
+                return (
+                  <div className="flex items-center gap-1">
+                    {diff > 0 ? <TrendingUp className="h-3 w-3 text-chart-2" /> : diff < 0 ? <TrendingDown className="h-3 w-3 text-destructive" /> : <Minus className="h-3 w-3 text-muted-foreground" />}
+                    <span className={`text-[10px] font-cairo ${diff > 0 ? "text-chart-2" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>{diff > 0 ? "+" : ""}{diff}%</span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
