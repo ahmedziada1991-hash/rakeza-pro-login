@@ -37,17 +37,9 @@ export function ProfitsTab() {
       .from("pour_orders")
       .select("id, client_id, station_id, scheduled_date, created_at, quantity_m3, total_agreed_amount, station_total_amount, concrete_type, status")
       .eq("status", "done")
-      .order("created_at", { ascending: false });
-
-    console.log("[ProfitsTab] pour_orders response", {
-      debugMode: "without-month-filter",
-      selectedMonth: format(month, "yyyy-MM"),
-      start,
-      end,
-      count: orders?.length ?? 0,
-      error,
-      orders,
-    });
+      .gte("scheduled_date", start)
+      .lte("scheduled_date", end)
+      .order("scheduled_date", { ascending: false });
 
     if (error) {
       console.error("[ProfitsTab] failed to load pour_orders", error);
@@ -58,14 +50,13 @@ export function ProfitsTab() {
   };
 
   const { data: currentOrders, isLoading: loadingCurrent } = useQuery({
-    queryKey: ["finance-profits", format(currentMonth, "yyyy-MM"), "all-done-orders-debug"],
+    queryKey: ["finance-profits", format(currentMonth, "yyyy-MM")],
     queryFn: () => fetchMonthData(currentMonth),
   });
 
   const { data: prevOrders, isLoading: loadingPrev } = useQuery({
-    queryKey: ["finance-profits", format(prevMonth, "yyyy-MM"), "previous-month-disabled-debug"],
-    queryFn: async () => [],
-    initialData: [],
+    queryKey: ["finance-profits", format(prevMonth, "yyyy-MM")],
+    queryFn: () => fetchMonthData(prevMonth),
   });
 
   const { data: clients } = useQuery({
