@@ -14,6 +14,7 @@ import { Plus, Trash2, FileText, Printer, Send, Eye } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { OfferPreview } from "@/components/price-offers/OfferPreview";
 
 declare module "jspdf" {
   interface jsPDF {
@@ -205,6 +206,7 @@ export function PriceOffersPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOffer, setViewOffer] = useState<PriceOffer | null>(null);
+  const [previewOffer, setPreviewOffer] = useState<PriceOffer | null>(null);
 
   // Form state
   const [clientName, setClientName] = useState("");
@@ -289,13 +291,8 @@ export function PriceOffersPage() {
     resetForm();
     await fetchOffers();
 
-    try {
-      const offer = data as unknown as PriceOffer;
-      const doc = generatePDF(offer);
-      doc.save(`عرض_سعر_${offer.client_name}.pdf`);
-    } catch (pdfErr) {
-      console.error("PDF generation error:", pdfErr);
-    }
+    // Show inline preview instead of auto-downloading PDF
+    setPreviewOffer(data as unknown as PriceOffer);
   };
 
   const handlePrint = (offer: PriceOffer) => {
