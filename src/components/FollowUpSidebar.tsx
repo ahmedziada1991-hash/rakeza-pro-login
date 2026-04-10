@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, LogOut, ArrowRightLeft, Target, Settings } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, ArrowRightLeft, Target, Settings, FileText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,7 @@ const navItems = [
   { title: "لوحة المتابعة", url: "/dashboard/follow-up", icon: LayoutDashboard, end: true },
   { title: "أهدافي", url: "/dashboard/follow-up/goals", icon: Target },
   { title: "إدارة الأهداف", url: "/dashboard/follow-up/targets", icon: Settings, adminOnly: true },
+  { title: "عروض الأسعار", url: "/dashboard/follow-up/offers", icon: FileText },
   { title: "توزيع العملاء", url: "/dashboard/follow-up/assign", icon: ArrowRightLeft, adminOnly: true },
 ];
 

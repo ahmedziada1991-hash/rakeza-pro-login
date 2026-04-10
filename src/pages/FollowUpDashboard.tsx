@@ -8,6 +8,7 @@ import { FollowUpContent } from "@/components/FollowUpContent";
 import { FollowUpGoals } from "@/components/FollowUpGoals";
 import { FollowUpTargetsAdmin } from "@/components/FollowUpTargetsAdmin";
 import { ClientAssignment } from "@/components/ClientAssignment";
+import { PriceOffersPage } from "@/components/PriceOffersPage";
 import { NotificationBell } from "@/components/NotificationBell";
 
 const FollowUpDashboard = () => {
@@ -19,6 +20,7 @@ const FollowUpDashboard = () => {
   const isAssignPage = location.pathname.endsWith("/assign");
   const isGoalsPage = location.pathname.endsWith("/goals");
   const isTargetsPage = location.pathname.endsWith("/targets");
+  const isOffersPage = location.pathname.endsWith("/offers");
 
   useEffect(() => {
     if (isLoading) return;
@@ -57,7 +59,7 @@ const FollowUpDashboard = () => {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 overflow-auto">
-            {isAssignPage ? <ClientAssignment /> : isTargetsPage ? <FollowUpTargetsAdmin /> : isGoalsPage ? <FollowUpGoals /> : <FollowUpContent />}
+            {isOffersPage ? <PriceOffersPage /> : isAssignPage ? <ClientAssignment /> : isTargetsPage ? <FollowUpTargetsAdmin /> : isGoalsPage ? <FollowUpGoals /> : <FollowUpContent />}
           </main>
         </div>
       </div>

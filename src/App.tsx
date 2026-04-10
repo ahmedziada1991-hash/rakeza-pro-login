@@ -31,6 +31,7 @@ const App = () => (
             <Route path="/dashboard/follow-up/goals" element={<FollowUpDashboard />} />
             <Route path="/dashboard/follow-up/targets" element={<FollowUpDashboard />} />
             <Route path="/dashboard/follow-up/assign" element={<FollowUpDashboard />} />
+            <Route path="/dashboard/follow-up/offers" element={<FollowUpDashboard />} />
             <Route path="/dashboard/execution" element={<ExecutionDashboard />} />
             <Route path="/dashboard/execution/report" element={<ExecutionDashboard />} />
             <Route path="/dashboard/:role/*" element={<Dashboard />} />
