@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -7,12 +8,13 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { toast } from "sonner";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -25,7 +27,13 @@ function toAmount(value: unknown) {
 }
 
 export function ProfitsTab() {
+  const { userRole } = useAuth();
+  const isAdmin = userRole === "admin";
+  const queryClient = useQueryClient();
   const [monthOffset, setMonthOffset] = useState(0);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const currentMonth = useMemo(() => subMonths(new Date(), monthOffset), [monthOffset]);
   const prevMonth = useMemo(() => subMonths(currentMonth, 1), [currentMonth]);
 
@@ -35,7 +43,7 @@ export function ProfitsTab() {
 
     const { data: orders, error } = await supabase
       .from("pour_orders")
-      .select("id, client_id, station_id, scheduled_date, created_at, quantity_m3, total_agreed_amount, station_total_amount, concrete_type, status")
+      .select("id, client_id, station_id, station_name, scheduled_date, created_at, quantity_m3, station_price_per_m3, total_agreed_amount, station_total_amount, concrete_type, status")
       .eq("status", "done")
       .gte("scheduled_date", start)
       .lte("scheduled_date", end)
@@ -82,6 +90,62 @@ export function ProfitsTab() {
       cost += toAmount(o.station_total_amount);
     });
     return { revenue, cost, profit: revenue - cost, count: orders.length };
+  };
+
+  const handleSavePrice = async (order: any, newPrice: number) => {
+    if (isNaN(newPrice) || newPrice < 0) {
+      toast.error("سعر غير صحيح");
+      setEditingId(null);
+      return;
+    }
+    const qty = toAmount(order.quantity_m3);
+    const newTotal = newPrice * qty;
+
+    try {
+      const { error: pourErr } = await supabase
+        .from("pour_orders")
+        .update({ station_price_per_m3: newPrice, station_total_amount: newTotal })
+        .eq("id", order.id);
+      if (pourErr) throw pourErr;
+
+      if (order.station_id) {
+        const { data: matchRow } = await supabase
+          .from("station_accounts")
+          .select("id")
+          .eq("station_id", order.station_id)
+          .eq("transaction_type", "concrete")
+          .eq("quantity_m3", qty)
+          .limit(1)
+          .maybeSingle();
+
+        if (matchRow) {
+          await supabase
+            .from("station_accounts")
+            .update({ price_per_m3: newPrice, amount: newTotal })
+            .eq("id", matchRow.id);
+        } else {
+          await supabase
+            .from("station_accounts")
+            .insert({
+              station_id: order.station_id,
+              client_id: order.client_id,
+              transaction_type: "concrete",
+              quantity_m3: qty,
+              price_per_m3: newPrice,
+              amount: newTotal,
+              concrete_type: order.concrete_type,
+            });
+        }
+      }
+
+      toast.success("تم تحديث سعر الشراء");
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
+      queryClient.invalidateQueries({ queryKey: ["station-accounts"] });
+    } catch (err: any) {
+      console.error("Failed to save price", err);
+      toast.error("فشل حفظ السعر: " + (err.message || "خطأ غير معروف"));
+    }
+    setEditingId(null);
   };
 
   const current = calcTotals(currentOrders ?? []);
@@ -217,7 +281,8 @@ export function ProfitsTab() {
                     <TableHead className="font-cairo text-right">المحطة</TableHead>
                     <TableHead className="font-cairo text-right">الكمية</TableHead>
                     <TableHead className="font-cairo text-right">سعر البيع</TableHead>
-                    <TableHead className="font-cairo text-right">سعر الشراء</TableHead>
+                    {isAdmin && <TableHead className="font-cairo text-right">سعر الشراء/م³</TableHead>}
+                    <TableHead className="font-cairo text-right">إجمالي الشراء</TableHead>
                     <TableHead className="font-cairo text-right">ربح الصبة</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -226,6 +291,8 @@ export function ProfitsTab() {
                     const sell = toAmount(o.total_agreed_amount);
                     const buy = toAmount(o.station_total_amount);
                     const profit = sell - buy;
+                    const pricePerM3 = toAmount(o.station_price_per_m3);
+                    const isEditing = editingId === o.id;
                     return (
                       <TableRow key={o.id}>
                         <TableCell className="font-cairo text-xs">{o.scheduled_date ?? o.created_at?.split("T")[0] ?? "—"}</TableCell>
@@ -233,6 +300,36 @@ export function ProfitsTab() {
                         <TableCell className="font-cairo text-xs">{stations?.get(o.station_id) ?? "—"}</TableCell>
                         <TableCell className="font-cairo">{o.quantity_m3 ?? "—"} م³</TableCell>
                         <TableCell className="font-cairo">{fmt(sell)}</TableCell>
+                        {isAdmin && (
+                          <TableCell className="font-cairo">
+                            {isEditing ? (
+                              <Input
+                                ref={inputRef}
+                                type="number"
+                                className="w-24 h-7 text-xs font-cairo"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={() => handleSavePrice(o, parseFloat(editValue))}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSavePrice(o, parseFloat(editValue));
+                                  if (e.key === "Escape") setEditingId(null);
+                                }}
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:bg-muted px-1 py-0.5 rounded text-orange-600"
+                                onClick={() => {
+                                  setEditingId(o.id);
+                                  setEditValue(String(pricePerM3 || ""));
+                                }}
+                                title="اضغط للتعديل"
+                              >
+                                {pricePerM3 ? fmt(pricePerM3) : "—"}
+                              </span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="font-cairo text-orange-600">{fmt(buy)}</TableCell>
                         <TableCell className={`font-cairo font-semibold ${profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>
                           {fmt(profit)}
