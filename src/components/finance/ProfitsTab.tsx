@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -7,12 +8,13 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { toast } from "sonner";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
