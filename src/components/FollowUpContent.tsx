@@ -44,10 +44,10 @@ const CALL_RESULTS = [
 
 const TAB_FILTERS: Record<string, string[]> = {
   all: [], // no filter - show all
-  potential: ["hot", "warm"],
-  dormant: ["cold", "inactive"],
-  current: ["active", "followup"],
-  appointments: [], // special - filter by next_followup_date
+  potential: ["new", "contacted", "qualified", "active"],
+  dormant: ["hot"],
+  current: ["converted"],
+  appointments: [], // special - filter by confirmed_pour_date
 };
 
 export function FollowUpContent() {
@@ -110,7 +110,7 @@ export function FollowUpContent() {
     if (activeTab === "all") {
       filtered = [...clients];
     } else if (activeTab === "appointments") {
-      filtered = clients.filter((c: any) => c.next_followup_date);
+      filtered = clients.filter((c: any) => c.confirmed_pour_date);
       filtered.sort((a: any, b: any) =>
         new Date(a.next_followup_date).getTime() - new Date(b.next_followup_date).getTime()
       );
