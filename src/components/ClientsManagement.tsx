@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
@@ -33,10 +34,18 @@ interface Client {
   notes: string | null;
   is_converted: boolean;
   pour_status: string | null;
+  assigned_sales_id: number | null;
+  assigned_followup_id: number | null;
   created_at: string;
 }
 
-type ClientForm = Omit<Client, "id" | "created_at" | "is_converted">;
+interface StaffUser {
+  id: number;
+  name: string;
+  role: string;
+}
+
+type ClientForm = Omit<Client, "id" | "created_at" | "is_converted"> ;
 
 const EMPTY_FORM: ClientForm = {
   name: "",
@@ -48,6 +57,8 @@ const EMPTY_FORM: ClientForm = {
   status: "active",
   notes: "",
   pour_status: null,
+  assigned_sales_id: null,
+  assigned_followup_id: null,
 };
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -65,6 +76,8 @@ const POUR_STATUS_MAP: Record<string, string> = {
 
 export function ClientsManagement() {
   const queryClient = useQueryClient();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === "admin";
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,12 +91,33 @@ export function ClientsManagement() {
     }
   }, [searchParams, setSearchParams]);
 
+  // Fetch staff users (sales + followup)
+  const { data: staffUsers } = useQuery({
+    queryKey: ["staff-users-list"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("users")
+        .select("id, name, role")
+        .in("role", ["sales", "followup"])
+        .eq("active", true)
+        .order("name");
+      return (data ?? []) as StaffUser[];
+    },
+  });
+
+  const salesUsers = (staffUsers ?? []).filter((u) => u.role === "sales");
+  const followupUsers = (staffUsers ?? []).filter((u) => u.role === "followup");
+
+  // Build a map of user id -> name for table display
+  const staffMap = new Map<number, string>();
+  (staffUsers ?? []).forEach((u) => staffMap.set(u.id, u.name));
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients-list"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, name, phone, area, project_type, size_m3, price, status, notes, is_converted, pour_status, created_at")
+        .select("id, name, phone, area, project_type, size_m3, price, status, notes, is_converted, pour_status, assigned_sales_id, assigned_followup_id, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as Client[];
@@ -129,6 +163,8 @@ export function ClientsManagement() {
       status: client.status,
       notes: client.notes ?? "",
       pour_status: client.pour_status,
+      assigned_sales_id: client.assigned_sales_id,
+      assigned_followup_id: client.assigned_followup_id,
     });
     setDialogOpen(true);
   }
@@ -154,6 +190,8 @@ export function ClientsManagement() {
       status: form.status,
       notes: form.notes || null,
       pour_status: form.pour_status,
+      assigned_sales_id: form.assigned_sales_id,
+      assigned_followup_id: form.assigned_followup_id,
     };
     upsertMutation.mutate({ id: editingClient?.id, data: payload });
   }
@@ -209,6 +247,8 @@ export function ClientsManagement() {
                     <TableHead className="font-cairo text-right">الاسم</TableHead>
                     <TableHead className="font-cairo text-right">الهاتف</TableHead>
                     <TableHead className="font-cairo text-right">المنطقة</TableHead>
+                    <TableHead className="font-cairo text-right">البائع</TableHead>
+                    <TableHead className="font-cairo text-right">المتابع</TableHead>
                     <TableHead className="font-cairo text-right">الكمية (م³)</TableHead>
                     <TableHead className="font-cairo text-right">السعر</TableHead>
                     <TableHead className="font-cairo text-right">الحالة</TableHead>
@@ -225,6 +265,12 @@ export function ClientsManagement() {
                         <TableCell className="font-cairo font-medium">{client.name}</TableCell>
                         <TableCell className="font-cairo" dir="ltr">{client.phone ?? "—"}</TableCell>
                         <TableCell className="font-cairo">{client.area ?? "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs">
+                          {client.assigned_sales_id ? (staffMap.get(client.assigned_sales_id) ?? "—") : "—"}
+                        </TableCell>
+                        <TableCell className="font-cairo text-xs">
+                          {client.assigned_followup_id ? (staffMap.get(client.assigned_followup_id) ?? "—") : "—"}
+                        </TableCell>
                         <TableCell className="font-cairo">{client.size_m3 ?? "—"}</TableCell>
                         <TableCell className="font-cairo">
                           {client.price ? `${client.price.toLocaleString("ar-EG")} ج.م` : "—"}
@@ -338,6 +384,46 @@ export function ClientsManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Sales & Followup assignment - Admin only */}
+            {isAdmin && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">البائع</Label>
+                  <Select
+                    value={form.assigned_sales_id ? String(form.assigned_sales_id) : "none"}
+                    onValueChange={(v) => setForm((f) => ({ ...f, assigned_sales_id: v === "none" ? null : Number(v) }))}
+                  >
+                    <SelectTrigger className="font-cairo">
+                      <SelectValue placeholder="اختر البائع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="font-cairo">بدون</SelectItem>
+                      {salesUsers.map((u) => (
+                        <SelectItem key={u.id} value={String(u.id)} className="font-cairo">{u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">المتابع</Label>
+                  <Select
+                    value={form.assigned_followup_id ? String(form.assigned_followup_id) : "none"}
+                    onValueChange={(v) => setForm((f) => ({ ...f, assigned_followup_id: v === "none" ? null : Number(v) }))}
+                  >
+                    <SelectTrigger className="font-cairo">
+                      <SelectValue placeholder="اختر المتابع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="font-cairo">بدون</SelectItem>
+                      {followupUsers.map((u) => (
+                        <SelectItem key={u.id} value={String(u.id)} className="font-cairo">{u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label className="font-cairo">ملاحظات</Label>
