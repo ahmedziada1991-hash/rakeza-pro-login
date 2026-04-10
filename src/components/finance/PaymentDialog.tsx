@@ -177,7 +177,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-cairo text-right">تسجيل دفعة جديدة</DialogTitle>
         </DialogHeader>
