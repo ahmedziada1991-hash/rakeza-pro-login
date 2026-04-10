@@ -86,6 +86,16 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       const { error } = await supabase.from("payments").insert(payload);
       if (error) throw error;
 
+      // Also insert into client_accounts for the statement view
+      await supabase.from("client_accounts" as any).insert({
+        client_id: Number(payForm.client_id),
+        transaction_type: "payment",
+        amount,
+        payment_method: payForm.payment_method,
+        notes: payForm.notes || null,
+        pour_order_id: payForm.pour_order_id ? Number(payForm.pour_order_id) : null,
+      });
+
       if (payForm.pour_order_id) {
         const orderId = Number(payForm.pour_order_id);
         const { data: order } = await supabase.from("pour_orders").select("amount_paid, amount_remaining").eq("id", orderId).single();
