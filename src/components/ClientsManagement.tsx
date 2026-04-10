@@ -76,7 +76,7 @@ const POUR_STATUS_MAP: Record<string, string> = {
 
 export function ClientsManagement() {
   const queryClient = useQueryClient();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const isAdmin = userRole === "admin";
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
