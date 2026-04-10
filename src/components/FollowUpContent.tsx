@@ -65,26 +65,45 @@ export function FollowUpContent() {
   const [callNotes, setCallNotes] = useState("");
   const [nextFollowupDate, setNextFollowupDate] = useState<Date | undefined>();
 
+  // Get the numeric user ID from users table by matching auth email/phone
+  const { data: myUserId } = useQuery({
+    queryKey: ["my-users-table-id", user?.id],
+    queryFn: async () => {
+      const email = user!.email;
+      const phone = user!.phone;
+      // Try matching by email first, then phone
+      let result: any = null;
+      if (email) {
+        const { data } = await supabase.from("users").select("id").eq("email", email).maybeSingle();
+        result = data;
+      }
+      if (!result && phone) {
+        const { data } = await supabase.from("users").select("id").eq("phone", phone).maybeSingle();
+        result = data;
+      }
+      // Fallback: try matching by auth UUID (in case users.id = auth.id)
+      if (!result) {
+        const { data } = await supabase.from("users").select("id").eq("id", user!.id).maybeSingle();
+        result = data;
+      }
+      return result?.id ?? null;
+    },
+    enabled: !!user,
+  });
+
   // Fetch clients assigned to this followup user
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ["followup-clients", user?.id],
+    queryKey: ["followup-clients", myUserId],
     queryFn: async () => {
-      // Get the numeric user ID from the users table
-      const { data: userData } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", user!.id)
-        .single();
-
       const { data, error } = await (supabase as any)
         .from("clients")
         .select("*")
-        .eq("assigned_followup_id", userData?.id ?? user!.id)
+        .eq("assigned_followup_id", myUserId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!myUserId,
   });
 
   // Today's followup alerts
