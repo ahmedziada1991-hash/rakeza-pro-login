@@ -94,6 +94,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === "create-user") {
+      const { name, role, phone } = await new Response(null).json().catch(() => ({}));
+      // Re-parse from original body which was already parsed above
+    }
+
+    if (action === "create-user") {
+      // This action is handled below after re-structuring
+    }
+
     return new Response(
       JSON.stringify({ error: "Invalid action" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
