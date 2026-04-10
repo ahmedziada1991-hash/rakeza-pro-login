@@ -17,8 +17,9 @@ import { toast } from "@/hooks/use-toast";
 import {
   Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft,
   Search, ChevronDown, ChevronUp, AlertTriangle, Clock, Bell,
-  Users, Flame, Snowflake, TrendingUp, CheckCircle2
+  Users, Flame, Snowflake, TrendingUp, CheckCircle2, Layers
 } from "lucide-react";
+import { useClientPourHistory } from "@/hooks/useClientPourHistory";
 import { format, isToday } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,9 @@ export function FollowUpContent() {
     }
     return filtered;
   };
+
+  const allClientIds = clients.map((c: any) => c.id);
+  const { data: pourHistory = {} } = useClientPourHistory(allClientIds);
 
   // Save follow-up call
   const saveCallMutation = useMutation({
@@ -321,6 +325,26 @@ export function FollowUpContent() {
                           </span>
                         )}
                       </div>
+
+                      {/* Pour history */}
+                      {pourHistory[client.id] && (
+                        <div className="flex flex-wrap gap-3 text-xs font-cairo bg-muted/50 rounded-md p-2">
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" />
+                            آخر صبة: {pourHistory[client.id].lastPourDate ? format(new Date(pourHistory[client.id].lastPourDate!), "d/M/yyyy") : "—"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Layers className="h-3 w-3" />
+                            {pourHistory[client.id].totalQuantity} م³
+                          </span>
+                          <span>{pourHistory[client.id].pourCount} صبة</span>
+                        </div>
+                      )}
+
+                      {/* Salesperson info */}
+                      {client.salesperson_name && (
+                        <p className="text-xs text-muted-foreground font-cairo">البائع الأصلي: {client.salesperson_name}</p>
+                      )}
 
                       {/* Action buttons */}
                       <div className="flex flex-wrap gap-2">

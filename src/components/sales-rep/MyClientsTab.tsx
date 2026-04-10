@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus, Contact, Search } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus, Contact, Search, Layers } from "lucide-react";
+import { useClientPourHistory } from "@/hooks/useClientPourHistory";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -257,6 +258,9 @@ export function MyClientsTab() {
     return (clients || []).filter((c: any) => !q || (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q));
   })();
 
+  const allClientIds = (clients || []).map((c: any) => c.id);
+  const { data: pourHistory = {} } = useClientPourHistory(allClientIds);
+
   return (
     <div className="space-y-4">
       {/* Add client button */}
@@ -307,6 +311,26 @@ export function MyClientsTab() {
                   </div>
                   {getClassBadge(client.status)}
                 </div>
+
+                {/* Pour history */}
+                {pourHistory[client.id] && (
+                  <div className="flex flex-wrap gap-3 text-xs font-cairo bg-muted/50 rounded-md p-2">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="h-3 w-3" />
+                      آخر صبة: {pourHistory[client.id].lastPourDate ? format(new Date(pourHistory[client.id].lastPourDate!), "d/M/yyyy") : "—"}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Layers className="h-3 w-3" />
+                      {pourHistory[client.id].totalQuantity} م³
+                    </span>
+                    <span>{pourHistory[client.id].pourCount} صبة</span>
+                  </div>
+                )}
+
+                {/* Salesperson */}
+                {client.salesperson_name && (
+                  <p className="text-xs text-muted-foreground font-cairo">البائع: {client.salesperson_name}</p>
+                )}
 
                 <div className="flex flex-wrap gap-2">
                   {/* Call */}
