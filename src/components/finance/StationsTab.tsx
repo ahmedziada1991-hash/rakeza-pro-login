@@ -200,9 +200,9 @@ export function StationsTab() {
           {selectedStation && (
             <div className="space-y-4">
               {isAdmin && (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <Card><CardContent className="p-3 text-center">
-                    <p className="text-xs font-cairo text-muted-foreground">إجمالي التكلفة</p>
+                    <p className="text-xs font-cairo text-muted-foreground">مديونية خرسانة</p>
                     <p className="font-cairo font-bold text-primary">{fmt(selectedStation.totalCost)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="p-3 text-center">
@@ -210,8 +210,12 @@ export function StationsTab() {
                     <p className="font-cairo font-bold text-emerald-600">{fmt(selectedStation.totalPaid)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="p-3 text-center">
-                    <p className="text-xs font-cairo text-muted-foreground">المتبقي</p>
-                    <p className="font-cairo font-bold text-destructive">{fmt(selectedStation.remaining)}</p>
+                    <p className="text-xs font-cairo text-muted-foreground">خصم أسمنت</p>
+                    <p className="font-cairo font-bold text-blue-600">{fmt(selectedStation.cementBalance)}</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="p-3 text-center">
+                    <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
+                    <p className={`font-cairo font-bold ${selectedStation.finalBalance > 0 ? "text-destructive" : "text-emerald-600"}`}>{fmt(selectedStation.finalBalance)}</p>
                   </CardContent></Card>
                 </div>
               )}
