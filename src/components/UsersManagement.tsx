@@ -309,7 +309,7 @@ export function UsersManagement() {
                 phone: editingUser.phone,
                 role: editingUser.role,
                 active: editingUser.active !== false,
-                password_hash: editingUser.password_hash,
+                password: editingUser.password,
               })}
               disabled={updateUserMutation.isPending}
               className="font-cairo gap-1"
