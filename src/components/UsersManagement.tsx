@@ -55,9 +55,10 @@ export function UsersManagement() {
 
   // Update user details
   const updateUserMutation = useMutation({
-    mutationFn: async (userData: { id: string; name: string; phone: string; role: string; active: boolean; password_hash: string }) => {
+    mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; password_hash: string }) => {
       const { error } = await supabase.from("users").update({
         name: userData.name,
+        email: userData.email,
         phone: userData.phone,
         role: userData.role,
         active: userData.active,
@@ -268,6 +269,10 @@ export function UsersManagement() {
                 <Input value={editingUser.name ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, name: e.target.value }))} className="font-cairo" />
               </div>
               <div className="space-y-1.5">
+                <Label className="font-cairo">البريد الإلكتروني</Label>
+                <Input value={editingUser.email ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, email: e.target.value }))} className="font-cairo" dir="ltr" type="email" />
+              </div>
+              <div className="space-y-1.5">
                 <Label className="font-cairo">رقم الهاتف</Label>
                 <Input value={editingUser.phone ?? ""} onChange={(e) => setEditingUser((u: any) => ({ ...u, phone: e.target.value }))} className="font-cairo" dir="ltr" placeholder="+201xxxxxxxxx" />
               </div>
@@ -300,6 +305,7 @@ export function UsersManagement() {
               onClick={() => editingUser && updateUserMutation.mutate({
                 id: editingUser.id,
                 name: editingUser.name,
+                email: editingUser.email,
                 phone: editingUser.phone,
                 role: editingUser.role,
                 active: editingUser.active !== false,
