@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FollowUpSidebar } from "@/components/FollowUpSidebar";
 import { FollowUpContent } from "@/components/FollowUpContent";
+import { FollowUpGoals } from "@/components/FollowUpGoals";
 import { ClientAssignment } from "@/components/ClientAssignment";
 import { NotificationBell } from "@/components/NotificationBell";
 
@@ -13,7 +14,7 @@ const FollowUpDashboard = () => {
   const { session, userRole, isLoading, user } = useAuth();
 
   const isAssignPage = location.pathname.endsWith("/assign");
-
+  const isGoalsPage = location.pathname.endsWith("/goals");
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
@@ -49,7 +50,7 @@ const FollowUpDashboard = () => {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 overflow-auto">
-            {isAssignPage ? <ClientAssignment /> : <FollowUpContent />}
+            {isAssignPage ? <ClientAssignment /> : isGoalsPage ? <FollowUpGoals /> : <FollowUpContent />}
           </main>
         </div>
       </div>
