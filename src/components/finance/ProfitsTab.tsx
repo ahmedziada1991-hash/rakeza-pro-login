@@ -29,7 +29,8 @@ export function ProfitsTab() {
 
     const { data: orders } = await supabase
       .from("pour_orders")
-      .select("id, client_id, station_id, pour_date, quantity_m3, agreed_price_per_m3, total_agreed_amount, station_price_per_m3, station_total_amount, concrete_type")
+      .select("id, client_id, station_id, pour_date, quantity_m3, agreed_price_per_m3, total_agreed_amount, station_price_per_m3, station_total_amount, concrete_type, status")
+      .eq("status", "done")
       .gte("pour_date", start)
       .lte("pour_date", end)
       .order("pour_date", { ascending: false });
@@ -66,8 +67,8 @@ export function ProfitsTab() {
   const calcTotals = (orders: any[]) => {
     let revenue = 0, cost = 0;
     orders.forEach((o) => {
-      revenue += Number(o.total_agreed_amount) || 0;
-      cost += Number(o.station_total_amount) || 0;
+      revenue += parseFloat(o.total_agreed_amount) || 0;
+      cost += parseFloat(o.station_total_amount) || 0;
     });
     return { revenue, cost, profit: revenue - cost, count: orders.length };
   };
