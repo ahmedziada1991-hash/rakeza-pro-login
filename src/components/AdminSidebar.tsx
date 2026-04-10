@@ -39,6 +39,7 @@ const navItems = [
   { title: "الأهداف الذكية", url: "/dashboard/admin/targets", icon: LayoutDashboard },
   { title: "تقويم الصبات", url: "/dashboard/admin/calendar", icon: CalendarDays },
   { title: "تقرير اليوم", url: "/dashboard/admin/daily-report", icon: ClipboardList },
+  { title: "التقرير الأسبوعي", url: "/dashboard/admin/weekly-report", icon: TrendingUp },
   { title: "الإعدادات", url: "/dashboard/admin/settings", icon: Settings },
 ];
 
