@@ -43,6 +43,7 @@ const CALL_RESULTS = [
 ];
 
 const TAB_FILTERS: Record<string, string[]> = {
+  all: [], // no filter - show all
   potential: ["hot", "warm"],
   dormant: ["cold", "inactive"],
   current: ["active", "followup"],
@@ -52,7 +53,7 @@ const TAB_FILTERS: Record<string, string[]> = {
 export function FollowUpContent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("potential");
+  const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [pourFilter, setPourFilter] = useState("all"); // all, has_pours, no_pours, high_volume
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
