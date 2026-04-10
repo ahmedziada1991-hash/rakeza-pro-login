@@ -52,7 +52,7 @@ const TAB_FILTERS: Record<string, string[]> = {
 
 export function FollowUpContent() {
   const { user } = useAuth();
-  const { usersTableId } = useUsersTableId();
+  const { usersTableId, isLoading: isLoadingUserLookup } = useUsersTableId();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("potential");
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,7 +68,7 @@ export function FollowUpContent() {
   const [nextFollowupDate, setNextFollowupDate] = useState<Date | undefined>();
 
   // Fetch clients assigned to this followup user
-  const { data: clients = [], isLoading } = useQuery({
+  const { data: clients = [], isLoading: isLoadingClients } = useQuery({
     queryKey: ["followup-clients", usersTableId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -81,6 +81,8 @@ export function FollowUpContent() {
     },
     enabled: !!usersTableId,
   });
+
+  const isLoading = isLoadingUserLookup || isLoadingClients;
 
   // Today's followup alerts
   const todayAlerts = clients.filter((c: any) =>
