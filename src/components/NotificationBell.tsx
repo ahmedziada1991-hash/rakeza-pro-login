@@ -72,9 +72,11 @@ export function NotificationBell() {
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["notifications"],
     queryFn: async () => {
+      const todayStr = new Date().toISOString().split("T")[0];
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
+        .or(`scheduled_date.is.null,scheduled_date.lte.${todayStr}`)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
