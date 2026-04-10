@@ -42,14 +42,65 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, user_id, password, email } = await req.json();
+    const body = await req.json();
+    const { action, user_id, password, email } = body;
 
     if (action === "get-email") {
-      // Fetch email from auth.users
       const { data, error } = await supabaseAdmin.auth.admin.getUserById(user_id);
       if (error) throw error;
       return new Response(
         JSON.stringify({ email: data.user.email }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "create-user") {
+      const { name, role, phone } = body;
+      if (!email || !password) {
+        return new Response(
+          JSON.stringify({ error: "البريد وكلمة المرور مطلوبان" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Create auth user via admin API
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: name },
+      });
+      if (createError) throw createError;
+
+      const authId = newUser.user.id;
+
+      // Insert into user_roles
+      await supabaseAdmin.from("user_roles").insert({
+        user_id: authId,
+        role: role || "sales",
+      });
+
+      // Insert into users table with auth_id
+      await supabaseAdmin.from("users").insert({
+        name,
+        email,
+        phone: phone || null,
+        role: role || "sales",
+        active: true,
+        password,
+        auth_id: authId,
+      });
+
+      // Insert into profiles
+      await supabaseAdmin.from("profiles").upsert({
+        id: authId,
+        email,
+        full_name: name,
+        whatsapp: phone || null,
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, auth_id: authId }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -82,25 +133,15 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete-user") {
-      // Delete from users table, user_roles, profiles, then auth
       await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
       await supabaseAdmin.from("profiles").delete().eq("id", user_id);
-      await supabaseAdmin.from("users").delete().eq("id", user_id);
+      await supabaseAdmin.from("users").delete().eq("auth_id", user_id);
       const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id);
       if (error) throw error;
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    if (action === "create-user") {
-      const { name, role, phone } = await new Response(null).json().catch(() => ({}));
-      // Re-parse from original body which was already parsed above
-    }
-
-    if (action === "create-user") {
-      // This action is handled below after re-structuring
     }
 
     return new Response(
