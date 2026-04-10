@@ -300,7 +300,7 @@ export function ClientsManagement() {
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg" dir="rtl">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-cairo">
               {editingClient ? "تعديل بيانات العميل" : "إضافة عميل جديد"}
