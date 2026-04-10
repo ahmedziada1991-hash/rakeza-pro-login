@@ -107,9 +107,10 @@ export function FollowUpContent() {
 
   const getFilteredClients = () => {
     let filtered: any[] = [];
-    if (activeTab === "appointments") {
+    if (activeTab === "all") {
+      filtered = [...clients];
+    } else if (activeTab === "appointments") {
       filtered = clients.filter((c: any) => c.next_followup_date);
-      // Sort by nearest date
       filtered.sort((a: any, b: any) =>
         new Date(a.next_followup_date).getTime() - new Date(b.next_followup_date).getTime()
       );
