@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUsersTableId } from "@/hooks/useUsersTableId";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +51,6 @@ const TAB_FILTERS: Record<string, string[]> = {
 
 export function FollowUpContent() {
   const { user } = useAuth();
-  const { usersTableId, isLoading: isLoadingUserLookup } = useUsersTableId();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("potential");
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,21 +66,28 @@ export function FollowUpContent() {
   const [nextFollowupDate, setNextFollowupDate] = useState<Date | undefined>();
 
   // Fetch clients assigned to this followup user
-  const { data: clients = [], isLoading: isLoadingClients } = useQuery({
-    queryKey: ["followup-clients", usersTableId],
+  const { data: clients = [], isLoading } = useQuery({
+    queryKey: ["followup-clients", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("auth_id", user!.id)
+        .single();
+
+      if (userError) throw userError;
+
+      const { data: clientsData, error: clientsError } = await supabase
         .from("clients")
         .select("*")
-        .eq("assigned_followup_id", usersTableId)
+        .eq("assigned_followup_id", userData.id)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!usersTableId,
-  });
 
-  const isLoading = isLoadingUserLookup || isLoadingClients;
+      if (clientsError) throw clientsError;
+      return clientsData || [];
+    },
+    enabled: !!user,
+  });
 
   // Today's followup alerts
   const todayAlerts = clients.filter((c: any) =>
