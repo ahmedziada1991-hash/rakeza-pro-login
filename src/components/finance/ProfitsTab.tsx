@@ -112,9 +112,8 @@ export function ProfitsTab() {
         const { data: matchRow } = await supabase
           .from("station_accounts")
           .select("id")
-          .eq("station_id", order.station_id)
+          .eq("pour_order_id", order.id)
           .eq("transaction_type", "concrete")
-          .eq("quantity_m3", qty)
           .limit(1)
           .maybeSingle();
 
@@ -134,6 +133,7 @@ export function ProfitsTab() {
               price_per_m3: newPrice,
               amount: newTotal,
               concrete_type: order.concrete_type,
+              pour_order_id: order.id,
             });
         }
       }
