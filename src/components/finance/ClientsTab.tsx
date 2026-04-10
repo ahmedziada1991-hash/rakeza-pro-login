@@ -99,6 +99,35 @@ export function ClientsTab() {
     },
   });
 
+  // Fetch all client_accounts to compute accurate totals
+  const { data: allClientTxns } = useQuery({
+    queryKey: ["client-statement-totals", selectedClient?.id],
+    enabled: !!selectedClient,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_accounts" as any)
+        .select("transaction_type, amount")
+        .eq("client_id", selectedClient!.id);
+      return data ?? [];
+    },
+  });
+
+  // Compute totals from client_accounts
+  const statementTotals = (() => {
+    if (!allClientTxns) return null;
+    let totalAmount = 0;
+    let totalPaid = 0;
+    (allClientTxns as any[]).forEach((t: any) => {
+      const amt = Number(t.amount) || 0;
+      if (t.transaction_type === "pour" || t.transaction_type === "صبة") {
+        totalAmount += amt;
+      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "تحصيل") {
+        totalPaid += amt;
+      }
+    });
+    return { totalAmount, totalPaid, remaining: totalAmount - totalPaid };
+  })();
+
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   const handlePrint = () => {
@@ -144,19 +173,19 @@ export function ClientsTab() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">إجمالي المديونية</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#DC2626" }}>{fmt(selectedClient.totalAmount)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#DC2626" }}>{fmt(statementTotals?.totalAmount ?? selectedClient.totalAmount)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">إجمالي المدفوع</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(selectedClient.totalPaid)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(statementTotals?.totalPaid ?? selectedClient.totalPaid)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">المتبقي</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#1B3A6B" }}>{fmt(selectedClient.remaining)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#1B3A6B" }}>{fmt(statementTotals?.remaining ?? selectedClient.remaining)}</p>
               </CardContent>
             </Card>
           </div>
