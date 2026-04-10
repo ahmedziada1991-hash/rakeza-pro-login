@@ -95,33 +95,19 @@ export function UsersManagement() {
   // Update user details
   const updateUserMutation = useMutation({
     mutationFn: async (userData: { id: string; name: string; email: string; phone: string; role: string; active: boolean; newPassword: string }) => {
-      // Update users table
-      const { error } = await supabase.from("users").update({
+      // Update users table (including password as plain text if provided)
+      const updateData: any = {
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
         role: userData.role,
         active: userData.active,
-      }).eq("id", userData.id);
-      if (error) throw error;
-
-      // Update password in auth.users if provided
+      };
       if (userData.newPassword) {
-        const { data, error: pwError } = await supabase.functions.invoke("admin-user-management", {
-          body: { action: "update-password", user_id: userData.id, password: userData.newPassword },
-        });
-        if (pwError) throw pwError;
-        if (data?.error) throw new Error(data.error);
+        updateData.password = userData.newPassword;
       }
-
-      // Update email in auth.users if changed
-      if (userData.email) {
-        const { data, error: emailError } = await supabase.functions.invoke("admin-user-management", {
-          body: { action: "update-email", user_id: userData.id, email: userData.email },
-        });
-        if (emailError) throw emailError;
-        if (data?.error) throw new Error(data.error);
-      }
+      const { error } = await supabase.from("users").update(updateData).eq("id", userData.id);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
