@@ -48,8 +48,8 @@ const CALL_RESULTS = [
 
 const TAB_FILTERS: Record<string, string[]> = {
   all: [], // no filter - show all
-  potential: ["new", "contacted", "qualified", "active"],
-  dormant: ["hot"],
+  potential: ["new", "contacted", "qualified", "active", "hot"],
+  dormant: [], // special - clients with no contact > 30 days
   current: ["converted"],
   appointments: [], // special - filter by confirmed_pour_date
 };
@@ -105,6 +105,13 @@ export function FollowUpContent() {
       filtered.sort((a: any, b: any) =>
         new Date(a.next_followup_date).getTime() - new Date(b.next_followup_date).getTime()
       );
+    } else if (activeTab === "dormant") {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      filtered = clients.filter((c: any) => {
+        if (!c.last_contact_date) return true; // no contact at all = dormant
+        return new Date(c.last_contact_date) < thirtyDaysAgo;
+      });
     } else {
       const statuses = TAB_FILTERS[activeTab] || [];
       filtered = clients.filter((c: any) => statuses.includes(c.status));
