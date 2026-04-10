@@ -305,6 +305,7 @@ export function UsersManagement() {
               onClick={() => editingUser && updateUserMutation.mutate({
                 id: editingUser.id,
                 name: editingUser.name,
+                email: editingUser.email,
                 phone: editingUser.phone,
                 role: editingUser.role,
                 active: editingUser.active !== false,
