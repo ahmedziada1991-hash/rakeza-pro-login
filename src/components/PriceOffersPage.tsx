@@ -183,12 +183,14 @@ export function PriceOffersPage() {
       client_name: clientName.trim(),
       company_name: companyName.trim() || null,
       whatsapp: whatsapp.trim(),
-      items: items as any,
+      items: JSON.parse(JSON.stringify(items)),
       terms,
       validity_days: validityDays,
       created_by: user?.id ?? null,
       status: "sent",
     };
+
+    console.log("Price offer payload:", JSON.stringify(payload, null, 2));
 
     const { data, error } = await supabase
       .from("price_offers")
@@ -197,8 +199,8 @@ export function PriceOffersPage() {
       .single();
 
     if (error) {
-      toast.error("حدث خطأ أثناء الحفظ");
-      console.error(error);
+      console.error("Supabase insert error:", error.message, error.details, error.hint, error.code);
+      toast.error(`خطأ: ${error.message}`);
       setSubmitting(false);
       return;
     }
