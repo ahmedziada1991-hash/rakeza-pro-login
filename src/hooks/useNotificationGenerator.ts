@@ -1,33 +1,33 @@
 import { useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 /**
- * Checks business conditions and auto-creates notifications.
- * Also subscribes to real-time events for instant admin alerts.
+ * Auto-creates notifications + real-time admin alerts + push notifications for sales reps.
  */
 export function useNotificationGenerator() {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const subscribedRef = useRef(false);
+  const pushRequestedRef = useRef(false);
 
-  const { data: session } = useQuery({
-    queryKey: ["session-for-notif"],
-    queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
-      return data.session;
-    },
-    staleTime: Infinity,
-  });
+  // Request browser push permission on first load for sales users
+  useEffect(() => {
+    if (!user?.id || pushRequestedRef.current) return;
+    pushRequestedRef.current = true;
+
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, [user?.id]);
 
   // Real-time subscriptions for admin
   useEffect(() => {
     if (!user?.id || userRole !== "admin" || subscribedRef.current) return;
     subscribedRef.current = true;
 
-    // Listen for pour_orders status changes to "done"
     const dealsChannel = supabase
       .channel("admin-deal-completed")
       .on(
@@ -35,37 +35,25 @@ export function useNotificationGenerator() {
         { event: "UPDATE", schema: "public", table: "pour_orders", filter: "status=eq.done" },
         async (payload: any) => {
           const order = payload.new;
-          // Get client name
           const { data: client } = await supabase
-            .from("clients")
-            .select("name")
-            .eq("id", order.client_id)
-            .maybeSingle();
+            .from("clients").select("name").eq("id", order.client_id).maybeSingle();
           const clientName = (client as any)?.name || "عميل";
           const qty = order.quantity_m3 || 0;
 
-          // Create notification
           await supabase.from("notifications").insert({
-            user_id: user.id,
-            type: "deal_completed",
+            user_id: user.id, type: "deal_completed",
             title: `✅ صفقة مكتملة: ${clientName}`,
             body: `تم إتمام صبة ${qty} م³ للعميل ${clientName}`,
             metadata: { order_id: order.id, client_id: order.client_id },
             is_read: false,
           } as any);
 
-          // Show toast
-          toast.success(`✅ صفقة مكتملة: ${clientName}`, {
-            description: `تم إتمام صبة ${qty} م³`,
-          });
-
-          // Refresh notifications
+          toast.success(`✅ صفقة مكتملة: ${clientName}`, { description: `تم إتمام صبة ${qty} م³` });
           queryClient.invalidateQueries({ queryKey: ["notifications"] });
         }
       )
       .subscribe();
 
-    // Listen for new payments
     const paymentsChannel = supabase
       .channel("admin-new-payment")
       .on(
@@ -74,34 +62,22 @@ export function useNotificationGenerator() {
         async (payload: any) => {
           const payment = payload.new;
           const amount = Number(payment.amount || 0);
-
-          // Get client name
           let clientName = "عميل";
           if (payment.client_id) {
             const { data: client } = await supabase
-              .from("clients")
-              .select("name")
-              .eq("id", payment.client_id)
-              .maybeSingle();
+              .from("clients").select("name").eq("id", payment.client_id).maybeSingle();
             clientName = (client as any)?.name || "عميل";
           }
 
-          // Create notification
           await supabase.from("notifications").insert({
-            user_id: user.id,
-            type: "new_payment",
+            user_id: user.id, type: "new_payment",
             title: `💰 دفعة جديدة: ${clientName}`,
             body: `تم تسجيل دفعة ${amount.toLocaleString("ar-EG")} ج.م من ${clientName}`,
             metadata: { payment_id: payment.id, client_id: payment.client_id },
             is_read: false,
           } as any);
 
-          // Show toast
-          toast.success(`💰 دفعة جديدة: ${clientName}`, {
-            description: `${amount.toLocaleString("ar-EG")} ج.م`,
-          });
-
-          // Refresh notifications
+          toast.success(`💰 دفعة جديدة: ${clientName}`, { description: `${amount.toLocaleString("ar-EG")} ج.م` });
           queryClient.invalidateQueries({ queryKey: ["notifications"] });
         }
       )
@@ -114,15 +90,14 @@ export function useNotificationGenerator() {
     };
   }, [user?.id, userRole, queryClient]);
 
-  // Periodic notification generator (existing logic)
+  // Periodic notification generator
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
-    const userId = session.user.id;
+    const userId = user.id;
 
     async function generate() {
       const now = new Date();
-
       const todayStart = new Date(now);
       todayStart.setHours(0, 0, 0, 0);
 
@@ -171,7 +146,6 @@ export function useNotificationGenerator() {
               const clientPayments = payments
                 .filter((p: any) => p.client_id === clientId)
                 .sort((a: any, b: any) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime());
-
               const lastPayment = clientPayments[clientPayments.length - 1];
               const daysSinceLastPayment = lastPayment
                 ? Math.floor((now.getTime() - new Date(lastPayment.payment_date).getTime()) / 86400000)
@@ -190,33 +164,51 @@ export function useNotificationGenerator() {
         }
       } catch (e) { /* silent */ }
 
-      // 2. Today's pour dates
+      // 2. Today's pour dates - push notification for sales reps
       try {
         const todayStr = now.toISOString().split("T")[0];
+        
+        // Get clients with pour date today
         const { data: pourClients } = await supabase
           .from("clients")
-          .select("id, name, phone")
+          .select("id, name, phone, assigned_sales_id")
           .gte("expected_pour_date", `${todayStr}T00:00:00`)
           .lte("expected_pour_date", `${todayStr}T23:59:59`);
 
         if (pourClients && pourClients.length > 0) {
-          for (const client of pourClients) {
+          // For sales rep: only their clients
+          const myPourClients = (userRole === "sales")
+            ? pourClients.filter((c: any) => String(c.assigned_sales_id) === String(userId))
+            : pourClients;
+
+          for (const client of myPourClients) {
             addIfNew(
               "pour_date_today",
-              `موعد صبة ${(client as any).name} النهارده - كلمه!`,
+              `🔔 موعد صبة ${(client as any).name} النهارده - كلمه!`,
               `العميل ${(client as any).name} عنده موعد صبة اليوم. تواصل معه الآن.`,
               { client_id: (client as any).id }
             );
           }
 
-          if ("Notification" in window && Notification.permission === "granted") {
-            const names = pourClients.map((c: any) => c.name).join("، ");
-            new Notification("🔔 مواعيد صبة اليوم", {
-              body: `عندك ${pourClients.length} عميل عندهم صبة النهارده: ${names}`,
-              icon: "/favicon.ico",
+          // Browser push notification
+          if (myPourClients.length > 0 && "Notification" in window && Notification.permission === "granted") {
+            const names = myPourClients.map((c: any) => c.name).join("، ");
+            try {
+              new Notification("🔔 تذكير: مواعيد صبة اليوم", {
+                body: `عندك ${myPourClients.length} عميل موعد صبتهم النهارده:\n${names}\nكلّمهم دلوقتي!`,
+                icon: "/favicon.ico",
+                tag: `pour-reminder-${todayStr}`,
+                requireInteraction: true,
+              });
+            } catch (e) { /* silent */ }
+          }
+
+          // Also show an in-app toast for sales rep
+          if (userRole === "sales" && myPourClients.length > 0) {
+            toast.warning(`🔔 تذكير: ${myPourClients.length} عميل موعد صبتهم النهارده`, {
+              description: myPourClients.map((c: any) => c.name).join("، "),
+              duration: 15000,
             });
-          } else if ("Notification" in window && Notification.permission === "default") {
-            Notification.requestPermission();
           }
         }
       } catch (e) { /* silent */ }
@@ -254,5 +246,5 @@ export function useNotificationGenerator() {
     generate();
     const interval = setInterval(generate, 10 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [session?.user?.id]);
+  }, [user?.id, userRole]);
 }
