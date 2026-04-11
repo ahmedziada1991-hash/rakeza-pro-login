@@ -559,6 +559,20 @@ export function StationsTab() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Delete Cement Sale Confirmation */}
+        <AlertDialog open={!!deleteCementSaleId} onOpenChange={(open) => !open && setDeleteCementSaleId(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-cairo">هل أنت متأكد من حذف هذا السجل؟</AlertDialogTitle>
+              <AlertDialogDescription className="font-cairo">سيتم حذف سجل بيع الأسمنت والسجلات المرتبطة في حساب المحطة نهائياً.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex gap-2">
+              <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteCementSale} className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
