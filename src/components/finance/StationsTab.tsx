@@ -92,15 +92,15 @@ export function StationsTab() {
         if (type === "concrete") {
           acc.totalPours++;
           acc.totalCost += amt;
-        } else if (type === "payment" || type === "دفعة") {
+        } else if (type === "payment" || type === "دفعة" || type === "cement_deduction") {
           acc.totalPaid += amt;
-        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale" || type === "cement_deduction") {
+        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
           acc.cementBalance += amt;
         }
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = acc.totalCost - acc.totalPaid - acc.cementBalance;
+        acc.finalBalance = (acc.totalCost + acc.cementBalance) - acc.totalPaid;
       });
 
       return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
@@ -150,7 +150,7 @@ export function StationsTab() {
       updateData.quantity_m3 = editRecord.quantity_m3 ? Number(editRecord.quantity_m3) : null;
       updateData.price_per_m3 = editRecord.price_per_m3 ? Number(editRecord.price_per_m3) : null;
     }
-    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale" || editRecord.transaction_type === "cement_deduction") {
+    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") {
       updateData.cement_tons = editRecord.cement_tons ? Number(editRecord.cement_tons) : null;
       updateData.cement_price_per_ton = editRecord.cement_price_per_ton ? Number(editRecord.cement_price_per_ton) : null;
     }
@@ -207,8 +207,8 @@ export function StationsTab() {
     seen.add(t.pour_order_id);
     return true;
   });
-  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة");
-  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction");
+  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_deduction");
+  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
 
   // Recalculate totals from statement data
   const statementTotals = (() => {
@@ -221,13 +221,13 @@ export function StationsTab() {
         if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
         totalCost += amt;
-      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة") {
+      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_deduction") {
         totalPaid += amt;
-      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction") {
+      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
         cementBalance += amt;
       }
     });
-    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost - totalPaid - cementBalance };
+    return { totalCost, totalPaid, cementBalance, finalBalance: (totalCost + cementBalance) - totalPaid };
   })();
 
   const handlePrint = () => { window.print(); };
@@ -266,8 +266,8 @@ export function StationsTab() {
       entityName: station.name,
       entityType: "محطة",
       transactions,
-      totalDebt: totals.totalCost,
-      totalPaid: totals.totalPaid + totals.cementBalance,
+      totalDebt: totals.totalCost + totals.cementBalance,
+      totalPaid: totals.totalPaid,
       balance: totals.finalBalance,
     });
 
@@ -311,14 +311,14 @@ export function StationsTab() {
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">إجمالي الكاش المدفوع</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي مديونية الأسمنت</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">إجمالي خصم من مديونية ركيزة</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي المدفوعات</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
