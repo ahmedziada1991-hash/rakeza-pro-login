@@ -462,8 +462,41 @@ export function CementTab() {
           });
         }
       } else {
-        // INSERT: 1) Sale record in station_accounts (full amount as debt)
+        // INSERT mode
         const saleDateOverride = saleDate ? new Date(format(saleDate, "yyyy-MM-dd") + "T00:00:00").toISOString() : undefined;
+        const saleDateStr = saleDate ? format(saleDate, "yyyy-MM-dd") : null;
+
+        // --- Dedup check: prevent duplicate cement_sales within 60 seconds ---
+        const now = new Date();
+        const sixtySecsAgo = new Date(now.getTime() - 60000).toISOString();
+        const { data: existingDups } = await supabase.from("cement_sales" as any)
+          .select("id")
+          .eq("station_id", Number(saleForm.station_id))
+          .eq("quantity_tons", qty)
+          .gte("created_at", sixtySecsAgo);
+        if (existingDups && existingDups.length > 0) {
+          throw new Error("تم تسجيل نقلة مماثلة منذ أقل من دقيقة — تم منع التكرار");
+        }
+
+        // 1) Insert into cement_sales FIRST to get the ID
+        const { data: cementSaleData, error: csErr } = await supabase.from("cement_sales").insert({
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          sale_price_per_ton: ppt,
+          total_amount: total,
+          payment_method: pm,
+          cash_amount: cashAmt,
+          concrete_deduction_amount: deductAmt,
+          sale_date: saleDateStr,
+          notes: saleForm.notes || null,
+          ...(saleDateOverride && { created_at: saleDateOverride }),
+        }).select("id").single();
+        if (csErr) throw csErr;
+
+        const cementSaleId = cementSaleData?.id;
+
+        // 2) Sale record in station_accounts (full amount as debt) — linked by cement_sale_id
         const { error: stErr } = await supabase.from("station_accounts" as any).insert({
           station_id: Number(saleForm.station_id),
           transaction_type: "cement_sale",
@@ -473,52 +506,39 @@ export function CementTab() {
           cement_source_type: "purchased",
           cement_price_per_ton: purchasePrice,
           payment_method: pm,
+          cement_sale_id: cementSaleId,
           notes: saleForm.notes || null,
           ...(saleDateOverride && { created_at: saleDateOverride }),
         });
         if (stErr) throw stErr;
 
-        // 2) Cash payment record if any
+        // 3) Cash payment record if any — linked by cement_sale_id
         if (cashAmt > 0) {
           const { error: cashErr } = await supabase.from("station_accounts" as any).insert({
             station_id: Number(saleForm.station_id),
             transaction_type: "payment",
             amount: cashAmt,
             payment_method: "cash",
+            cement_sale_id: cementSaleId,
             notes: "دفعة كاش مقابل أسمنت",
             ...(saleDateOverride && { created_at: saleDateOverride }),
           });
           if (cashErr) throw cashErr;
         }
 
-        // 3) Deduction payment record if any
+        // 4) Deduction payment record if any — linked by cement_sale_id
         if (deductAmt > 0) {
           const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
             station_id: Number(saleForm.station_id),
             transaction_type: "payment",
             amount: deductAmt,
             payment_method: "deduction",
+            cement_sale_id: cementSaleId,
             notes: "خصم من مديونية ركيزة مقابل أسمنت",
             ...(saleDateOverride && { created_at: saleDateOverride }),
           });
           if (deductErr) throw deductErr;
         }
-
-        // 4) Insert into cement_sales
-        const { error: csErr } = await supabase.from("cement_sales").insert({
-          station_id: Number(saleForm.station_id),
-          quantity_tons: qty,
-          price_per_ton: ppt,
-          sale_price_per_ton: ppt,
-          total_amount: total,
-          payment_method: pm,
-          cash_amount: cashAmt,
-          concrete_deduction_amount: deductAmt,
-          sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
-          notes: saleForm.notes || null,
-          ...(saleDateOverride && { created_at: saleDateOverride }),
-        });
-        if (csErr) throw csErr;
       }
     },
     onSuccess: () => {
