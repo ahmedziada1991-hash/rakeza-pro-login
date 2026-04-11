@@ -404,6 +404,7 @@ export function CementTab() {
           concrete_deduction_amount: deductAmt,
           sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
           notes: saleForm.notes || null,
+          ...(saleDateOverride && { created_at: saleDateOverride }),
         });
         if (csErr) throw csErr;
       }
