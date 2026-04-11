@@ -453,8 +453,9 @@ export function CementTab() {
                     <TableHead className="font-cairo text-right">سعر البيع</TableHead>
                     <TableHead className="font-cairo text-right">الإجمالي</TableHead>
                     <TableHead className="font-cairo text-right">الربح</TableHead>
-                    <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
-                  </TableRow>
+                     <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
+                     <TableHead className="w-10"></TableHead>
+                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {salesWithProfit.map((r: any) => (
@@ -475,6 +476,11 @@ export function CementTab() {
                         <Badge variant="outline" className="font-cairo text-[10px]">
                           {PAYMENT_LABELS[r.payment_method] ?? r.payment_method}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: "sale", record: r })}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
