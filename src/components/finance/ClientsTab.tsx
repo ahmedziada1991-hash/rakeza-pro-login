@@ -232,6 +232,26 @@ export function ClientsTab() {
     setDeletePaymentId(null);
   };
 
+  const handleEditPayment = async () => {
+    if (!editPayment) return;
+    const { error } = await supabase
+      .from("client_accounts" as any)
+      .update({
+        amount: Number(editPayment.amount),
+        payment_method: editPayment.payment_method || null,
+        notes: editPayment.notes || null,
+      } as any)
+      .eq("id", editPayment.id);
+    if (error) {
+      toast.error("فشل تحديث الدفعة");
+    } else {
+      toast.success("تم تحديث الدفعة بنجاح");
+      invalidateAll();
+    }
+    setEditPayment(null);
+  };
+  };
+
   const getPourAccountPrice = (pourOrderId: number) => {
     const entry = (pourAccountEntries as any[] ?? []).find(
       (e: any) => e.pour_order_id === pourOrderId
