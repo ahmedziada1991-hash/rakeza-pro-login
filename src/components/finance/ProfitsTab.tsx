@@ -163,9 +163,13 @@ export function ProfitsTab() {
 
   const current = calcTotals(currentOrders ?? []);
   const prev = calcTotals(prevOrders ?? []);
+  const currentCementTotals = calcCementProfit(currentCement ?? []);
+  const prevCementTotals = calcCementProfit(prevCement ?? []);
   const isLoading = loadingCurrent || loadingPrev;
 
-  const profitChange = prev.profit !== 0 ? ((current.profit - prev.profit) / Math.abs(prev.profit)) * 100 : 0;
+  const totalCurrentProfit = current.profit + currentCementTotals.profit;
+  const totalPrevProfit = prev.profit + prevCementTotals.profit;
+  const profitChange = totalPrevProfit !== 0 ? ((totalCurrentProfit - totalPrevProfit) / Math.abs(totalPrevProfit)) * 100 : 0;
 
   useEffect(() => {
     console.log("[ProfitsTab] calculated totals", {
