@@ -652,7 +652,8 @@ export function CementTab() {
         <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle className="font-cairo text-right">{editingSale ? "تعديل سجل بيع" : "تسجيل بيع أسمنت لمحطة"}</DialogTitle></DialogHeader>
           <div className="space-y-3 overflow-y-auto flex-1 pl-1">
-            {/* Select Purchase */}
+            {/* Select Purchase - hidden in edit mode */}
+            {!editingSale && (
             <div className="space-y-1.5">
               <Label className="font-cairo">اختر النقلة (الوارد) *</Label>
               <Select value={saleForm.purchase_id} onValueChange={handlePurchaseSelect}>
@@ -671,6 +672,7 @@ export function CementTab() {
                 </p>
               )}
             </div>
+            )}
 
             {/* Station */}
             <div className="space-y-1.5">
