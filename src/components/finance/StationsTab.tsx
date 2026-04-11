@@ -302,7 +302,10 @@ export function StationsTab() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#1B3A6B" }}>{fmt(totals.finalBalance)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: totals.finalBalance > 0 ? "#DC2626" : "#16A34A" }}>
+                  {fmt(totals.finalBalance)}
+                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "المحطة مدينة" : totals.finalBalance < 0 ? "ركيزة مدينة" : "متساوي"}</span>
+                </p>
               </CardContent>
             </Card>
           </div>
