@@ -406,7 +406,7 @@ export function CementTab() {
                     <TableRow key={r.id}>
                       <TableCell className="font-cairo text-xs">{r.created_at ? format(new Date(r.created_at), "yyyy/MM/dd") : "—"}</TableCell>
                       <TableCell className="font-cairo text-xs">{r.station_name}</TableCell>
-                      <TableCell className="font-cairo">{r.quantity_tons}</TableCell>
+                      <TableCell className="font-cairo">{r.displayQty}</TableCell>
                       <TableCell className="font-cairo text-xs">{fmt(r.purchasePrice)}</TableCell>
                       <TableCell className="font-cairo text-xs">{fmt(r.salePrice)}</TableCell>
                       <TableCell className="font-cairo font-medium">{fmt(Number(r.amount))}</TableCell>
