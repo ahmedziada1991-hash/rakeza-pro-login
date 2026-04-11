@@ -67,6 +67,29 @@ export function ProfitsTab() {
     queryFn: () => fetchMonthData(prevMonth),
   });
 
+  // Cement profit data
+  const fetchCementProfit = async (month: Date) => {
+    const start = format(startOfMonth(month), "yyyy-MM-dd");
+    const end = format(endOfMonth(month), "yyyy-MM-dd");
+    const { data } = await supabase
+      .from("station_accounts" as any)
+      .select("amount, quantity_tons, price_per_ton, cement_price_per_ton, created_at")
+      .eq("transaction_type", "cement")
+      .gte("created_at", start)
+      .lte("created_at", end + "T23:59:59");
+    return (data ?? []) as any[];
+  };
+
+  const { data: currentCement } = useQuery({
+    queryKey: ["finance-cement-profit", format(currentMonth, "yyyy-MM")],
+    queryFn: () => fetchCementProfit(currentMonth),
+  });
+
+  const { data: prevCement } = useQuery({
+    queryKey: ["finance-cement-profit", format(prevMonth, "yyyy-MM")],
+    queryFn: () => fetchCementProfit(prevMonth),
+  });
+
   const { data: clients } = useQuery({
     queryKey: ["clients-names-profits"],
     queryFn: async () => {
