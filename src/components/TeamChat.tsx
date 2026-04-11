@@ -97,15 +97,39 @@ export function TeamChat() {
     refetchInterval: 10000,
   });
 
+  // Notification sound using Web Audio API
+  const playNotificationSound = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+      // Audio not available
+    }
+  };
+
   // Realtime subscription
   useEffect(() => {
     if (!user?.id) return;
 
     const channel = supabase
       .channel("messages-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload: any) => {
         queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
         queryClient.invalidateQueries({ queryKey: ["chat-unread-count"] });
+        // Play sound only for messages from others
+        if (payload.new?.sender_id !== user.id) {
+          playNotificationSound();
+        }
       })
       .subscribe();
 
