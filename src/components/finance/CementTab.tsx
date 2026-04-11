@@ -127,6 +127,30 @@ export function CementTab() {
     },
   });
 
+  // Fetch cement_stock for purchase prices
+  const { data: cementStockData } = useQuery({
+    queryKey: ["cement-stock-all"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cement_stock" as any)
+        .select("*")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  // Fetch cement_sales to get stock_id linkage
+  const { data: cementSalesData } = useQuery({
+    queryKey: ["cement-sales-linkage"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cement_sales" as any)
+        .select("*")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
   // Selected purchase for sale form
   const selectedPurchase = useMemo(() => {
     if (!saleForm.purchase_id || !purchases) return null;
