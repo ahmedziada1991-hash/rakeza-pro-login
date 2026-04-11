@@ -61,6 +61,7 @@ export function StationsTab() {
   const [selectedStation, setSelectedStation] = useState<StationSummary | null>(null);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
+  const [deleteCementSaleId, setDeleteCementSaleId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-stations-tab"],
@@ -173,6 +174,27 @@ export function StationsTab() {
       invalidateStation();
     }
     setDeleteRecordId(null);
+  };
+
+  const handleDeleteCementSale = async () => {
+    if (!deleteCementSaleId) return;
+    // Get the sale record first to find related station_accounts
+    const { data: sale } = await supabase.from("cement_sales" as any).select("*").eq("id", deleteCementSaleId).single();
+    if (sale) {
+      // Delete related station_accounts by matching created_at and station_id
+      await supabase.from("station_accounts" as any).delete()
+        .eq("station_id", sale.station_id)
+        .eq("created_at", sale.created_at);
+    }
+    // Delete the cement_sales record
+    const { error } = await supabase.from("cement_sales" as any).delete().eq("id", deleteCementSaleId);
+    if (error) {
+      toast.error("فشل الحذف");
+    } else {
+      toast.success("تم الحذف بنجاح");
+      invalidateStation();
+    }
+    setDeleteCementSaleId(null);
   };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
@@ -388,6 +410,7 @@ export function StationsTab() {
                           <td className="px-2 py-2.5 print:hidden">
                             <div className="flex gap-1">
                               <button onClick={() => setEditRecord({ ...s, _source: "cement_sales" })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setDeleteCementSaleId(s.id)} className="text-destructive hover:text-destructive/80"><Trash2 className="h-3.5 w-3.5" /></button>
                             </div>
                           </td>
                         )}
@@ -533,6 +556,20 @@ export function StationsTab() {
             <AlertDialogFooter className="flex gap-2">
               <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteRecord} className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Cement Sale Confirmation */}
+        <AlertDialog open={!!deleteCementSaleId} onOpenChange={(open) => !open && setDeleteCementSaleId(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-cairo">هل أنت متأكد من حذف هذا السجل؟</AlertDialogTitle>
+              <AlertDialogDescription className="font-cairo">سيتم حذف سجل بيع الأسمنت والسجلات المرتبطة في حساب المحطة نهائياً.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex gap-2">
+              <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteCementSale} className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
