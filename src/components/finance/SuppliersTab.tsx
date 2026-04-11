@@ -424,6 +424,88 @@ export function SuppliersTab() {
               واتساب
             </Button>
           </div>
+
+          {/* Edit Record Dialog */}
+          <Dialog open={!!editRecord} onOpenChange={(open) => !open && setEditRecord(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader><DialogTitle className="font-cairo text-right">تعديل السجل</DialogTitle></DialogHeader>
+              {editRecord && (
+                <div className="space-y-3">
+                  {(editRecord.transaction_type === "purchase" || editRecord.transaction_type === "شراء" || editRecord.transaction_type === "inbound") && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">الكمية (طن)</Label>
+                        <Input type="number" value={editRecord.quantity_tons ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, quantity_tons: e.target.value }))} className="font-cairo" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">سعر الطن</Label>
+                        <Input type="number" value={editRecord.price_per_ton ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, price_per_ton: e.target.value }))} className="font-cairo" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">الوجهة</Label>
+                        <Input value={editRecord.destination_name ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, destination_name: e.target.value }))} className="font-cairo" />
+                      </div>
+                    </>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المبلغ الإجمالي</Label>
+                    <Input type="number" value={editRecord.total_amount ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, total_amount: e.target.value }))} className="font-cairo" />
+                  </div>
+                  {(editRecord.transaction_type === "payment" || editRecord.transaction_type === "دفعة") && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">طريقة الدفع</Label>
+                        <Select value={editRecord.payment_method ?? "cash"} onValueChange={(v) => setEditRecord((r: any) => ({ ...r, payment_method: v }))}>
+                          <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
+                            <SelectItem value="bank_transfer" className="font-cairo">تحويل بنكي</SelectItem>
+                            <SelectItem value="check" className="font-cairo">شيك</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">رقم الشيك</Label>
+                        <Input value={editRecord.check_number ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, check_number: e.target.value }))} className="font-cairo" />
+                      </div>
+                    </>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">ملاحظات</Label>
+                    <Textarea value={editRecord.notes ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, notes: e.target.value }))} className="font-cairo" rows={2} />
+                  </div>
+                </div>
+              )}
+              <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+                <Button onClick={() => editMutation.mutate(editRecord)} disabled={editMutation.isPending} className="font-cairo gap-1">
+                  {editMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  حفظ التعديلات
+                </Button>
+                <Button variant="outline" onClick={() => setEditRecord(null)} className="font-cairo">إلغاء</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation */}
+          <AlertDialog open={!!deleteRecordId} onOpenChange={(open) => !open && setDeleteRecordId(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-cairo text-right">هل تريد حذف هذا السجل؟</AlertDialogTitle>
+                <AlertDialogDescription className="font-cairo text-right">
+                  سيتم حذف السجل نهائياً وتحديث الأرقام تلقائياً.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+                <AlertDialogAction
+                  onClick={() => deleteRecordId && deleteMutation.mutate(deleteRecordId)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-cairo"
+                >
+                  {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حذف"}
+                </AlertDialogAction>
+                <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     );
