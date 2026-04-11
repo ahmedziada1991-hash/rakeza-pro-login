@@ -109,14 +109,14 @@ export function CementTab() {
     },
   });
 
-  // Outgoing sales from station_accounts where transaction_type = 'cement'
+  // Outgoing sales from station_accounts where transaction_type = 'cement' or 'cement_sale'
   const { data: sales, isLoading: loadingSales } = useQuery({
     queryKey: ["cement-sales-station"],
     queryFn: async () => {
       const { data } = await supabase
         .from("station_accounts" as any)
         .select("*")
-        .eq("transaction_type", "cement")
+        .in("transaction_type", ["cement", "cement_sale"])
         .order("created_at", { ascending: false });
       const stIds = [...new Set((data ?? []).map((d: any) => d.station_id))];
       const { data: sts } = stIds.length
