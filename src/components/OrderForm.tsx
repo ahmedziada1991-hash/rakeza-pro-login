@@ -150,6 +150,24 @@ export function OrderForm({ orderId }: { orderId?: string }) {
         const { data, error } = await supabase.from("pour_orders").insert({ ...payload, amount_paid: 0, amount_remaining: total || null }).select("id").single();
         if (error) throw error;
 
+        const dateStr = scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null;
+
+        // Insert into client_accounts
+        if (Number(form.client_id) && quantity > 0) {
+          await supabase.from("client_accounts").insert({
+            client_id: Number(form.client_id),
+            client_name: clientName,
+            transaction_type: "pour",
+            amount: total,
+            quantity_m3: quantity,
+            price_per_m3: price,
+            station_name: form.station_name || null,
+            pour_order_id: data.id,
+            date: dateStr,
+            description: `صبة ${form.concrete_type} - ${quantity} م³`,
+          } as any);
+        }
+
         // Insert into station_accounts if station selected
         if (stationId && quantity > 0) {
           const stationAmount = purchasePrice > 0 ? quantity * purchasePrice : total;
@@ -159,7 +177,7 @@ export function OrderForm({ orderId }: { orderId?: string }) {
             transaction_type: "concrete",
             quantity_m3: quantity,
             pour_order_id: data.id,
-            date: scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null,
+            date: dateStr,
             amount: stationAmount,
             description: `صبة ${form.concrete_type} - عميل: ${clientName}`,
           } as any);
