@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Search, ArrowRight, Download, Send, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import { generateStatementPDF, sendStatementWhatsApp } from "@/lib/statement-pdf";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -159,10 +160,45 @@ export function ClientsTab() {
 
   const handlePrint = () => { window.print(); };
 
-  const handleWhatsApp = (client: ClientSummary) => {
-    const phone = (client.phone || "").replace(/[^0-9]/g, "");
-    const msg = encodeURIComponent(`السلام عليكم 👋\nمرفق كشف حساب من شركة ركيزة لتوريد الخرسانة الجاهزة 🏗️\nالعميل: ${client.name}\nالمتبقي: ${fmt(client.remaining)}`);
-    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  const handleWhatsAppPDF = (client: ClientSummary) => {
+    const totals = statementTotals ?? client;
+    const transactions: { date: string; description: string; amount: number }[] = [];
+
+    // Add pours
+    (pourOrders ?? []).forEach((p: any) => {
+      transactions.push({
+        date: p.scheduled_date || "—",
+        description: `Pour - ${p.quantity_m3 ?? 0} m³`,
+        amount: Number(p.total_agreed_amount) || 0,
+      });
+    });
+
+    // Add payments
+    (payments ?? []).forEach((t: any) => {
+      transactions.push({
+        date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+        description: `Payment (${METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"})`,
+        amount: -(Number(t.amount) || 0),
+      });
+    });
+
+    // Sort by date
+    transactions.sort((a, b) => a.date.localeCompare(b.date));
+
+    generateStatementPDF({
+      entityName: client.name,
+      entityType: "عميل",
+      phone: client.phone,
+      transactions,
+      totalDebt: totals.totalAmount,
+      totalPaid: totals.totalPaid,
+      balance: totals.remaining,
+    });
+
+    // Open WhatsApp after download
+    setTimeout(() => {
+      sendStatementWhatsApp(client.phone, client.name);
+    }, 500);
   };
 
   const invalidateAll = () => {
@@ -400,9 +436,9 @@ export function ClientsTab() {
             <Download className="h-4 w-4" />
             تحميل PDF
           </Button>
-          <Button onClick={() => handleWhatsApp(selectedClient)} className="w-full font-cairo gap-2 text-white" style={{ background: "#28A745" }}>
+          <Button onClick={() => handleWhatsAppPDF(selectedClient)} className="w-full font-cairo gap-2 text-white" style={{ background: "#28A745" }}>
             <Send className="h-4 w-4" />
-            إرسال واتساب
+            إرسال كشف حساب واتساب
           </Button>
           <Button variant="outline" onClick={() => setSelectedClient(null)} className="w-full font-cairo gap-2">
             <ArrowRight className="h-4 w-4" />
