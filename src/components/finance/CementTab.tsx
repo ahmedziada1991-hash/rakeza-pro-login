@@ -320,10 +320,18 @@ export function CementTab() {
           payment_method: saleForm.payment_method,
           notes: saleForm.notes || null,
         };
-        const { error: stErr, count: stCount } = await supabase.from("station_accounts" as any)
+        const { error: stErr } = await supabase.from("station_accounts" as any)
           .update(stUpdatePayload)
-          .eq("id", editingSale.id)
-          .select("id", { count: "exact", head: true });
+          .eq("id", editingSale.id);
+        
+        // Also try matching by station_id + created_at + transaction_type as fallback
+        if (!stErr) {
+          await supabase.from("station_accounts" as any)
+            .update(stUpdatePayload)
+            .eq("station_id", editingSale.station_id)
+            .eq("created_at", editingSale.created_at)
+            .eq("transaction_type", "cement");
+        }
         
         // If no rows updated by id, try matching by station_id + created_at + transaction_type
         if (!stErr && (stCount === 0 || stCount === null)) {
