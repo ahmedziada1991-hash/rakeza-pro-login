@@ -351,7 +351,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
               {/* Station transaction type */}
               <div className="space-y-1.5">
                 <Label className="font-cairo">نوع المعاملة *</Label>
-                <Select value={payForm.station_transaction_type} onValueChange={(v) => setField("station_transaction_type", v)}>
+                <Select value={payForm.station_transaction_type} onValueChange={(v) => { setField("station_transaction_type", v); setField("payment_method", "cash"); setField("cash_amount", ""); setField("deduction_amount", ""); }}>
                   <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {STATION_TRANSACTION_TYPES.map((t) => (
