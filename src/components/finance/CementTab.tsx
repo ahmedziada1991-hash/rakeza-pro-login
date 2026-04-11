@@ -648,9 +648,9 @@ export function CementTab() {
       </Dialog>
 
       {/* Add Sale Dialog */}
-      <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
+      <Dialog open={saleDialogOpen} onOpenChange={(open) => { setSaleDialogOpen(open); if (!open) { setEditingSale(null); setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" }); } }}>
         <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
-          <DialogHeader><DialogTitle className="font-cairo text-right">تسجيل بيع أسمنت لمحطة</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-cairo text-right">{editingSale ? "تعديل سجل بيع" : "تسجيل بيع أسمنت لمحطة"}</DialogTitle></DialogHeader>
           <div className="space-y-3 overflow-y-auto flex-1 pl-1">
             {/* Select Purchase */}
             <div className="space-y-1.5">
