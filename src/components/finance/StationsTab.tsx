@@ -491,7 +491,7 @@ export function StationsTab() {
 
         {/* Action buttons */}
         <div className="flex flex-col gap-3 px-5 py-5 border-t print:hidden">
-          <Button onClick={handlePrint} className="w-full font-cairo gap-2 text-white" style={{ background: "#1B3A6B" }}>
+          <Button onClick={() => handleDownloadPDF(selectedStation)} className="w-full font-cairo gap-2 text-white" style={{ background: "#1B3A6B" }}>
             <Download className="h-4 w-4" />
             تحميل PDF
           </Button>
