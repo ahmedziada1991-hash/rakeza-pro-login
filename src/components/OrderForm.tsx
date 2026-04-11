@@ -272,7 +272,7 @@ export function OrderForm({ orderId }: { orderId?: string }) {
             </div>
 
             {/* Price & Total */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-cairo">سعر المتر (ج.م) </Label>
                 <Input
@@ -283,6 +283,19 @@ export function OrderForm({ orderId }: { orderId?: string }) {
                   min={0}
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label className="font-cairo">سعر الشراء من المحطة (ج.م)</Label>
+                <Input
+                  type="number"
+                  value={form.purchase_price}
+                  onChange={(e) => set("purchase_price", e.target.value)}
+                  className="font-cairo"
+                  min={0}
+                  placeholder="سري - للأدمن فقط"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-cairo">الإجمالي (ج.م)</Label>
                 <Input
