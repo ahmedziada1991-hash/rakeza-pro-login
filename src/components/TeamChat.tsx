@@ -168,17 +168,43 @@ export function TeamChat() {
   const sendMutation = useMutation({
     mutationFn: async () => {
       if (!messageText.trim() || !user?.id) return;
-      const { error } = await supabase.from("messages").insert({
+      const payload = {
         sender_id: user.id,
         sender_name: currentUserName ?? "مستخدم",
-        receiver_id: selectedChat?.type === "private" ? selectedChat.userId : null,
+        receiver_id: selectedChat?.type === "private" ? selectedChat.userId! : null,
         message: messageText.trim(),
-      });
-      if (error) throw error;
+        is_read: false,
+      };
+      const { error } = await supabase.from("messages").insert(payload);
+      if (error) {
+        console.error("Message insert error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      // Optimistic update - show message instantly
+      const optimisticMsg: ChatMessage = {
+        id: Date.now(),
+        sender_id: user!.id,
+        sender_name: currentUserName ?? "مستخدم",
+        receiver_id: selectedChat?.type === "private" ? selectedChat!.userId! : null,
+        message: messageText.trim(),
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+      const key = ["chat-messages", selectedChat?.type, selectedChat?.userId];
+      const prev = queryClient.getQueryData<ChatMessage[]>(key) ?? [];
+      queryClient.setQueryData(key, [...prev, optimisticMsg]);
+      return { key, prev };
+    },
+    onSuccess: (_data, _vars, context) => {
       setMessageText("");
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
+    },
+    onError: (err: any, _vars, context: any) => {
+      // Rollback optimistic update
+      if (context?.key) queryClient.setQueryData(context.key, context.prev);
+      console.error("Failed to send message:", err);
     },
   });
 
