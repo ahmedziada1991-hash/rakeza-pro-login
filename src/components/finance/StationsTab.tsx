@@ -170,7 +170,7 @@ export function StationsTab() {
     return true;
   });
   const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة");
-  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
+  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction");
 
   // Recalculate totals from statement data
   const statementTotals = (() => {
@@ -185,7 +185,7 @@ export function StationsTab() {
         totalCost += amt;
       } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة") {
         totalPaid += amt;
-      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
+      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction") {
         cementBalance += amt;
       }
     });
