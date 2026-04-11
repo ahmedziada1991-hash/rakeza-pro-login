@@ -115,6 +115,15 @@ export function ClientsManagement() {
     }
   }, [searchParams, setSearchParams]);
 
+  // Fetch stations
+  const { data: stations } = useQuery({
+    queryKey: ["stations-list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("stations").select("id, name").order("name");
+      return (data ?? []) as Station[];
+    },
+  });
+
   // Fetch staff users (sales + followup)
   const { data: staffUsers } = useQuery({
     queryKey: ["staff-users-list"],
