@@ -161,6 +161,45 @@ export function SuppliersTab() {
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
   });
 
+  const editMutation = useMutation({
+    mutationFn: async (record: any) => {
+      const updateData: any = {
+        total_amount: Number(record.total_amount),
+        notes: record.notes || null,
+        payment_method: record.payment_method || null,
+        check_number: record.check_number || null,
+      };
+      if (record.transaction_type === "purchase" || record.transaction_type === "شراء" || record.transaction_type === "inbound") {
+        updateData.quantity_tons = record.quantity_tons ? Number(record.quantity_tons) : null;
+        updateData.price_per_ton = record.price_per_ton ? Number(record.price_per_ton) : null;
+        updateData.destination_name = record.destination_name || null;
+      }
+      const { error } = await supabase.from("supplier_accounts" as any).update(updateData).eq("id", record.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+      toast({ title: "تم تحديث السجل بنجاح" });
+      setEditRecord(null);
+    },
+    onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from("supplier_accounts" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+      toast({ title: "تم حذف السجل بنجاح" });
+      setDeleteRecordId(null);
+    },
+    onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
+  });
+
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   if (isLoading) {
