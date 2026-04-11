@@ -161,6 +161,204 @@ export function SuppliersTab() {
   const purchases = (statement ?? []).filter((t: any) => t.transaction_type === "purchase" || t.transaction_type === "شراء" || t.transaction_type === "inbound");
   const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة");
 
+  // Full-page supplier statement
+  if (selectedSupplier) {
+    const todayStr = new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+
+    return (
+      <div className="min-h-screen -m-4 sm:-m-6" style={{ background: "#F8F9FA" }}>
+        {/* Header */}
+        <div className="w-full px-4 py-4" style={{ background: "#1B3A6B" }}>
+          <div className="flex items-start justify-between">
+            <div className="text-left">
+              <p className="font-cairo text-white/80 text-xs">{todayStr}</p>
+              <p className="font-cairo text-white font-bold text-sm mt-1">{selectedSupplier.name}</p>
+            </div>
+            <div className="text-right">
+              <h1 className="font-cairo text-white font-bold text-lg">شركة ركيزة</h1>
+              <p className="font-cairo text-white/80 text-xs">كشف حساب مورد</p>
+            </div>
+          </div>
+        </div>
+        <div className="w-full h-1" style={{ background: "#F5A623" }} />
+
+        <div className="p-4 space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg p-3 text-center" style={{ background: "white", border: "1px solid #eee" }}>
+              <p className="font-cairo text-[10px] text-gray-500">إجمالي المشتريات</p>
+              <p className="font-cairo font-bold text-sm" style={{ color: "#DC2626" }}>{fmt(selectedSupplier.totalPurchases)}</p>
+            </div>
+            <div className="rounded-lg p-3 text-center" style={{ background: "white", border: "1px solid #eee" }}>
+              <p className="font-cairo text-[10px] text-gray-500">إجمالي المدفوع</p>
+              <p className="font-cairo font-bold text-sm" style={{ color: "#16A34A" }}>{fmt(selectedSupplier.totalPaid)}</p>
+            </div>
+            <div className="rounded-lg p-3 text-center" style={{ background: "white", border: "1px solid #eee" }}>
+              <p className="font-cairo text-[10px] text-gray-500">المتبقي</p>
+              <p className="font-cairo font-bold text-sm" style={{ color: "#1B3A6B" }}>{fmt(selectedSupplier.remaining)}</p>
+            </div>
+          </div>
+
+          {/* Purchases Section */}
+          <div className="rounded-lg overflow-hidden" style={{ background: "white", border: "1px solid #eee" }}>
+            <div className="px-3 py-2" style={{ background: "#1B3A6B" }}>
+              <h3 className="font-cairo text-white text-sm font-bold">مشتريات الأسمنت</h3>
+            </div>
+            {loadingStatement ? (
+              <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : !purchases.length ? (
+              <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد مشتريات</p>
+            ) : (
+              <div className="overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="font-cairo text-right text-xs">التاريخ</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">الكمية (طن)</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">سعر الطن</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">الإجمالي</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">الوجهة</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">ملاحظات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {purchases.map((t: any) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs">{t.quantity_tons ?? "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs">{t.price_per_ton ? fmt(Number(t.price_per_ton)) : "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs font-medium">{fmt(Number(t.total_amount) || 0)}</TableCell>
+                        <TableCell className="font-cairo text-xs">{t.destination_name ?? "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[100px]">{t.notes ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {/* Payments Section */}
+          <div className="rounded-lg overflow-hidden" style={{ background: "white", border: "1px solid #eee" }}>
+            <div className="px-3 py-2" style={{ background: "#1B3A6B" }}>
+              <h3 className="font-cairo text-white text-sm font-bold">المدفوعات</h3>
+            </div>
+            {loadingStatement ? (
+              <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+            ) : !payments.length ? (
+              <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد مدفوعات</p>
+            ) : (
+              <div className="overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="font-cairo text-right text-xs">التاريخ</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">المبلغ</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">الطريقة</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">رقم الشيك</TableHead>
+                      <TableHead className="font-cairo text-right text-xs">ملاحظات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.map((t: any) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs font-medium" style={{ color: "#16A34A" }}>{fmt(Number(t.total_amount) || 0)}</TableCell>
+                        <TableCell><Badge variant="outline" className="font-cairo text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge></TableCell>
+                        <TableCell className="font-cairo text-xs">{t.check_number ?? "—"}</TableCell>
+                        <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[100px]">{t.notes ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="w-full h-1 rounded" style={{ background: "#F5A623" }} />
+          <p className="text-center font-cairo text-xs text-gray-400">شركة ركيزة لتوريد الخرسانة الجاهزة</p>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-2 pb-4">
+            <Button variant="outline" onClick={() => setSelectedSupplier(null)} className="font-cairo flex-1">
+              <ChevronLeft className="h-4 w-4 ml-1" />
+              رجوع
+            </Button>
+            <Button
+              onClick={() => {
+                const transactions: { date: string; description: string; amount: number }[] = [];
+                purchases.forEach((t: any) => {
+                  transactions.push({
+                    date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+                    description: `Purchase - ${t.quantity_tons ?? 0} ton`,
+                    amount: Number(t.total_amount) || 0,
+                  });
+                });
+                payments.forEach((t: any) => {
+                  transactions.push({
+                    date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+                    description: `Payment (${METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"})`,
+                    amount: -(Number(t.total_amount) || 0),
+                  });
+                });
+                transactions.sort((a, b) => a.date.localeCompare(b.date));
+                generateStatementPDF({
+                  entityName: selectedSupplier.name,
+                  entityType: "مورد",
+                  phone: selectedSupplier.phone,
+                  transactions,
+                  totalDebt: selectedSupplier.totalPurchases,
+                  totalPaid: selectedSupplier.totalPaid,
+                  balance: selectedSupplier.remaining,
+                });
+              }}
+              variant="outline"
+              className="font-cairo flex-1"
+            >
+              تحميل PDF
+            </Button>
+            <Button
+              onClick={() => {
+                const transactions: { date: string; description: string; amount: number }[] = [];
+                purchases.forEach((t: any) => {
+                  transactions.push({
+                    date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+                    description: `Purchase - ${t.quantity_tons ?? 0} ton`,
+                    amount: Number(t.total_amount) || 0,
+                  });
+                });
+                payments.forEach((t: any) => {
+                  transactions.push({
+                    date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+                    description: `Payment (${METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"})`,
+                    amount: -(Number(t.total_amount) || 0),
+                  });
+                });
+                transactions.sort((a, b) => a.date.localeCompare(b.date));
+                generateStatementPDF({
+                  entityName: selectedSupplier.name,
+                  entityType: "مورد",
+                  phone: selectedSupplier.phone,
+                  transactions,
+                  totalDebt: selectedSupplier.totalPurchases,
+                  totalPaid: selectedSupplier.totalPaid,
+                  balance: selectedSupplier.remaining,
+                });
+                setTimeout(() => sendStatementWhatsApp(selectedSupplier.phone, selectedSupplier.name), 500);
+              }}
+              className="font-cairo flex-1 text-white gap-1"
+              style={{ background: "#28A745" }}
+            >
+              <Send className="h-4 w-4" />
+              واتساب
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -206,147 +404,6 @@ export function SuppliersTab() {
           </Table>
         </div>
       )}
-
-      {/* Supplier Statement Dialog */}
-      <Dialog open={!!selectedSupplier} onOpenChange={(o) => !o && setSelectedSupplier(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-cairo text-right flex items-center gap-2">
-              <ChevronLeft className="h-4 w-4" />
-              كشف حساب: {selectedSupplier?.name}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedSupplier && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <Card><CardContent className="p-3 text-center">
-                  <p className="text-xs font-cairo text-muted-foreground">إجمالي المشتريات</p>
-                  <p className="font-cairo font-bold text-primary">{fmt(selectedSupplier.totalPurchases)}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-3 text-center">
-                  <p className="text-xs font-cairo text-muted-foreground">المدفوع</p>
-                  <p className="font-cairo font-bold text-chart-2">{fmt(selectedSupplier.totalPaid)}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-3 text-center">
-                  <p className="text-xs font-cairo text-muted-foreground">المتبقي</p>
-                  <p className="font-cairo font-bold text-destructive">{fmt(selectedSupplier.remaining)}</p>
-                </CardContent></Card>
-              </div>
-
-              {/* Purchases */}
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">المشتريات (أسمنت)</CardTitle></CardHeader>
-                <CardContent className="p-0">
-                  {loadingStatement ? (
-                    <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-                  ) : !purchases.length ? (
-                    <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد مشتريات</p>
-                  ) : (
-                    <div className="overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
-                            <TableHead className="font-cairo text-right">الوجهة</TableHead>
-                            <TableHead className="font-cairo text-right">الكمية (طن)</TableHead>
-                            <TableHead className="font-cairo text-right">سعر الطن</TableHead>
-                            <TableHead className="font-cairo text-right">الإجمالي</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {purchases.map((t: any) => (
-                            <TableRow key={t.id}>
-                              <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
-                              <TableCell className="font-cairo text-xs">{t.destination_name ?? "—"}</TableCell>
-                              <TableCell className="font-cairo">{t.quantity_tons ?? "—"}</TableCell>
-                              <TableCell className="font-cairo">{t.price_per_ton ? fmt(Number(t.price_per_ton)) : "—"}</TableCell>
-                              <TableCell className="font-cairo font-medium">{fmt(Number(t.total_amount) || 0)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Payments */}
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm">المدفوعات</CardTitle></CardHeader>
-                <CardContent className="p-0">
-                  {loadingStatement ? (
-                    <div className="p-4 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-                  ) : !payments.length ? (
-                    <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد مدفوعات</p>
-                  ) : (
-                    <div className="overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="font-cairo text-right">التاريخ</TableHead>
-                            <TableHead className="font-cairo text-right">المبلغ</TableHead>
-                            <TableHead className="font-cairo text-right">الطريقة</TableHead>
-                            <TableHead className="font-cairo text-right">ملاحظات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {payments.map((t: any) => (
-                            <TableRow key={t.id}>
-                              <TableCell className="font-cairo text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
-                              <TableCell className="font-cairo text-chart-2 font-medium">{fmt(Number(t.total_amount) || 0)}</TableCell>
-                              <TableCell><Badge variant="outline" className="font-cairo text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge></TableCell>
-                              <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[150px]">{t.notes ?? "—"}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              {/* WhatsApp PDF button */}
-              <Button
-                onClick={() => {
-                  if (!selectedSupplier) return;
-                  const transactions: { date: string; description: string; amount: number }[] = [];
-                  purchases.forEach((t: any) => {
-                    transactions.push({
-                      date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
-                      description: `Purchase - ${t.quantity_tons ?? 0} ton`,
-                      amount: Number(t.total_amount) || 0,
-                    });
-                  });
-                  payments.forEach((t: any) => {
-                    transactions.push({
-                      date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
-                      description: `Payment (${METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"})`,
-                      amount: -(Number(t.total_amount) || 0),
-                    });
-                  });
-                  transactions.sort((a, b) => a.date.localeCompare(b.date));
-                  generateStatementPDF({
-                    entityName: selectedSupplier.name,
-                    entityType: "مورد",
-                    phone: selectedSupplier.phone,
-                    transactions,
-                    totalDebt: selectedSupplier.totalPurchases,
-                    totalPaid: selectedSupplier.totalPaid,
-                    balance: selectedSupplier.remaining,
-                  });
-                  setTimeout(() => {
-                    sendStatementWhatsApp(selectedSupplier.phone, selectedSupplier.name);
-                  }, 500);
-                }}
-                className="w-full font-cairo gap-2 text-white"
-                style={{ background: "#28A745" }}
-              >
-                <Send className="h-4 w-4" />
-                إرسال كشف حساب واتساب
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Add Supplier Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
