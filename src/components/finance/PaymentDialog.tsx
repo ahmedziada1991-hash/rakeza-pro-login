@@ -398,13 +398,15 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
 
           {/* Amount & Payment method */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="font-cairo">المبلغ (ج.م) *</Label>
-              <Input type="number" value={payForm.amount} onChange={(e) => setField("amount", e.target.value)} className="font-cairo" min={0} />
-            </div>
-            <div className="space-y-1.5">
+            {payForm.payment_method !== "mixed" && (
+              <div className="space-y-1.5">
+                <Label className="font-cairo">المبلغ (ج.م) *</Label>
+                <Input type="number" value={payForm.amount} onChange={(e) => setField("amount", e.target.value)} className="font-cairo" min={0} />
+              </div>
+            )}
+            <div className={cn("space-y-1.5", payForm.payment_method === "mixed" && "col-span-2")}>
               <Label className="font-cairo">طريقة الدفع</Label>
-              <Select value={payForm.payment_method} onValueChange={(v) => setField("payment_method", v)}>
+              <Select value={payForm.payment_method} onValueChange={(v) => { setField("payment_method", v); if (v === "mixed") { setField("amount", ""); } }}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {activeMethods.map((m) => (
@@ -414,6 +416,23 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
               </Select>
             </div>
           </div>
+
+          {/* Mixed payment fields */}
+          {payForm.payment_method === "mixed" && (
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+              <div className="space-y-1.5">
+                <Label className="font-cairo text-xs">مبلغ كاش (ج.م)</Label>
+                <Input type="number" value={payForm.cash_amount} onChange={(e) => setField("cash_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-cairo text-xs">خصم من خرسانة (ج.م)</Label>
+                <Input type="number" value={payForm.deduction_amount} onChange={(e) => setField("deduction_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} placeholder="0" />
+              </div>
+              <p className="col-span-2 text-xs text-muted-foreground font-cairo">
+                الإجمالي: {fmt((Number(payForm.cash_amount) || 0) + (Number(payForm.deduction_amount) || 0))}
+              </p>
+            </div>
+          )}
 
           {/* Check fields */}
           {isCheck && (
