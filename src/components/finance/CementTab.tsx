@@ -197,17 +197,14 @@ export function CementTab() {
 
   const deletePurchaseMutation = useMutation({
     mutationFn: async (record: any) => {
-      // Delete from cement_stock
-      const { error: e1 } = await supabase.from("cement_stock" as any).delete().eq("id", record.id);
+      // Delete from supplier_accounts (the main record shown in table)
+      const { error: e1 } = await supabase.from("supplier_accounts" as any).delete().eq("id", record.id);
       if (e1) throw e1;
-      // Delete matching supplier_accounts record
-      const { error: e2 } = await supabase.from("supplier_accounts" as any)
+      // Delete matching cement_stock record
+      await supabase.from("cement_stock" as any)
         .delete()
         .eq("supplier_id", record.supplier_id)
-        .eq("transaction_type", "purchase")
-        .eq("total_amount", record.total_amount)
         .eq("created_at", record.created_at);
-      if (e2) throw e2;
     },
     onSuccess: () => { invalidateAll(); toast({ title: "تم حذف سجل الوارد بنجاح" }); },
     onError: (err: any) => toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" }),
@@ -215,16 +212,14 @@ export function CementTab() {
 
   const deleteSaleMutation = useMutation({
     mutationFn: async (record: any) => {
-      // Delete from cement_sales
-      const { error: e1 } = await supabase.from("cement_sales" as any).delete().eq("id", record.id);
+      // Delete from station_accounts (the main record shown in table)
+      const { error: e1 } = await supabase.from("station_accounts" as any).delete().eq("id", record.id);
       if (e1) throw e1;
-      // Delete matching station_accounts record
-      const { error: e2 } = await supabase.from("station_accounts" as any)
+      // Delete matching cement_sales record
+      await supabase.from("cement_sales" as any)
         .delete()
         .eq("station_id", record.station_id)
-        .eq("transaction_type", "cement")
         .eq("created_at", record.created_at);
-      if (e2) throw e2;
     },
     onSuccess: () => { invalidateAll(); toast({ title: "تم حذف سجل البيع بنجاح" }); },
     onError: (err: any) => toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" }),
