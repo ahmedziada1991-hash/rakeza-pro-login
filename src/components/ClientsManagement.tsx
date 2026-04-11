@@ -682,6 +682,132 @@ export function ClientsManagement() {
               </div>
             )}
 
+            {/* Pour execution status */}
+            <div className="space-y-1.5">
+              <Label className="font-cairo">حالة الصبة</Label>
+              <Select value={form.pour_exec_status} onValueChange={(v) => setForm((f) => ({ ...f, pour_exec_status: v }))}>
+                <SelectTrigger className="font-cairo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_done" className="font-cairo">لم تتم بعد</SelectItem>
+                  <SelectItem value="done" className="font-cairo">تم التنفيذ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {form.pour_exec_status === "done" && (
+              <div className="space-y-3 border border-primary/20 rounded-lg p-3 bg-primary/5">
+                <p className="font-cairo font-bold text-sm text-primary">بيانات الصبة</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المحطة *</Label>
+                    <Select
+                      value={form.station_id ? String(form.station_id) : ""}
+                      onValueChange={(v) => setForm((f) => ({ ...f, station_id: Number(v) }))}
+                    >
+                      <SelectTrigger className="font-cairo">
+                        <SelectValue placeholder="اختر المحطة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(stations ?? []).map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)} className="font-cairo">{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">نوع الخرسانة</Label>
+                    <Select value={form.concrete_type} onValueChange={(v) => setForm((f) => ({ ...f, concrete_type: v }))}>
+                      <SelectTrigger className="font-cairo">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="B200" className="font-cairo">B200</SelectItem>
+                        <SelectItem value="B300" className="font-cairo">B300</SelectItem>
+                        <SelectItem value="B350" className="font-cairo">B350</SelectItem>
+                        <SelectItem value="B400" className="font-cairo">B400</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المحتوى (كجم/م³)</Label>
+                    <Input
+                      type="number"
+                      value={form.cement_content ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, cement_content: e.target.value ? Number(e.target.value) : null }))}
+                      className="font-cairo"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">الكمية الفعلية (م³) *</Label>
+                    <Input
+                      type="number"
+                      value={form.actual_quantity ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, actual_quantity: e.target.value ? Number(e.target.value) : null }))}
+                      className="font-cairo"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">سعر البيع (ج.م/م³) *</Label>
+                    <Input
+                      type="number"
+                      value={form.price_per_m3 ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, price_per_m3: e.target.value ? Number(e.target.value) : null }))}
+                      className="font-cairo"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">الإجمالي (ج.م)</Label>
+                    <Input
+                      type="number"
+                      value={pourTotal || ""}
+                      readOnly
+                      className="font-cairo bg-muted"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المبلغ المدفوع</Label>
+                    <Input
+                      type="number"
+                      value={form.amount_paid ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, amount_paid: e.target.value ? Number(e.target.value) : null }))}
+                      className="font-cairo"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المتبقي</Label>
+                    <Input
+                      type="number"
+                      value={pourRemaining || ""}
+                      readOnly
+                      className="font-cairo bg-muted"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">تاريخ الصبة</Label>
+                  <Input
+                    type="date"
+                    value={form.scheduled_date}
+                    onChange={(e) => setForm((f) => ({ ...f, scheduled_date: e.target.value }))}
+                    className="font-cairo"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea
@@ -695,8 +821,8 @@ export function ClientsManagement() {
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={closeDialog} className="font-cairo">إلغاء</Button>
-            <Button onClick={handleSave} disabled={upsertMutation.isPending} className="font-cairo">
-              {upsertMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+            <Button onClick={handleSave} className="font-cairo">
+              حفظ
             </Button>
           </DialogFooter>
         </DialogContent>
