@@ -228,7 +228,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   });
 
   function resetForm() {
-    setPayForm({ client_id: "", station_id: "", station_transaction_type: "payment", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "", check_number: "" });
+    setPayForm({ client_id: "", station_id: "", station_transaction_type: "payment", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "", check_number: "", cash_amount: "", deduction_amount: "" });
     setPaymentDate(new Date());
     setCheckDateCleared(undefined);
   }
