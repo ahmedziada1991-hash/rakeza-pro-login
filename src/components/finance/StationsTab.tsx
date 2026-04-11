@@ -101,7 +101,7 @@ export function StationsTab() {
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = (acc.totalCost + acc.cementBalance) - acc.totalPaid;
+        acc.finalBalance = acc.cementBalance - acc.totalPaid - acc.totalCost;
       });
 
       return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
@@ -228,7 +228,7 @@ export function StationsTab() {
         cementBalance += amt;
       }
     });
-    return { totalCost, totalPaid, cementBalance, finalBalance: (totalCost + cementBalance) - totalPaid };
+    return { totalCost, totalPaid, cementBalance, finalBalance: cementBalance - totalPaid - totalCost };
   })();
 
   const handlePrint = () => { window.print(); };
@@ -267,7 +267,7 @@ export function StationsTab() {
       entityName: station.name,
       entityType: "محطة",
       transactions,
-      totalDebt: totals.totalCost + totals.cementBalance,
+      totalDebt: totals.cementBalance,
       totalPaid: totals.totalPaid,
       balance: totals.finalBalance,
     });
