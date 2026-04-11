@@ -250,7 +250,6 @@ export function ClientsTab() {
     }
     setEditPayment(null);
   };
-  };
 
   const getPourAccountPrice = (pourOrderId: number) => {
     const entry = (pourAccountEntries as any[] ?? []).find(
