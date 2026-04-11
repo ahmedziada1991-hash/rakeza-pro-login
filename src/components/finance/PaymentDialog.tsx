@@ -71,6 +71,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     payment_type: "client",
     notes: "",
     check_number: "",
+    cash_amount: "",
+    deduction_amount: "",
   });
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [checkDateCleared, setCheckDateCleared] = useState<Date | undefined>(undefined);
