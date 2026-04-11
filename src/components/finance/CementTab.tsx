@@ -48,6 +48,7 @@ export function CementTab() {
   const queryClient = useQueryClient();
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
+  const [isSubmittingSale, setIsSubmittingSale] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "purchase" | "sale"; record: any } | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<any>(null);
   const [editingSale, setEditingSale] = useState<any>(null);
