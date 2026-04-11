@@ -61,6 +61,7 @@ export function StationsTab() {
   const [selectedStation, setSelectedStation] = useState<StationSummary | null>(null);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
+  const [deleteCementSaleId, setDeleteCementSaleId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-stations-tab"],
@@ -388,6 +389,7 @@ export function StationsTab() {
                           <td className="px-2 py-2.5 print:hidden">
                             <div className="flex gap-1">
                               <button onClick={() => setEditRecord({ ...s, _source: "cement_sales" })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setDeleteCementSaleId(s.id)} className="text-destructive hover:text-destructive/80"><Trash2 className="h-3.5 w-3.5" /></button>
                             </div>
                           </td>
                         )}
