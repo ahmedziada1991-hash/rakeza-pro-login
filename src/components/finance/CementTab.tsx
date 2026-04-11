@@ -403,8 +403,9 @@ export function CementTab() {
                     <TableHead className="font-cairo text-right">سعر الطن</TableHead>
                     <TableHead className="font-cairo text-right">الإجمالي</TableHead>
                     <TableHead className="font-cairo text-right">الوجهة</TableHead>
-                    <TableHead className="font-cairo text-right">ملاحظات</TableHead>
-                  </TableRow>
+                     <TableHead className="font-cairo text-right">ملاحظات</TableHead>
+                     <TableHead className="w-10"></TableHead>
+                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {(purchases ?? []).map((r: any) => (
