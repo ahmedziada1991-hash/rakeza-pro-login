@@ -33,6 +33,8 @@ function fmt(n: number) {
 const METHOD_LABELS: Record<string, string> = {
   cash: "كاش", bank_transfer: "تحويل بنكي", check: "شيك", online: "أونلاين",
   cement: "أسمنت", concrete_deduction: "خصم خرسانة", mixed: "مختلط",
+  balance_only: "رصيد فقط", cash_full: "كاش كامل", cash_partial: "كاش جزئي",
+  deduction_full: "خصم كامل من مديونيتي", deduction_partial: "خصم جزئي من مديونيتي",
 };
 
 function extractClientName(notes: string | null): string {
