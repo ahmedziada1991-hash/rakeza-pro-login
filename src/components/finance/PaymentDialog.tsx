@@ -37,6 +37,12 @@ const STATION_PAYMENT_METHODS = [
   { value: "bank_transfer", label: "تحويل بنكي" },
 ];
 
+const CEMENT_PAYMENT_METHODS = [
+  { value: "cash", label: "كاش" },
+  { value: "concrete_deduction", label: "خصم من خرسانة" },
+  { value: "mixed", label: "مختلط (كاش + خصم)" },
+];
+
 const PAYMENT_TYPES = [
   { value: "client", label: "دفعة عميل" },
   { value: "station", label: "دفعة محطة" },
@@ -65,6 +71,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     payment_type: "client",
     notes: "",
     check_number: "",
+    cash_amount: "",
+    deduction_amount: "",
   });
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [checkDateCleared, setCheckDateCleared] = useState<Date | undefined>(undefined);
@@ -110,22 +118,76 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         const stationId = Number(payForm.station_id);
         const selectedStation = (stations ?? []).find((s) => s.id === stationId);
         const stationName = selectedStation?.name || "محطة";
+        const isCement = payForm.station_transaction_type === "cement_payment";
+        const isMixed = isCement && payForm.payment_method === "mixed";
+        const isConcreteDeduction = isCement && payForm.payment_method === "concrete_deduction";
 
-        const stationPayload: any = {
-          station_id: stationId,
-          transaction_type: payForm.station_transaction_type,
-          amount,
-          payment_method: payForm.payment_method,
-          notes: payForm.notes || null,
-        };
+        if (isMixed) {
+          const cashAmt = Number(payForm.cash_amount) || 0;
+          const deductAmt = Number(payForm.deduction_amount) || 0;
 
-        if (isCheck) {
-          stationPayload.check_number = payForm.check_number || null;
-          stationPayload.check_date_cleared = checkDateCleared ? format(checkDateCleared, "yyyy-MM-dd") : null;
+          // Cash record
+          if (cashAmt > 0) {
+            const { error } = await supabase.from("station_accounts" as any).insert({
+              station_id: stationId,
+              transaction_type: "cement_payment",
+              amount: cashAmt,
+              payment_method: "cash",
+              notes: payForm.notes || null,
+            });
+            if (error) throw error;
+          }
+
+          // Concrete deduction record
+          if (deductAmt > 0) {
+            const { error } = await supabase.from("station_accounts" as any).insert({
+              station_id: stationId,
+              transaction_type: "cement_payment",
+              amount: deductAmt,
+              payment_method: "concrete_deduction",
+              notes: payForm.notes ? `${payForm.notes} (خصم من خرسانة)` : "خصم من خرسانة",
+            });
+            if (error) throw error;
+
+            // Deduct from concrete debt
+            const { error: deductError } = await supabase.from("station_accounts" as any).insert({
+              station_id: stationId,
+              transaction_type: "payment",
+              amount: deductAmt,
+              payment_method: "concrete_deduction",
+              notes: "خصم تلقائي مقابل تحصيل أسمنت",
+            });
+            if (deductError) throw deductError;
+          }
+        } else {
+          const stationPayload: any = {
+            station_id: stationId,
+            transaction_type: payForm.station_transaction_type,
+            amount,
+            payment_method: payForm.payment_method,
+            notes: payForm.notes || null,
+          };
+
+          if (isCheck) {
+            stationPayload.check_number = payForm.check_number || null;
+            stationPayload.check_date_cleared = checkDateCleared ? format(checkDateCleared, "yyyy-MM-dd") : null;
+          }
+
+          const { error } = await supabase.from("station_accounts" as any).insert(stationPayload);
+          if (error) throw error;
+
+          // If concrete deduction for cement, also deduct from concrete debt
+          if (isConcreteDeduction) {
+            const { error: deductError } = await supabase.from("station_accounts" as any).insert({
+              station_id: stationId,
+              transaction_type: "payment",
+              amount,
+              payment_method: "concrete_deduction",
+              notes: "خصم تلقائي مقابل تحصيل أسمنت",
+            });
+            if (deductError) throw deductError;
+          }
         }
-
-        const { error } = await supabase.from("station_accounts" as any).insert(stationPayload);
-        if (error) throw error;
 
         // Check notification for station
         if (isCheck && checkDateCleared && user?.id) {
@@ -220,7 +282,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   });
 
   function resetForm() {
-    setPayForm({ client_id: "", station_id: "", station_transaction_type: "payment", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "", check_number: "" });
+    setPayForm({ client_id: "", station_id: "", station_transaction_type: "payment", pour_order_id: "", amount: "", payment_method: "cash", payment_type: "client", notes: "", check_number: "", cash_amount: "", deduction_amount: "" });
     setPaymentDate(new Date());
     setCheckDateCleared(undefined);
   }
@@ -233,7 +295,14 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     } else {
       if (!payForm.client_id) { toast({ title: "اختر العميل", variant: "destructive" }); return; }
     }
-    if (!payForm.amount || Number(payForm.amount) <= 0) { toast({ title: "أدخل المبلغ", variant: "destructive" }); return; }
+    const isCementMixed = isStation && payForm.station_transaction_type === "cement_payment" && payForm.payment_method === "mixed";
+    if (isCementMixed) {
+      const cashAmt = Number(payForm.cash_amount) || 0;
+      const deductAmt = Number(payForm.deduction_amount) || 0;
+      if (cashAmt + deductAmt <= 0) { toast({ title: "أدخل المبالغ", variant: "destructive" }); return; }
+    } else {
+      if (!payForm.amount || Number(payForm.amount) <= 0) { toast({ title: "أدخل المبلغ", variant: "destructive" }); return; }
+    }
     if (payForm.payment_method === "check" && !payForm.check_number) {
       toast({ title: "أدخل رقم الشيك", variant: "destructive" }); return;
     }
@@ -241,7 +310,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   }
 
   const isCheck = payForm.payment_method === "check";
-  const activeMethods = isStation ? STATION_PAYMENT_METHODS : PAYMENT_METHODS;
+  const isCement = isStation && payForm.station_transaction_type === "cement_payment";
+  const activeMethods = isCement ? CEMENT_PAYMENT_METHODS : isStation ? STATION_PAYMENT_METHODS : PAYMENT_METHODS;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -281,7 +351,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
               {/* Station transaction type */}
               <div className="space-y-1.5">
                 <Label className="font-cairo">نوع المعاملة *</Label>
-                <Select value={payForm.station_transaction_type} onValueChange={(v) => setField("station_transaction_type", v)}>
+                <Select value={payForm.station_transaction_type} onValueChange={(v) => { setField("station_transaction_type", v); setField("payment_method", "cash"); setField("cash_amount", ""); setField("deduction_amount", ""); }}>
                   <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {STATION_TRANSACTION_TYPES.map((t) => (
@@ -328,13 +398,15 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
 
           {/* Amount & Payment method */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="font-cairo">المبلغ (ج.م) *</Label>
-              <Input type="number" value={payForm.amount} onChange={(e) => setField("amount", e.target.value)} className="font-cairo" min={0} />
-            </div>
-            <div className="space-y-1.5">
+            {payForm.payment_method !== "mixed" && (
+              <div className="space-y-1.5">
+                <Label className="font-cairo">المبلغ (ج.م) *</Label>
+                <Input type="number" value={payForm.amount} onChange={(e) => setField("amount", e.target.value)} className="font-cairo" min={0} />
+              </div>
+            )}
+            <div className={cn("space-y-1.5", payForm.payment_method === "mixed" && "col-span-2")}>
               <Label className="font-cairo">طريقة الدفع</Label>
-              <Select value={payForm.payment_method} onValueChange={(v) => setField("payment_method", v)}>
+              <Select value={payForm.payment_method} onValueChange={(v) => { setField("payment_method", v); if (v === "mixed") { setField("amount", ""); } }}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {activeMethods.map((m) => (
@@ -344,6 +416,23 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
               </Select>
             </div>
           </div>
+
+          {/* Mixed payment fields */}
+          {payForm.payment_method === "mixed" && (
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+              <div className="space-y-1.5">
+                <Label className="font-cairo text-xs">مبلغ كاش (ج.م)</Label>
+                <Input type="number" value={payForm.cash_amount} onChange={(e) => setField("cash_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-cairo text-xs">خصم من خرسانة (ج.م)</Label>
+                <Input type="number" value={payForm.deduction_amount} onChange={(e) => setField("deduction_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} placeholder="0" />
+              </div>
+              <p className="col-span-2 text-xs text-muted-foreground font-cairo">
+                الإجمالي: {fmt((Number(payForm.cash_amount) || 0) + (Number(payForm.deduction_amount) || 0))}
+              </p>
+            </div>
+          )}
 
           {/* Check fields */}
           {isCheck && (
