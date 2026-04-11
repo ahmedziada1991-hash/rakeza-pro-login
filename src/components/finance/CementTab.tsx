@@ -61,7 +61,7 @@ export function CementTab() {
   // Sale form
   const [saleForm, setSaleForm] = useState({
     purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "",
-    payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "",
+    payment_method: "balance_only", cash_amount: "", concrete_deduction_amount: "", notes: "",
   });
   const [saleDate, setSaleDate] = useState<Date | undefined>(new Date());
 
