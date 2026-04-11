@@ -133,7 +133,7 @@ export function CementTab() {
   // Inventory summary
   const inventory = useMemo(() => {
     const totalIn = (purchases ?? []).reduce((s: number, r: any) => s + (Number(r.quantity_tons) || 0), 0);
-    const totalOut = (sales ?? []).reduce((s: number, r: any) => s + (Number(r.quantity_tons) || 0), 0);
+    const totalOut = (sales ?? []).reduce((s: number, r: any) => s + (Number(r.cement_tons) || Number(r.quantity_tons) || 0), 0);
     const totalInValue = (purchases ?? []).reduce((s: number, r: any) => s + (Number(r.total_amount) || 0), 0);
     const totalOutValue = (sales ?? []).reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
     return { totalIn, totalOut, current: totalIn - totalOut, totalInValue, totalOutValue, profit: totalOutValue - totalInValue };
@@ -142,13 +142,31 @@ export function CementTab() {
   // Calculate profit per sale
   const salesWithProfit = useMemo(() => {
     if (!sales || !purchases) return [];
-    const purchaseMap = new Map((purchases ?? []).map((p: any) => [p.id, p]));
     return (sales ?? []).map((s: any) => {
-      const purchasePrice = s.cement_price_per_ton ? Number(s.cement_price_per_ton) : 0;
-      const salePrice = Number(s.price_per_ton) || (Number(s.amount) / (Number(s.quantity_tons) || 1));
-      const qty = Number(s.quantity_tons) || 0;
+      const qty = Number(s.cement_tons) || Number(s.quantity_tons) || 0;
+      const salePrice = Number(s.price_per_ton) || (qty > 0 ? Number(s.amount) / qty : 0);
+
+      // Purchase price: first try cement_price_per_ton from station_accounts
+      let purchasePrice = Number(s.cement_price_per_ton) || 0;
+
+      // Fallback: match supplier_accounts by destination_name = station name and closest date
+      if (!purchasePrice && s.station_name) {
+        const matchingPurchases = (purchases ?? []).filter(
+          (p: any) => p.destination_name === s.station_name
+        );
+        if (matchingPurchases.length > 0) {
+          const saleDate = new Date(s.created_at).getTime();
+          matchingPurchases.sort(
+            (a: any, b: any) =>
+              Math.abs(new Date(a.created_at).getTime() - saleDate) -
+              Math.abs(new Date(b.created_at).getTime() - saleDate)
+          );
+          purchasePrice = Number(matchingPurchases[0].price_per_ton) || 0;
+        }
+      }
+
       const profit = (salePrice - purchasePrice) * qty;
-      return { ...s, profit, purchasePrice, salePrice };
+      return { ...s, profit, purchasePrice, salePrice, displayQty: qty };
     });
   }, [sales, purchases]);
 
@@ -388,7 +406,7 @@ export function CementTab() {
                     <TableRow key={r.id}>
                       <TableCell className="font-cairo text-xs">{r.created_at ? format(new Date(r.created_at), "yyyy/MM/dd") : "—"}</TableCell>
                       <TableCell className="font-cairo text-xs">{r.station_name}</TableCell>
-                      <TableCell className="font-cairo">{r.quantity_tons}</TableCell>
+                      <TableCell className="font-cairo">{r.displayQty}</TableCell>
                       <TableCell className="font-cairo text-xs">{fmt(r.purchasePrice)}</TableCell>
                       <TableCell className="font-cairo text-xs">{fmt(r.salePrice)}</TableCell>
                       <TableCell className="font-cairo font-medium">{fmt(Number(r.amount))}</TableCell>
