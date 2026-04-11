@@ -133,7 +133,7 @@ export function StationsTab() {
       updateData.quantity_m3 = editRecord.quantity_m3 ? Number(editRecord.quantity_m3) : null;
       updateData.price_per_m3 = editRecord.price_per_m3 ? Number(editRecord.price_per_m3) : null;
     }
-    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") {
+    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale" || editRecord.transaction_type === "cement_deduction") {
       updateData.cement_tons = editRecord.cement_tons ? Number(editRecord.cement_tons) : null;
       updateData.cement_price_per_ton = editRecord.cement_price_per_ton ? Number(editRecord.cement_price_per_ton) : null;
     }
@@ -453,7 +453,7 @@ export function StationsTab() {
                     </div>
                   </>
                 )}
-                {(editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") && (
+                {(editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale" || editRecord.transaction_type === "cement_deduction") && (
                   <>
                     <div className="space-y-1.5">
                       <Label className="font-cairo">الكمية (طن)</Label>
