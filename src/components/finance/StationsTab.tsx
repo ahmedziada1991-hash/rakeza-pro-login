@@ -74,7 +74,7 @@ export function StationsTab() {
 
       const { data: txns } = await supabase
         .from("station_accounts" as any)
-        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton, cement_sale_id")
+        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton")
         .order("created_at", { ascending: false });
 
       const map = new Map<number, StationSummary>();
@@ -94,12 +94,6 @@ export function StationsTab() {
           acc.totalPours++;
           acc.totalCost += amt;
         } else if (type === "payment" || type === "دفعة" || type === "cement_deduction") {
-          // Split payments: cement-related vs concrete-related
-          if (t.cement_sale_id) {
-            (acc as any)._cementPaid = ((acc as any)._cementPaid || 0) + amt;
-          } else {
-            (acc as any)._concretePaid = ((acc as any)._concretePaid || 0) + amt;
-          }
           acc.totalPaid += amt;
         } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
           acc.cementBalance += amt;
@@ -107,11 +101,7 @@ export function StationsTab() {
       });
 
       map.forEach((acc) => {
-        const cementPaid = (acc as any)._cementPaid || 0;
-        const concretePaid = (acc as any)._concretePaid || 0;
-        const netConcrete = acc.totalCost - concretePaid;
-        const cementNet = acc.cementBalance - cementPaid;
-        acc.finalBalance = cementNet - netConcrete;
+        acc.finalBalance = acc.cementBalance - acc.totalPaid - acc.totalCost;
       });
 
       return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
@@ -224,7 +214,7 @@ export function StationsTab() {
   // Recalculate totals from statement data
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let totalCost = 0, cementBalance = 0, cementPaid = 0, concretePaid = 0;
+    let totalCost = 0, totalPaid = 0, cementBalance = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
@@ -233,20 +223,12 @@ export function StationsTab() {
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
         totalCost += amt;
       } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_deduction") {
-        if (t.cement_sale_id) {
-          cementPaid += amt;
-        } else {
-          concretePaid += amt;
-        }
+        totalPaid += amt;
       } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
         cementBalance += amt;
       }
     });
-    const totalPaid = cementPaid + concretePaid;
-    const netConcrete = totalCost - concretePaid;
-    const cementNet = cementBalance - cementPaid;
-    const finalBalance = cementNet - netConcrete;
-    return { totalCost, totalPaid, cementBalance, finalBalance };
+    return { totalCost, totalPaid, cementBalance, finalBalance: cementBalance - totalPaid - totalCost };
   })();
 
   const handlePrint = () => { window.print(); };
