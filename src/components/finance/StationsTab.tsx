@@ -53,8 +53,11 @@ interface StationSummary {
 export function StationsTab() {
   const { userRole } = useAuth();
   const isAdmin = userRole === "admin";
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedStation, setSelectedStation] = useState<StationSummary | null>(null);
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-stations-tab"],
