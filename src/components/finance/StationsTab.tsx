@@ -116,6 +116,47 @@ export function StationsTab() {
     },
   });
 
+  const invalidateStation = () => {
+    queryClient.invalidateQueries({ queryKey: ["station-statement", selectedStation?.id] });
+    queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+  };
+
+  const handleEditRecord = async () => {
+    if (!editRecord) return;
+    const updateData: any = {
+      amount: Number(editRecord.amount),
+      notes: editRecord.notes || null,
+      payment_method: editRecord.payment_method || null,
+    };
+    if (editRecord.transaction_type === "concrete") {
+      updateData.quantity_m3 = editRecord.quantity_m3 ? Number(editRecord.quantity_m3) : null;
+      updateData.price_per_m3 = editRecord.price_per_m3 ? Number(editRecord.price_per_m3) : null;
+    }
+    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") {
+      updateData.cement_tons = editRecord.cement_tons ? Number(editRecord.cement_tons) : null;
+      updateData.cement_price_per_ton = editRecord.cement_price_per_ton ? Number(editRecord.cement_price_per_ton) : null;
+    }
+    const { error } = await supabase.from("station_accounts" as any).update(updateData).eq("id", editRecord.id);
+    if (error) {
+      toast.error("فشل التحديث");
+    } else {
+      toast.success("تم التحديث بنجاح");
+      invalidateStation();
+    }
+    setEditRecord(null);
+  };
+
+  const handleDeleteRecord = async () => {
+    if (!deleteRecordId) return;
+    const { error } = await supabase.from("station_accounts" as any).delete().eq("id", deleteRecordId);
+    if (error) {
+      toast.error("فشل الحذف");
+    } else {
+      toast.success("تم الحذف بنجاح");
+      invalidateStation();
+    }
+    setDeleteRecordId(null);
+  };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   // Deduplicate pours
