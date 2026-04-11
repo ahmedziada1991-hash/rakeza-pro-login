@@ -49,6 +49,8 @@ interface SupplierSummary {
 
 export function SuppliersTab() {
   const queryClient = useQueryClient();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === "admin";
   const [search, setSearch] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<SupplierSummary | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -56,6 +58,8 @@ export function SuppliersTab() {
   const [supplierForm, setSupplierForm] = useState({ name: "", phone: "", address: "" });
   const [payForm, setPayForm] = useState({ supplier_id: "", amount: "", payment_method: "cash", notes: "" });
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-suppliers-tab"],
