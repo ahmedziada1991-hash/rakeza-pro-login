@@ -207,8 +207,8 @@ export function StationsTab() {
     seen.add(t.pour_order_id);
     return true;
   });
-  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة");
-  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction");
+  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_deduction");
+  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
 
   // Recalculate totals from statement data
   const statementTotals = (() => {
@@ -221,13 +221,13 @@ export function StationsTab() {
         if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
         totalCost += amt;
-      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة") {
+      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_deduction") {
         totalPaid += amt;
-      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction") {
+      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
         cementBalance += amt;
       }
     });
-    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost - totalPaid - cementBalance };
+    return { totalCost, totalPaid, cementBalance, finalBalance: (totalCost + cementBalance) - totalPaid };
   })();
 
   const handlePrint = () => { window.print(); };
