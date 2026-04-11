@@ -437,12 +437,20 @@ export function ClientsTab() {
                       <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{t.notes ?? "—"}</td>
                       {isAdmin && (
                         <td className="px-2 py-2.5 print:hidden">
-                          <button
-                            onClick={() => setDeletePaymentId(t.id)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => setEditPayment({ ...t })}
+                              className="text-muted-foreground hover:text-primary"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletePaymentId(t.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -492,6 +500,41 @@ export function ClientsTab() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit payment dialog */}
+        <Dialog open={!!editPayment} onOpenChange={(open) => !open && setEditPayment(null)}>
+          <DialogContent dir="rtl" className="sm:max-w-sm">
+            <DialogHeader><DialogTitle className="font-cairo text-right">تعديل الدفعة</DialogTitle></DialogHeader>
+            {editPayment && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">المبلغ</Label>
+                  <Input type="number" value={editPayment.amount} onChange={(e) => setEditPayment((p: any) => ({ ...p, amount: e.target.value }))} className="font-cairo" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">طريقة الدفع</Label>
+                  <Select value={editPayment.payment_method ?? ""} onValueChange={(v) => setEditPayment((p: any) => ({ ...p, payment_method: v }))}>
+                    <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
+                      <SelectItem value="bank_transfer" className="font-cairo">تحويل بنكي</SelectItem>
+                      <SelectItem value="check" className="font-cairo">شيك</SelectItem>
+                      <SelectItem value="online" className="font-cairo">أونلاين</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">ملاحظات</Label>
+                  <Textarea value={editPayment.notes ?? ""} onChange={(e) => setEditPayment((p: any) => ({ ...p, notes: e.target.value }))} className="font-cairo" rows={2} />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+              <Button onClick={handleEditPayment} className="font-cairo">حفظ التعديلات</Button>
+              <Button variant="outline" onClick={() => setEditPayment(null)} className="font-cairo">إلغاء</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
