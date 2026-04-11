@@ -274,6 +274,7 @@ export function CementTab() {
         station_id: Number(saleForm.station_id),
         quantity_tons: qty,
         price_per_ton: ppt,
+        sale_price_per_ton: ppt,
         payment_method: saleForm.payment_method,
         cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
         concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
