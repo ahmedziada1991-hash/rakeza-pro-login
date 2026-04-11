@@ -175,6 +175,27 @@ export function StationsTab() {
     }
     setDeleteRecordId(null);
   };
+
+  const handleDeleteCementSale = async () => {
+    if (!deleteCementSaleId) return;
+    // Get the sale record first to find related station_accounts
+    const { data: sale } = await supabase.from("cement_sales" as any).select("*").eq("id", deleteCementSaleId).single();
+    if (sale) {
+      // Delete related station_accounts by matching created_at and station_id
+      await supabase.from("station_accounts" as any).delete()
+        .eq("station_id", sale.station_id)
+        .eq("created_at", sale.created_at);
+    }
+    // Delete the cement_sales record
+    const { error } = await supabase.from("cement_sales" as any).delete().eq("id", deleteCementSaleId);
+    if (error) {
+      toast.error("فشل الحذف");
+    } else {
+      toast.success("تم الحذف بنجاح");
+      invalidateStation();
+    }
+    setDeleteCementSaleId(null);
+  };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   // Deduplicate pours
