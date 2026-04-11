@@ -400,14 +400,23 @@ export function ClientsManagement() {
         // Insert client_accounts
         await supabase.from("client_accounts").insert({
           client_id: clientId,
+          client_name: form.name.trim(),
+          client_phone: form.phone || null,
           transaction_type: "pour",
           amount: pourTotal,
+          quantity_m3: form.actual_quantity,
+          price_per_m3: form.price_per_m3,
+          station_name: stationName,
           pour_order_id: pourOrderId,
           date: form.scheduled_date,
           description: `صبة ${form.concrete_type} - ${form.actual_quantity} م³`,
         } as any);
 
-        // Insert station_accounts
+        // Insert station_accounts — amount = quantity × station purchase price if available
+        const selectedStation = stations?.find((s) => s.id === form.station_id);
+        const stationPricePerM3 = Number((selectedStation as any)?.station_price_per_m3) || 0;
+        const stationAmount = stationPricePerM3 > 0 ? form.actual_quantity * stationPricePerM3 : pourTotal;
+
         await supabase.from("station_accounts").insert({
           station_id: form.station_id,
           station_name: stationName,
@@ -415,7 +424,7 @@ export function ClientsManagement() {
           quantity_m3: form.actual_quantity,
           pour_order_id: pourOrderId,
           date: form.scheduled_date,
-          amount: pourTotal,
+          amount: stationAmount,
           description: `صبة ${form.concrete_type} - عميل: ${form.name.trim()}`,
         } as any);
       }
