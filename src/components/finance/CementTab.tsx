@@ -977,6 +977,7 @@ export function CementTab() {
           </div>
           <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={() => {
+              if (addSaleMutation.isPending) return;
               // purchase_id is optional - user can enter quantity manually
               if (!saleForm.station_id) { toast({ title: "اختر المحطة", variant: "destructive" }); return; }
               if (!saleForm.quantity_tons || Number(saleForm.quantity_tons) <= 0) { toast({ title: "أدخل الكمية", variant: "destructive" }); return; }
@@ -984,9 +985,9 @@ export function CementTab() {
               addSaleMutation.mutate();
             }} disabled={addSaleMutation.isPending} className="font-cairo gap-1">
               {addSaleMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editingSale ? "حفظ التعديل" : "تسجيل"}
+              {addSaleMutation.isPending ? "جاري الحفظ..." : (editingSale ? "حفظ التعديل" : "تسجيل")}
             </Button>
-            <Button variant="outline" onClick={() => setSaleDialogOpen(false)} className="font-cairo">إلغاء</Button>
+            <Button variant="outline" onClick={() => setSaleDialogOpen(false)} disabled={addSaleMutation.isPending} className="font-cairo">إلغاء</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
