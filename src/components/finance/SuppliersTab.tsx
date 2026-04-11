@@ -141,6 +141,9 @@ export function SuppliersTab() {
 
   const payMutation = useMutation({
     mutationFn: async () => {
+      const dateOverride = paymentDate ? new Date(format(paymentDate, "yyyy-MM-dd") + "T00:00:00").toISOString() : undefined;
+
+      // 1) Insert into supplier_payments
       const { error } = await supabase.from("supplier_payments").insert({
         supplier_id: Number(payForm.supplier_id),
         amount: Number(payForm.amount),
@@ -149,6 +152,17 @@ export function SuppliersTab() {
         notes: payForm.notes || null,
       });
       if (error) throw error;
+
+      // 2) Insert into supplier_accounts so it appears in the statement
+      const { error: saErr } = await supabase.from("supplier_accounts" as any).insert({
+        supplier_id: Number(payForm.supplier_id),
+        transaction_type: "payment",
+        total_amount: Number(payForm.amount),
+        payment_method: payForm.payment_method,
+        notes: payForm.notes || null,
+        ...(dateOverride && { created_at: dateOverride }),
+      });
+      if (saErr) throw saErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
