@@ -37,6 +37,12 @@ const STATION_PAYMENT_METHODS = [
   { value: "bank_transfer", label: "تحويل بنكي" },
 ];
 
+const CEMENT_PAYMENT_METHODS = [
+  { value: "cash", label: "كاش" },
+  { value: "concrete_deduction", label: "خصم من خرسانة" },
+  { value: "mixed", label: "مختلط (كاش + خصم)" },
+];
+
 const PAYMENT_TYPES = [
   { value: "client", label: "دفعة عميل" },
   { value: "station", label: "دفعة محطة" },
