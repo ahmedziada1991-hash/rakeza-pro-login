@@ -22,7 +22,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowDown, ArrowUp, CalendarIcon, Loader2, Trash2, TrendingUp } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarIcon, Loader2, Pencil, Trash2, TrendingUp } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -43,6 +43,8 @@ export function CementTab() {
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "purchase" | "sale"; record: any } | null>(null);
+  const [editingPurchase, setEditingPurchase] = useState<any>(null);
+  const [editingSale, setEditingSale] = useState<any>(null);
 
   // Stock form
   const [stockForm, setStockForm] = useState({
@@ -232,32 +234,54 @@ export function CementTab() {
       const total = qty * ppt;
       const destStation = (stations ?? []).find((s: any) => String(s.id) === stockForm.destination_station_id);
 
-      // 1. Insert into supplier_accounts
-      const { error: saErr } = await supabase.from("supplier_accounts" as any).insert({
-        supplier_id: Number(stockForm.supplier_id),
-        transaction_type: "purchase",
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        total_amount: total,
-        destination_name: destStation?.name || null,
-        notes: stockForm.notes || null,
-      });
-      if (saErr) throw saErr;
+      if (editingPurchase) {
+        // UPDATE mode
+        const { error: saErr } = await supabase.from("supplier_accounts" as any).update({
+          supplier_id: Number(stockForm.supplier_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          total_amount: total,
+          destination_name: destStation?.name || null,
+          notes: stockForm.notes || null,
+        }).eq("id", editingPurchase.id);
+        if (saErr) throw saErr;
 
-      // 2. Insert into cement_stock
-      const { error: csErr } = await supabase.from("cement_stock").insert({
-        supplier_id: Number(stockForm.supplier_id),
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
-        notes: stockForm.notes || null,
-      });
-      if (csErr) throw csErr;
+        // Update cement_stock by matching supplier_id + created_at
+        await supabase.from("cement_stock" as any).update({
+          supplier_id: Number(stockForm.supplier_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
+          notes: stockForm.notes || null,
+        }).eq("supplier_id", editingPurchase.supplier_id).eq("created_at", editingPurchase.created_at);
+      } else {
+        // INSERT mode
+        const { error: saErr } = await supabase.from("supplier_accounts" as any).insert({
+          supplier_id: Number(stockForm.supplier_id),
+          transaction_type: "purchase",
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          total_amount: total,
+          destination_name: destStation?.name || null,
+          notes: stockForm.notes || null,
+        });
+        if (saErr) throw saErr;
+
+        const { error: csErr } = await supabase.from("cement_stock").insert({
+          supplier_id: Number(stockForm.supplier_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
+          notes: stockForm.notes || null,
+        });
+        if (csErr) throw csErr;
+      }
     },
     onSuccess: () => {
       invalidateAll();
-      toast({ title: "تم تسجيل الوارد بنجاح" });
+      toast({ title: editingPurchase ? "تم التعديل بنجاح" : "تم تسجيل الوارد بنجاح" });
       setStockDialogOpen(false);
+      setEditingPurchase(null);
       setStockForm({ supplier_id: "", quantity_tons: "", price_per_ton: "", destination_station_id: "", notes: "" });
     },
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
@@ -270,58 +294,82 @@ export function CementTab() {
       const total = qty * ppt;
       const purchasePrice = selectedPurchase ? Number(selectedPurchase.price_per_ton) : 0;
 
-      // 1. Insert into station_accounts
-      const stationPayload: any = {
-        station_id: Number(saleForm.station_id),
-        transaction_type: "cement",
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        amount: total,
-        cement_source_type: "purchased",
-        cement_price_per_ton: purchasePrice,
-        payment_method: saleForm.payment_method,
-        notes: saleForm.notes || null,
-      };
-      const { error: stErr } = await supabase.from("station_accounts" as any).insert(stationPayload);
-      if (stErr) throw stErr;
+      if (editingSale) {
+        // UPDATE mode
+        const { error: stErr } = await supabase.from("station_accounts" as any).update({
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          amount: total,
+          cement_price_per_ton: purchasePrice,
+          payment_method: saleForm.payment_method,
+          notes: saleForm.notes || null,
+        }).eq("id", editingSale.id);
+        if (stErr) throw stErr;
 
-      // 2. Handle concrete deduction if needed
-      if (saleForm.payment_method === "concrete_deduction" || saleForm.payment_method === "mixed") {
-        const deductAmt = saleForm.payment_method === "concrete_deduction"
-          ? total
-          : Number(saleForm.concrete_deduction_amount) || 0;
+        // Update cement_sales by matching station_id + created_at
+        await supabase.from("cement_sales" as any).update({
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          sale_price_per_ton: ppt,
+          payment_method: saleForm.payment_method,
+          cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
+          concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
+          sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
+          notes: saleForm.notes || null,
+        }).eq("station_id", editingSale.station_id).eq("created_at", editingSale.created_at);
+      } else {
+        // INSERT mode
+        const stationPayload: any = {
+          station_id: Number(saleForm.station_id),
+          transaction_type: "cement",
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          amount: total,
+          cement_source_type: "purchased",
+          cement_price_per_ton: purchasePrice,
+          payment_method: saleForm.payment_method,
+          notes: saleForm.notes || null,
+        };
+        const { error: stErr } = await supabase.from("station_accounts" as any).insert(stationPayload);
+        if (stErr) throw stErr;
 
-        if (deductAmt > 0) {
-          // Deduct from concrete debt
-          const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
-            station_id: Number(saleForm.station_id),
-            transaction_type: "payment",
-            amount: deductAmt,
-            payment_method: "concrete_deduction",
-            notes: "خصم تلقائي مقابل أسمنت",
-          });
-          if (deductErr) throw deductErr;
+        if (saleForm.payment_method === "concrete_deduction" || saleForm.payment_method === "mixed") {
+          const deductAmt = saleForm.payment_method === "concrete_deduction"
+            ? total
+            : Number(saleForm.concrete_deduction_amount) || 0;
+          if (deductAmt > 0) {
+            const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
+              station_id: Number(saleForm.station_id),
+              transaction_type: "payment",
+              amount: deductAmt,
+              payment_method: "concrete_deduction",
+              notes: "خصم تلقائي مقابل أسمنت",
+            });
+            if (deductErr) throw deductErr;
+          }
         }
-      }
 
-      // 3. Insert negative record into cement_stock (deduction)
-      const { error: csErr } = await supabase.from("cement_sales").insert({
-        station_id: Number(saleForm.station_id),
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        sale_price_per_ton: ppt,
-        payment_method: saleForm.payment_method,
-        cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
-        concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
-        sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
-        notes: saleForm.notes || null,
-      });
-      if (csErr) throw csErr;
+        const { error: csErr } = await supabase.from("cement_sales").insert({
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          sale_price_per_ton: ppt,
+          payment_method: saleForm.payment_method,
+          cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
+          concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
+          sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
+          notes: saleForm.notes || null,
+        });
+        if (csErr) throw csErr;
+      }
     },
     onSuccess: () => {
       invalidateAll();
-      toast({ title: "تم تسجيل البيع بنجاح" });
+      toast({ title: editingSale ? "تم التعديل بنجاح" : "تم تسجيل البيع بنجاح" });
       setSaleDialogOpen(false);
+      setEditingSale(null);
       setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" });
     },
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
@@ -339,6 +387,36 @@ export function CementTab() {
     return qty * ppt;
   }, [stockForm.quantity_tons, stockForm.price_per_ton]);
 
+  // Edit handlers
+  const handleEditPurchase = (r: any) => {
+    const matchedStation = (stations ?? []).find((s: any) => s.name === r.destination_name);
+    setStockForm({
+      supplier_id: String(r.supplier_id),
+      quantity_tons: String(r.quantity_tons ?? ""),
+      price_per_ton: String(r.price_per_ton ?? ""),
+      destination_station_id: matchedStation ? String(matchedStation.id) : "",
+      notes: r.notes ?? "",
+    });
+    setStockDate(r.created_at ? new Date(r.created_at) : new Date());
+    setEditingPurchase(r);
+    setStockDialogOpen(true);
+  };
+
+  const handleEditSale = (r: any) => {
+    setSaleForm({
+      purchase_id: "",
+      station_id: String(r.station_id),
+      quantity_tons: String(r.cement_tons ?? r.quantity_tons ?? ""),
+      price_per_ton: String(r.price_per_ton ?? (r.amount && (r.cement_tons || r.quantity_tons) ? Number(r.amount) / (Number(r.cement_tons) || Number(r.quantity_tons)) : "")),
+      payment_method: r.payment_method ?? "cash",
+      cash_amount: String(r.cash_amount ?? ""),
+      concrete_deduction_amount: String(r.concrete_deduction_amount ?? ""),
+      notes: r.notes ?? "",
+    });
+    setSaleDate(r.created_at ? new Date(r.created_at) : new Date());
+    setEditingSale(r);
+    setSaleDialogOpen(true);
+  };
   const isLoading = loadingPurchases || loadingSales;
 
   if (isLoading) {
@@ -412,7 +490,10 @@ export function CementTab() {
                       <TableCell className="font-cairo font-medium">{fmt(Number(r.total_amount))}</TableCell>
                       <TableCell className="font-cairo text-xs">{r.destination_name ?? "—"}</TableCell>
                       <TableCell className="font-cairo text-xs text-muted-foreground">{r.notes ?? "—"}</TableCell>
-                      <TableCell>
+                      <TableCell className="flex gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEditPurchase(r)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: "purchase", record: r })}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -472,7 +553,10 @@ export function CementTab() {
                           {PAYMENT_LABELS[r.payment_method] ?? r.payment_method}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="flex gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEditSale(r)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: "sale", record: r })}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -487,9 +571,9 @@ export function CementTab() {
       </Card>
 
       {/* Add Stock Dialog */}
-      <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
+      <Dialog open={stockDialogOpen} onOpenChange={(open) => { setStockDialogOpen(open); if (!open) { setEditingPurchase(null); setStockForm({ supplier_id: "", quantity_tons: "", price_per_ton: "", destination_station_id: "", notes: "" }); } }}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle className="font-cairo text-right">تسجيل وارد أسمنت</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-cairo text-right">{editingPurchase ? "تعديل سجل وارد" : "تسجيل وارد أسمنت"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label className="font-cairo">المورد *</Label>
@@ -556,7 +640,7 @@ export function CementTab() {
               addStockMutation.mutate();
             }} disabled={addStockMutation.isPending} className="font-cairo gap-1">
               {addStockMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              تسجيل
+              {editingPurchase ? "حفظ التعديل" : "تسجيل"}
             </Button>
             <Button variant="outline" onClick={() => setStockDialogOpen(false)} className="font-cairo">إلغاء</Button>
           </DialogFooter>
@@ -564,11 +648,12 @@ export function CementTab() {
       </Dialog>
 
       {/* Add Sale Dialog */}
-      <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
+      <Dialog open={saleDialogOpen} onOpenChange={(open) => { setSaleDialogOpen(open); if (!open) { setEditingSale(null); setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" }); } }}>
         <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
-          <DialogHeader><DialogTitle className="font-cairo text-right">تسجيل بيع أسمنت لمحطة</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-cairo text-right">{editingSale ? "تعديل سجل بيع" : "تسجيل بيع أسمنت لمحطة"}</DialogTitle></DialogHeader>
           <div className="space-y-3 overflow-y-auto flex-1 pl-1">
-            {/* Select Purchase */}
+            {/* Select Purchase - hidden in edit mode */}
+            {!editingSale && (
             <div className="space-y-1.5">
               <Label className="font-cairo">اختر النقلة (الوارد) *</Label>
               <Select value={saleForm.purchase_id} onValueChange={handlePurchaseSelect}>
@@ -587,6 +672,7 @@ export function CementTab() {
                 </p>
               )}
             </div>
+            )}
 
             {/* Station */}
             <div className="space-y-1.5">
@@ -675,14 +761,14 @@ export function CementTab() {
           </div>
           <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={() => {
-              if (!saleForm.purchase_id) { toast({ title: "اختر النقلة", variant: "destructive" }); return; }
+              if (!editingSale && !saleForm.purchase_id) { toast({ title: "اختر النقلة", variant: "destructive" }); return; }
               if (!saleForm.station_id) { toast({ title: "اختر المحطة", variant: "destructive" }); return; }
               if (!saleForm.quantity_tons || Number(saleForm.quantity_tons) <= 0) { toast({ title: "أدخل الكمية", variant: "destructive" }); return; }
               if (!saleForm.price_per_ton || Number(saleForm.price_per_ton) <= 0) { toast({ title: "أدخل السعر", variant: "destructive" }); return; }
               addSaleMutation.mutate();
             }} disabled={addSaleMutation.isPending} className="font-cairo gap-1">
               {addSaleMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              تسجيل
+              {editingSale ? "حفظ التعديل" : "تسجيل"}
             </Button>
             <Button variant="outline" onClick={() => setSaleDialogOpen(false)} className="font-cairo">إلغاء</Button>
           </DialogFooter>
