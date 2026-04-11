@@ -84,7 +84,15 @@ export function CementTab() {
         ? await supabase.from("suppliers").select("id, name").in("id", supIds)
         : { data: [] };
       const supMap = new Map((sups ?? []).map((s: any) => [s.id, s.name]));
-      return (data ?? []).map((d: any) => ({ ...d, supplier_name: supMap.get(d.supplier_id) ?? "—" }));
+      // Deduplicate by id
+      const seen = new Set<string>();
+      return (data ?? [])
+        .filter((d: any) => {
+          if (seen.has(String(d.id))) return false;
+          seen.add(String(d.id));
+          return true;
+        })
+        .map((d: any) => ({ ...d, supplier_name: supMap.get(d.supplier_id) ?? "—" }));
     },
   });
 
