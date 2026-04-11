@@ -764,25 +764,40 @@ export function CementTab() {
             {/* Payment method */}
             <div className="space-y-1.5">
               <Label className="font-cairo">طريقة الدفع</Label>
-              <Select value={saleForm.payment_method} onValueChange={(v) => setSaleForm((f) => ({ ...f, payment_method: v }))}>
+              <Select value={saleForm.payment_method} onValueChange={(v) => setSaleForm((f) => ({ ...f, payment_method: v, cash_amount: "", concrete_deduction_amount: "" }))}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
-                  <SelectItem value="concrete_deduction" className="font-cairo">خصم من خرسانة</SelectItem>
+                  <SelectItem value="balance_only" className="font-cairo">رصيد فقط (دين)</SelectItem>
+                  <SelectItem value="cash_full" className="font-cairo">كاش كامل</SelectItem>
+                  <SelectItem value="cash_partial" className="font-cairo">كاش جزئي</SelectItem>
+                  <SelectItem value="deduction_full" className="font-cairo">خصم كامل من مديونيتي</SelectItem>
+                  <SelectItem value="deduction_partial" className="font-cairo">خصم جزئي من مديونيتي</SelectItem>
                   <SelectItem value="mixed" className="font-cairo">مختلط (كاش + خصم)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {saleForm.payment_method === "mixed" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">مبلغ كاش</Label>
-                  <Input type="number" value={saleForm.cash_amount} onChange={(e) => setSaleForm((f) => ({ ...f, cash_amount: e.target.value }))} className="font-cairo" min={0} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">خصم خرسانة</Label>
-                  <Input type="number" value={saleForm.concrete_deduction_amount} onChange={(e) => setSaleForm((f) => ({ ...f, concrete_deduction_amount: e.target.value }))} className="font-cairo" min={0} />
-                </div>
+
+            {/* Conditional cash field */}
+            {(saleForm.payment_method === "cash_partial" || saleForm.payment_method === "mixed") && (
+              <div className="space-y-1.5">
+                <Label className="font-cairo">المحطة دفعت كاش</Label>
+                <Input type="number" value={saleForm.cash_amount} onChange={(e) => setSaleForm((f) => ({ ...f, cash_amount: e.target.value }))} className="font-cairo" min={0} />
+              </div>
+            )}
+
+            {/* Conditional deduction field */}
+            {(saleForm.payment_method === "deduction_partial" || saleForm.payment_method === "mixed") && (
+              <div className="space-y-1.5">
+                <Label className="font-cairo">المبلغ المخصوم من مديونيتي</Label>
+                <Input type="number" value={saleForm.concrete_deduction_amount} onChange={(e) => setSaleForm((f) => ({ ...f, concrete_deduction_amount: e.target.value }))} className="font-cairo" />
+              </div>
+            )}
+
+            {/* Remaining balance display */}
+            {saleTotal > 0 && saleForm.payment_method !== "balance_only" && saleForm.payment_method !== "cash_full" && saleForm.payment_method !== "deduction_full" && (
+              <div className="bg-muted rounded-md p-2 text-center">
+                <span className="font-cairo text-sm text-muted-foreground">الباقي رصيد على المحطة: </span>
+                <span className={`font-cairo font-bold ${saleRemaining > 0 ? "text-orange-600" : "text-emerald-600"}`}>{fmt(saleRemaining)}</span>
               </div>
             )}
 
