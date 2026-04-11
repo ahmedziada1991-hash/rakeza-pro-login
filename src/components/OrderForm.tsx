@@ -38,6 +38,7 @@ export function OrderForm({ orderId }: { orderId?: string }) {
     concrete_type: "",
     quantity_m3: "",
     agreed_price_per_m3: "",
+    purchase_price: "",
     cement_content: "",
     address: "",
     status: "pending",
