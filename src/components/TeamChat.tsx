@@ -166,51 +166,51 @@ export function TeamChat() {
 
   // Send message
   const sendMutation = useMutation({
-    mutationFn: async () => {
-      if (!messageText.trim() || !user?.id) return;
+    mutationFn: async (text: string) => {
+      if (!text.trim() || !user?.id) return;
       const payload = {
         sender_id: user.id,
         sender_name: currentUserName ?? "مستخدم",
         receiver_id: selectedChat?.type === "private" ? selectedChat.userId! : null,
-        message: messageText.trim(),
+        message: text.trim(),
         is_read: false,
       };
-      const { error } = await supabase.from("messages").insert(payload);
+      const { error } = await supabase.from("messages").insert([payload]);
       if (error) {
         console.error("Message insert error:", error);
         throw error;
       }
     },
-    onMutate: async () => {
-      // Optimistic update - show message instantly
-      const optimisticMsg: ChatMessage = {
-        id: Date.now(),
-        sender_id: user!.id,
-        sender_name: currentUserName ?? "مستخدم",
-        receiver_id: selectedChat?.type === "private" ? selectedChat!.userId! : null,
-        message: messageText.trim(),
-        is_read: false,
-        created_at: new Date().toISOString(),
-      };
-      const key = ["chat-messages", selectedChat?.type, selectedChat?.userId];
-      const prev = queryClient.getQueryData<ChatMessage[]>(key) ?? [];
-      queryClient.setQueryData(key, [...prev, optimisticMsg]);
-      return { key, prev };
-    },
-    onSuccess: (_data, _vars, context) => {
-      setMessageText("");
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-unread-count"] });
     },
-    onError: (err: any, _vars, context: any) => {
-      // Rollback optimistic update
-      if (context?.key) queryClient.setQueryData(context.key, context.prev);
+    onError: (err: any) => {
       console.error("Failed to send message:", err);
     },
   });
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (messageText.trim()) sendMutation.mutate();
+    const text = messageText.trim();
+    if (!text) return;
+    
+    // Optimistic update - show message instantly
+    const optimisticMsg: ChatMessage = {
+      id: Date.now(),
+      sender_id: user!.id,
+      sender_name: currentUserName ?? "مستخدم",
+      receiver_id: selectedChat?.type === "private" ? selectedChat!.userId! : null,
+      message: text,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+    const key = ["chat-messages", selectedChat?.type, selectedChat?.userId];
+    const prev = queryClient.getQueryData<ChatMessage[]>(key) ?? [];
+    queryClient.setQueryData(key, [...prev, optimisticMsg]);
+    
+    setMessageText("");
+    sendMutation.mutate(text);
   };
 
   const formatTime = (dateStr: string) => {
