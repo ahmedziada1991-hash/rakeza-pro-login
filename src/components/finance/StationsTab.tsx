@@ -91,7 +91,7 @@ export function StationsTab() {
           acc.totalCost += amt;
         } else if (type === "payment" || type === "دفعة") {
           acc.totalPaid += amt;
-        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
+        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale" || type === "cement_deduction") {
           acc.cementBalance += amt;
         }
       });

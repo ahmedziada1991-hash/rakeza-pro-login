@@ -380,7 +380,7 @@ export function CementTab() {
         if (deductAmt > 0) {
           const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
             station_id: Number(saleForm.station_id),
-            transaction_type: "payment",
+            transaction_type: "cement_deduction",
             amount: deductAmt,
             payment_method: "concrete_deduction",
             notes: "خصم تلقائي من مديونية مقابل أسمنت",
