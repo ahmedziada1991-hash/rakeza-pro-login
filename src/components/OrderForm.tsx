@@ -152,20 +152,34 @@ export function OrderForm({ orderId }: { orderId?: string }) {
 
         const dateStr = scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null;
 
-        // Insert into client_accounts
+        // Insert into client_accounts with duplicate protection
         if (Number(form.client_id) && quantity > 0) {
-          const { error: clientErr } = await supabase.from("client_accounts").insert({
-            client_id: Number(form.client_id),
-            client_name: clientName,
-            transaction_type: "pour",
-            amount: total,
-            station_name: form.station_name || null,
-            pour_order_id: data.id,
-            notes: `صبة ${form.concrete_type} - ${quantity} م³`,
-          });
-          if (clientErr) {
-            console.error("client_accounts insert error:", clientErr);
-            toast({ title: "تحذير", description: "تم إنشاء الطلب لكن فشل تسجيله في حساب العميل", variant: "destructive" });
+          const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
+          const { data: existing } = await supabase
+            .from("client_accounts")
+            .select("id")
+            .eq("client_id", Number(form.client_id))
+            .eq("transaction_type", "pour")
+            .eq("amount", total)
+            .gte("created_at", fiveSecondsAgo)
+            .limit(1);
+
+          if (!existing || existing.length === 0) {
+            const { error: clientErr } = await supabase.from("client_accounts").insert({
+              client_id: Number(form.client_id),
+              client_name: clientName,
+              transaction_type: "pour",
+              amount: total,
+              station_name: form.station_name || null,
+              pour_order_id: data.id,
+              notes: `صبة ${form.concrete_type} - ${quantity} م³`,
+            });
+            if (clientErr) {
+              console.error("client_accounts insert error:", clientErr);
+              toast({ title: "تحذير", description: "تم إنشاء الطلب لكن فشل تسجيله في حساب العميل", variant: "destructive" });
+            }
+          } else {
+            console.warn("Duplicate client_accounts entry prevented");
           }
         }
 
