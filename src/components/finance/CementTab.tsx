@@ -234,32 +234,54 @@ export function CementTab() {
       const total = qty * ppt;
       const destStation = (stations ?? []).find((s: any) => String(s.id) === stockForm.destination_station_id);
 
-      // 1. Insert into supplier_accounts
-      const { error: saErr } = await supabase.from("supplier_accounts" as any).insert({
-        supplier_id: Number(stockForm.supplier_id),
-        transaction_type: "purchase",
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        total_amount: total,
-        destination_name: destStation?.name || null,
-        notes: stockForm.notes || null,
-      });
-      if (saErr) throw saErr;
+      if (editingPurchase) {
+        // UPDATE mode
+        const { error: saErr } = await supabase.from("supplier_accounts" as any).update({
+          supplier_id: Number(stockForm.supplier_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          total_amount: total,
+          destination_name: destStation?.name || null,
+          notes: stockForm.notes || null,
+        }).eq("id", editingPurchase.id);
+        if (saErr) throw saErr;
 
-      // 2. Insert into cement_stock
-      const { error: csErr } = await supabase.from("cement_stock").insert({
-        supplier_id: Number(stockForm.supplier_id),
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
-        notes: stockForm.notes || null,
-      });
-      if (csErr) throw csErr;
+        // Update cement_stock by matching supplier_id + created_at
+        await supabase.from("cement_stock" as any).update({
+          supplier_id: Number(stockForm.supplier_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
+          notes: stockForm.notes || null,
+        }).eq("supplier_id", editingPurchase.supplier_id).eq("created_at", editingPurchase.created_at);
+      } else {
+        // INSERT mode
+        const { error: saErr } = await supabase.from("supplier_accounts" as any).insert({
+          supplier_id: Number(stockForm.supplier_id),
+          transaction_type: "purchase",
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          total_amount: total,
+          destination_name: destStation?.name || null,
+          notes: stockForm.notes || null,
+        });
+        if (saErr) throw saErr;
+
+        const { error: csErr } = await supabase.from("cement_stock").insert({
+          supplier_id: Number(stockForm.supplier_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
+          notes: stockForm.notes || null,
+        });
+        if (csErr) throw csErr;
+      }
     },
     onSuccess: () => {
       invalidateAll();
-      toast({ title: "تم تسجيل الوارد بنجاح" });
+      toast({ title: editingPurchase ? "تم التعديل بنجاح" : "تم تسجيل الوارد بنجاح" });
       setStockDialogOpen(false);
+      setEditingPurchase(null);
       setStockForm({ supplier_id: "", quantity_tons: "", price_per_ton: "", destination_station_id: "", notes: "" });
     },
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
