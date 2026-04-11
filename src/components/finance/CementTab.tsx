@@ -517,9 +517,9 @@ export function CementTab() {
 
       {/* Add Sale Dialog */}
       <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle className="font-cairo text-right">تسجيل بيع أسمنت لمحطة</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto flex-1 pl-1">
             {/* Select Purchase */}
             <div className="space-y-1.5">
               <Label className="font-cairo">اختر النقلة (الوارد) *</Label>
