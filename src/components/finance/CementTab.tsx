@@ -740,7 +740,7 @@ export function CementTab() {
             {/* Select Purchase - hidden in edit mode */}
             {!editingSale && (
             <div className="space-y-1.5">
-              <Label className="font-cairo">اختر النقلة (الوارد) *</Label>
+              <Label className="font-cairo">اختر النقلة (الوارد)</Label>
               <Select value={saleForm.purchase_id} onValueChange={handlePurchaseSelect}>
                 <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر النقلة" /></SelectTrigger>
                 <SelectContent>
@@ -861,7 +861,7 @@ export function CementTab() {
           </div>
           <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={() => {
-              if (!editingSale && !saleForm.purchase_id) { toast({ title: "اختر النقلة", variant: "destructive" }); return; }
+              // purchase_id is optional - user can enter quantity manually
               if (!saleForm.station_id) { toast({ title: "اختر المحطة", variant: "destructive" }); return; }
               if (!saleForm.quantity_tons || Number(saleForm.quantity_tons) <= 0) { toast({ title: "أدخل الكمية", variant: "destructive" }); return; }
               if (!saleForm.price_per_ton || Number(saleForm.price_per_ton) <= 0) { toast({ title: "أدخل السعر", variant: "destructive" }); return; }
