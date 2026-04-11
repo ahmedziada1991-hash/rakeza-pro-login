@@ -416,6 +416,17 @@ export function CementTab() {
     return qty * ppt;
   }, [saleForm.quantity_tons, saleForm.price_per_ton]);
 
+  const saleRemaining = useMemo(() => {
+    const pm = saleForm.payment_method;
+    let cash = 0, deduct = 0;
+    if (pm === "cash_full") cash = saleTotal;
+    else if (pm === "cash_partial") cash = Number(saleForm.cash_amount) || 0;
+    else if (pm === "deduction_full") deduct = saleTotal;
+    else if (pm === "deduction_partial") deduct = Number(saleForm.concrete_deduction_amount) || 0;
+    else if (pm === "mixed") { cash = Number(saleForm.cash_amount) || 0; deduct = Number(saleForm.concrete_deduction_amount) || 0; }
+    return saleTotal - cash - deduct;
+  }, [saleTotal, saleForm.payment_method, saleForm.cash_amount, saleForm.concrete_deduction_amount]);
+
   const stockTotal = useMemo(() => {
     const qty = Number(stockForm.quantity_tons) || 0;
     const ppt = Number(stockForm.price_per_ton) || 0;
