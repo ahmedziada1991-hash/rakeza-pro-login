@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +45,23 @@ interface StaffUser {
   role: string;
 }
 
-type ClientForm = Omit<Client, "id" | "created_at" | "is_converted"> ;
+interface Station {
+  id: number;
+  name: string;
+}
+
+interface PourFields {
+  pour_exec_status: string; // "not_done" | "done"
+  station_id: number | null;
+  concrete_type: string;
+  cement_content: number | null;
+  actual_quantity: number | null;
+  price_per_m3: number | null;
+  amount_paid: number | null;
+  scheduled_date: string;
+}
+
+type ClientForm = Omit<Client, "id" | "created_at" | "is_converted"> & PourFields;
 
 const EMPTY_FORM: ClientForm = {
   name: "",
@@ -59,6 +75,14 @@ const EMPTY_FORM: ClientForm = {
   pour_status: null,
   assigned_sales_id: null,
   assigned_followup_id: null,
+  pour_exec_status: "not_done",
+  station_id: null,
+  concrete_type: "B350",
+  cement_content: null,
+  actual_quantity: null,
+  price_per_m3: null,
+  amount_paid: null,
+  scheduled_date: new Date().toISOString().slice(0, 10),
 };
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
