@@ -45,7 +45,6 @@ export function CementTab() {
   const [deleteTarget, setDeleteTarget] = useState<{ type: "purchase" | "sale"; record: any } | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<any>(null);
   const [editingSale, setEditingSale] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: "purchase" | "sale"; record: any } | null>(null);
 
   // Stock form
   const [stockForm, setStockForm] = useState({
