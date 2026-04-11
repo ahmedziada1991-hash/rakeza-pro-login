@@ -553,7 +553,10 @@ export function CementTab() {
                           {PAYMENT_LABELS[r.payment_method] ?? r.payment_method}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="flex gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEditSale(r)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: "sale", record: r })}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
