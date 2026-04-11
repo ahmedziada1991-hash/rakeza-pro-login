@@ -225,35 +225,7 @@ export function ClientsManagement() {
     }
   };
 
-  const upsertMutation = useMutation({
-    mutationFn: async (payload: { id?: number; data: Partial<ClientForm> }) => {
-      if (payload.id) {
-        const { error } = await supabase.from("clients").update(payload.data).eq("id", payload.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("clients").insert(payload.data);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      // Send assignment notifications if assignments changed
-      const clientName = form.name.trim();
-      const oldSalesId = editingClient?.assigned_sales_id ?? null;
-      const newSalesId = form.assigned_sales_id;
-      const oldFollowupId = editingClient?.assigned_followup_id ?? null;
-      const newFollowupId = form.assigned_followup_id;
-
-      sendAssignmentNotifications(clientName, oldSalesId, newSalesId, oldFollowupId, newFollowupId);
-
-      queryClient.invalidateQueries({ queryKey: ["clients-list"] });
-      queryClient.invalidateQueries({ queryKey: ["clients-count"] });
-      toast({ title: editingClient ? "تم تحديث العميل" : "تم إضافة العميل بنجاح" });
-      closeDialog();
-    },
-    onError: (err: any) => {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    },
-  });
+  const [saving, setSaving] = useState(false);
 
   function openAdd() {
     setEditingClient(null);
