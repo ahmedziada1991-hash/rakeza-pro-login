@@ -67,6 +67,29 @@ export function ProfitsTab() {
     queryFn: () => fetchMonthData(prevMonth),
   });
 
+  // Cement profit data
+  const fetchCementProfit = async (month: Date) => {
+    const start = format(startOfMonth(month), "yyyy-MM-dd");
+    const end = format(endOfMonth(month), "yyyy-MM-dd");
+    const { data } = await supabase
+      .from("station_accounts" as any)
+      .select("amount, quantity_tons, price_per_ton, cement_price_per_ton, created_at")
+      .eq("transaction_type", "cement")
+      .gte("created_at", start)
+      .lte("created_at", end + "T23:59:59");
+    return (data ?? []) as any[];
+  };
+
+  const { data: currentCement } = useQuery({
+    queryKey: ["finance-cement-profit", format(currentMonth, "yyyy-MM")],
+    queryFn: () => fetchCementProfit(currentMonth),
+  });
+
+  const { data: prevCement } = useQuery({
+    queryKey: ["finance-cement-profit", format(prevMonth, "yyyy-MM")],
+    queryFn: () => fetchCementProfit(prevMonth),
+  });
+
   const { data: clients } = useQuery({
     queryKey: ["clients-names-profits"],
     queryFn: async () => {
@@ -90,6 +113,18 @@ export function ProfitsTab() {
       cost += toAmount(o.station_total_amount);
     });
     return { revenue, cost, profit: revenue - cost, count: orders.length };
+  };
+
+  const calcCementProfit = (sales: any[]) => {
+    let totalRevenue = 0, totalCost = 0;
+    (sales ?? []).forEach((s: any) => {
+      const saleAmount = toAmount(s.amount);
+      const qty = toAmount(s.quantity_tons);
+      const purchasePrice = toAmount(s.cement_price_per_ton);
+      totalRevenue += saleAmount;
+      totalCost += purchasePrice * qty;
+    });
+    return { revenue: totalRevenue, cost: totalCost, profit: totalRevenue - totalCost, count: (sales ?? []).length };
   };
 
   const handleSavePrice = async (order: any, newPrice: number) => {
@@ -128,9 +163,13 @@ export function ProfitsTab() {
 
   const current = calcTotals(currentOrders ?? []);
   const prev = calcTotals(prevOrders ?? []);
+  const currentCementTotals = calcCementProfit(currentCement ?? []);
+  const prevCementTotals = calcCementProfit(prevCement ?? []);
   const isLoading = loadingCurrent || loadingPrev;
 
-  const profitChange = prev.profit !== 0 ? ((current.profit - prev.profit) / Math.abs(prev.profit)) * 100 : 0;
+  const totalCurrentProfit = current.profit + currentCementTotals.profit;
+  const totalPrevProfit = prev.profit + prevCementTotals.profit;
+  const profitChange = totalPrevProfit !== 0 ? ((totalCurrentProfit - totalPrevProfit) / Math.abs(totalPrevProfit)) * 100 : 0;
 
   useEffect(() => {
     console.log("[ProfitsTab] calculated totals", {
@@ -176,18 +215,22 @@ export function ProfitsTab() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card><CardContent className="p-3 text-center">
-          <p className="text-xs font-cairo text-muted-foreground">إيرادات البيع</p>
+          <p className="text-xs font-cairo text-muted-foreground">إيرادات الخرسانة</p>
           <p className="font-cairo font-bold text-primary text-lg">{fmt(current.revenue)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3 text-center">
-          <p className="text-xs font-cairo text-muted-foreground">تكلفة الشراء</p>
-          <p className="font-cairo font-bold text-orange-600 text-lg">{fmt(current.cost)}</p>
+          <p className="text-xs font-cairo text-muted-foreground">ربح الخرسانة</p>
+          <p className={`font-cairo font-bold text-lg ${current.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(current.profit)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3 text-center">
-          <p className="text-xs font-cairo text-muted-foreground">صافي الربح</p>
-          <p className={`font-cairo font-bold text-lg ${current.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(current.profit)}</p>
+          <p className="text-xs font-cairo text-muted-foreground">ربح الأسمنت</p>
+          <p className={`font-cairo font-bold text-lg ${currentCementTotals.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(currentCementTotals.profit)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-3 text-center">
+          <p className="text-xs font-cairo text-muted-foreground">إجمالي الربح</p>
+          <p className={`font-cairo font-bold text-lg ${totalCurrentProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(totalCurrentProfit)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3 text-center">
           <p className="text-xs font-cairo text-muted-foreground">مقارنة بالشهر السابق</p>
@@ -219,9 +262,12 @@ export function ProfitsTab() {
               <TableBody>
                 {[
                   { label: "عدد الصبات", curr: current.count, prev: prev.count, isMoney: false },
-                  { label: "الإيرادات", curr: current.revenue, prev: prev.revenue, isMoney: true },
-                  { label: "التكلفة", curr: current.cost, prev: prev.cost, isMoney: true },
-                  { label: "الربح", curr: current.profit, prev: prev.profit, isMoney: true },
+                  { label: "إيرادات الخرسانة", curr: current.revenue, prev: prev.revenue, isMoney: true },
+                  { label: "تكلفة الخرسانة", curr: current.cost, prev: prev.cost, isMoney: true },
+                  { label: "ربح الخرسانة", curr: current.profit, prev: prev.profit, isMoney: true },
+                  { label: "نقلات أسمنت", curr: currentCementTotals.count, prev: prevCementTotals.count, isMoney: false },
+                  { label: "ربح الأسمنت", curr: currentCementTotals.profit, prev: prevCementTotals.profit, isMoney: true },
+                  { label: "إجمالي الربح", curr: totalCurrentProfit, prev: totalPrevProfit, isMoney: true },
                 ].map((row) => {
                   const diff = row.curr - row.prev;
                   return (
