@@ -640,7 +640,7 @@ export function CementTab() {
               addStockMutation.mutate();
             }} disabled={addStockMutation.isPending} className="font-cairo gap-1">
               {addStockMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              تسجيل
+              {editingPurchase ? "حفظ التعديل" : "تسجيل"}
             </Button>
             <Button variant="outline" onClick={() => setStockDialogOpen(false)} className="font-cairo">إلغاء</Button>
           </DialogFooter>
