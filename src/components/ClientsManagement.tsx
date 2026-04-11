@@ -275,7 +275,40 @@ export function ClientsManagement() {
       pour_status: client.pour_status,
       assigned_sales_id: client.assigned_sales_id,
       assigned_followup_id: client.assigned_followup_id,
+      pour_exec_status: client.pour_status === "done" ? "done" : "not_done",
+      station_id: null,
+      concrete_type: "B350",
+      cement_content: null,
+      actual_quantity: null,
+      price_per_m3: null,
+      amount_paid: null,
+      scheduled_date: new Date().toISOString().slice(0, 10),
     });
+    // If client already has a pour, load existing pour data
+    if (client.pour_status === "done") {
+      supabase
+        .from("pour_orders")
+        .select("*")
+        .eq("client_id", client.id)
+        .eq("status", "done")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .then(({ data }) => {
+          if (data?.[0]) {
+            const p = data[0] as any;
+            setForm((f) => ({
+              ...f,
+              station_id: p.station_id,
+              concrete_type: p.concrete_type || "B350",
+              cement_content: p.cement_content,
+              actual_quantity: p.actual_quantity_m3 || p.quantity_m3,
+              price_per_m3: p.agreed_price_per_m3,
+              amount_paid: p.amount_paid,
+              scheduled_date: p.scheduled_date || f.scheduled_date,
+            }));
+          }
+        });
+    }
     setDialogOpen(true);
   }
 
@@ -285,12 +318,34 @@ export function ClientsManagement() {
     setForm(EMPTY_FORM);
   }
 
-  function handleSave() {
+  const pourTotal = useMemo(() => {
+    return (form.actual_quantity || 0) * (form.price_per_m3 || 0);
+  }, [form.actual_quantity, form.price_per_m3]);
+
+  const pourRemaining = useMemo(() => {
+    return pourTotal - (form.amount_paid || 0);
+  }, [pourTotal, form.amount_paid]);
+
+  async function handleSave() {
     if (!form.name.trim()) {
       toast({ title: "الاسم مطلوب", variant: "destructive" });
       return;
     }
-    const payload: Partial<ClientForm> = {
+
+    const isDone = form.pour_exec_status === "done";
+
+    if (isDone) {
+      if (!form.station_id) {
+        toast({ title: "اختر المحطة", variant: "destructive" });
+        return;
+      }
+      if (!form.actual_quantity || !form.price_per_m3) {
+        toast({ title: "أدخل الكمية والسعر", variant: "destructive" });
+        return;
+      }
+    }
+
+    const clientPayload: any = {
       name: form.name.trim(),
       phone: form.phone || null,
       area: form.area || null,
@@ -299,11 +354,103 @@ export function ClientsManagement() {
       price: form.price,
       status: form.status,
       notes: form.notes || null,
-      pour_status: form.pour_status,
+      pour_status: isDone ? "done" : form.pour_status,
       assigned_sales_id: form.assigned_sales_id,
       assigned_followup_id: form.assigned_followup_id,
     };
-    upsertMutation.mutate({ id: editingClient?.id, data: payload });
+
+    try {
+      let clientId = editingClient?.id;
+
+      if (clientId) {
+        const { error } = await supabase.from("clients").update(clientPayload).eq("id", clientId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("clients").insert(clientPayload).select("id").single();
+        if (error) throw error;
+        clientId = data.id;
+      }
+
+      // Handle pour execution records
+      if (isDone && clientId) {
+        const stationName = stations?.find((s) => s.id === form.station_id)?.name || "";
+
+        // Check for existing pour order
+        const { data: existingPours } = await supabase
+          .from("pour_orders")
+          .select("id")
+          .eq("client_id", clientId)
+          .eq("status", "done")
+          .limit(1);
+
+        const pourData: any = {
+          client_id: clientId,
+          station_id: form.station_id,
+          concrete_type: form.concrete_type,
+          cement_content: form.cement_content,
+          quantity_m3: form.actual_quantity,
+          actual_quantity_m3: form.actual_quantity,
+          agreed_price_per_m3: form.price_per_m3,
+          total_agreed_amount: pourTotal,
+          amount_paid: form.amount_paid || 0,
+          amount_remaining: pourRemaining,
+          status: "done",
+          scheduled_date: form.scheduled_date,
+        };
+
+        let pourOrderId: number;
+
+        if (existingPours?.length) {
+          // Update existing
+          pourOrderId = existingPours[0].id;
+          const { error } = await supabase.from("pour_orders").update(pourData).eq("id", pourOrderId);
+          if (error) throw error;
+
+          // Update existing client_accounts & station_accounts
+          await supabase.from("client_accounts").delete().eq("pour_order_id", pourOrderId);
+          await supabase.from("station_accounts").delete().eq("pour_order_id", pourOrderId);
+        } else {
+          // Insert new
+          const { data, error } = await supabase.from("pour_orders").insert(pourData).select("id").single();
+          if (error) throw error;
+          pourOrderId = data.id;
+        }
+
+        // Insert client_accounts
+        await supabase.from("client_accounts").insert({
+          client_id: clientId,
+          transaction_type: "pour",
+          amount: pourTotal,
+          pour_order_id: pourOrderId,
+          date: form.scheduled_date,
+          description: `صبة ${form.concrete_type} - ${form.actual_quantity} م³`,
+        } as any);
+
+        // Insert station_accounts
+        await supabase.from("station_accounts").insert({
+          station_id: form.station_id,
+          station_name: stationName,
+          transaction_type: "concrete",
+          quantity_m3: form.actual_quantity,
+          pour_order_id: pourOrderId,
+          date: form.scheduled_date,
+          amount: pourTotal,
+          description: `صبة ${form.concrete_type} - عميل: ${form.name.trim()}`,
+        } as any);
+      }
+
+      // Send notifications
+      const clientName = form.name.trim();
+      sendAssignmentNotifications(clientName, editingClient?.assigned_sales_id ?? null, form.assigned_sales_id, editingClient?.assigned_followup_id ?? null, form.assigned_followup_id);
+
+      queryClient.invalidateQueries({ queryKey: ["clients-list"] });
+      queryClient.invalidateQueries({ queryKey: ["clients-count"] });
+      queryClient.invalidateQueries({ queryKey: ["pour-orders"] });
+      toast({ title: editingClient ? "تم تحديث العميل" : "تم إضافة العميل بنجاح" });
+      closeDialog();
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    }
   }
 
   const filtered = (clients ?? []).filter(
