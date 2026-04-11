@@ -154,33 +154,36 @@ export function OrderForm({ orderId }: { orderId?: string }) {
 
         // Insert into client_accounts
         if (Number(form.client_id) && quantity > 0) {
-          await supabase.from("client_accounts").insert({
+          const { error: clientErr } = await supabase.from("client_accounts").insert({
             client_id: Number(form.client_id),
             client_name: clientName,
             transaction_type: "pour",
             amount: total,
-            quantity_m3: quantity,
-            price_per_m3: price,
             station_name: form.station_name || null,
             pour_order_id: data.id,
-            date: dateStr,
-            description: `صبة ${form.concrete_type} - ${quantity} م³`,
-          } as any);
+            notes: `صبة ${form.concrete_type} - ${quantity} م³`,
+          });
+          if (clientErr) {
+            console.error("client_accounts insert error:", clientErr);
+            toast({ title: "تحذير", description: "تم إنشاء الطلب لكن فشل تسجيله في حساب العميل", variant: "destructive" });
+          }
         }
 
         // Insert into station_accounts if station selected
         if (stationId && quantity > 0) {
           const stationAmount = purchasePrice > 0 ? quantity * purchasePrice : total;
-          await supabase.from("station_accounts").insert({
+          const { error: stationErr } = await supabase.from("station_accounts").insert({
             station_id: stationId,
             station_name: form.station_name,
             transaction_type: "concrete",
-            quantity_m3: quantity,
-            pour_order_id: data.id,
-            date: dateStr,
             amount: stationAmount,
-            description: `صبة ${form.concrete_type} - عميل: ${clientName}`,
-          } as any);
+            pour_order_id: data.id,
+            notes: `صبة ${form.concrete_type} - عميل: ${clientName}`,
+          });
+          if (stationErr) {
+            console.error("station_accounts insert error:", stationErr);
+            toast({ title: "تحذير", description: "تم إنشاء الطلب لكن فشل تسجيله في حساب المحطة", variant: "destructive" });
+          }
         }
       }
     },
