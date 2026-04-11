@@ -33,9 +33,15 @@ function fmt(n: number) {
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
+  balance_only: "رصيد فقط",
+  cash_full: "كاش كامل",
+  cash_partial: "كاش جزئي",
+  deduction_full: "خصم كامل من مديونيتي",
+  deduction_partial: "خصم جزئي من مديونيتي",
+  mixed: "مختلط",
+  // Legacy
   cash: "كاش",
   concrete_deduction: "خصم من خرسانة",
-  mixed: "مختلط",
 };
 
 export function CementTab() {
