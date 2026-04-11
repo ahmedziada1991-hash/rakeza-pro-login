@@ -299,6 +299,15 @@ export function ClientsManagement() {
   }, [pourTotal, form.amount_paid]);
 
   async function handleSave() {
+    setSaving(true);
+    try {
+    await _handleSave();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function _handleSave() {
     if (!form.name.trim()) {
       toast({ title: "الاسم مطلوب", variant: "destructive" });
       return;
