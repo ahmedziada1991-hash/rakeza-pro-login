@@ -188,12 +188,22 @@ export function SuppliersTab() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
+      // Get record to find linked cement_stock
+      const { data: record } = await supabase.from("supplier_accounts" as any).select("*").eq("id", id).single();
+      if (record && (record.transaction_type === "purchase" || record.transaction_type === "شراء" || record.transaction_type === "inbound")) {
+        // Cascading delete: remove related cement_stock
+        await supabase.from("cement_stock" as any)
+          .delete()
+          .eq("supplier_id", record.supplier_id)
+          .eq("created_at", record.created_at);
+      }
       const { error } = await supabase.from("supplier_accounts" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
       queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["cement-stock"] });
       toast({ title: "تم حذف السجل بنجاح" });
       setDeleteRecordId(null);
     },

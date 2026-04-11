@@ -111,12 +111,19 @@ export function OrdersList() {
   }
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
+      // Cascading delete: remove related records first
+      await supabase.from("client_accounts" as any).delete().eq("pour_order_id", id);
+      await supabase.from("station_accounts" as any).delete().eq("pour_order_id", id);
+      await supabase.from("payments" as any).delete().eq("pour_order_id", id);
       const { error } = await supabase.from("pour_orders").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders-list"] });
       queryClient.invalidateQueries({ queryKey: ["orders-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-clients-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
       toast({ title: "تم حذف الطلب بنجاح" });
       setDeleteId(null);
     },
