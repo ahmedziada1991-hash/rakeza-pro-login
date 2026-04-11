@@ -48,7 +48,6 @@ export function CementTab() {
   const queryClient = useQueryClient();
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
-  const [isSubmittingSale, setIsSubmittingSale] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "purchase" | "sale"; record: any } | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<any>(null);
   const [editingSale, setEditingSale] = useState<any>(null);
@@ -561,13 +560,9 @@ export function CementTab() {
       toast({ title: editingSale ? "تم التعديل بنجاح" : "تم تسجيل البيع بنجاح" });
       setSaleDialogOpen(false);
       setEditingSale(null);
-      setIsSubmittingSale(false);
       setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "balance_only", cash_amount: "", concrete_deduction_amount: "", notes: "" });
     },
-    onError: (err: any) => {
-      setIsSubmittingSale(false);
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    },
+    onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
   });
 
   const saleTotal = useMemo(() => {
@@ -982,16 +977,14 @@ export function CementTab() {
           </div>
           <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={() => {
-              if (isSubmittingSale) return;
               // purchase_id is optional - user can enter quantity manually
               if (!saleForm.station_id) { toast({ title: "اختر المحطة", variant: "destructive" }); return; }
               if (!saleForm.quantity_tons || Number(saleForm.quantity_tons) <= 0) { toast({ title: "أدخل الكمية", variant: "destructive" }); return; }
               if (!saleForm.price_per_ton || Number(saleForm.price_per_ton) <= 0) { toast({ title: "أدخل السعر", variant: "destructive" }); return; }
-              setIsSubmittingSale(true);
               addSaleMutation.mutate();
-            }} disabled={isSubmittingSale || addSaleMutation.isPending} className="font-cairo gap-1">
-              {(isSubmittingSale || addSaleMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isSubmittingSale ? "جاري الحفظ..." : (editingSale ? "حفظ التعديل" : "تسجيل")}
+            }} disabled={addSaleMutation.isPending} className="font-cairo gap-1">
+              {addSaleMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editingSale ? "حفظ التعديل" : "تسجيل"}
             </Button>
             <Button variant="outline" onClick={() => setSaleDialogOpen(false)} className="font-cairo">إلغاء</Button>
           </DialogFooter>
