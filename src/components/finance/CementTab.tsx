@@ -333,14 +333,6 @@ export function CementTab() {
             .eq("transaction_type", "cement");
         }
         
-        // If no rows updated by id, try matching by station_id + created_at + transaction_type
-        if (!stErr && (stCount === 0 || stCount === null)) {
-          await supabase.from("station_accounts" as any)
-            .update(stUpdatePayload)
-            .eq("station_id", editingSale.station_id)
-            .eq("created_at", editingSale.created_at)
-            .eq("transaction_type", "cement");
-        }
         if (stErr) throw stErr;
       } else {
         // INSERT mode
