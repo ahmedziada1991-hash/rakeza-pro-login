@@ -374,6 +374,7 @@ export function CementTab() {
             amount: cashAmt,
             payment_method: "cash",
             notes: "دفعة كاش مقابل أسمنت",
+            ...(saleDateOverride && { created_at: saleDateOverride }),
           });
           if (cashErr) throw cashErr;
         }
@@ -386,6 +387,7 @@ export function CementTab() {
             amount: deductAmt,
             payment_method: "concrete_deduction",
             notes: "خصم تلقائي من مديونية مقابل أسمنت",
+            ...(saleDateOverride && { created_at: saleDateOverride }),
           });
           if (deductErr) throw deductErr;
         }
