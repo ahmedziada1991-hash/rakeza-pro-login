@@ -22,7 +22,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowDown, ArrowUp, CalendarIcon, Loader2, Trash2, TrendingUp } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarIcon, Loader2, Pencil, Trash2, TrendingUp } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
