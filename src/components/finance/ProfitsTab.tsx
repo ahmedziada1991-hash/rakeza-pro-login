@@ -115,6 +115,18 @@ export function ProfitsTab() {
     return { revenue, cost, profit: revenue - cost, count: orders.length };
   };
 
+  const calcCementProfit = (sales: any[]) => {
+    let totalRevenue = 0, totalCost = 0;
+    (sales ?? []).forEach((s: any) => {
+      const saleAmount = toAmount(s.amount);
+      const qty = toAmount(s.quantity_tons);
+      const purchasePrice = toAmount(s.cement_price_per_ton);
+      totalRevenue += saleAmount;
+      totalCost += purchasePrice * qty;
+    });
+    return { revenue: totalRevenue, cost: totalCost, profit: totalRevenue - totalCost, count: (sales ?? []).length };
+  };
+
   const handleSavePrice = async (order: any, newPrice: number) => {
     if (isNaN(newPrice) || newPrice < 0) {
       toast.error("سعر غير صحيح");
