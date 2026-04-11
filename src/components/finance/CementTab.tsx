@@ -231,7 +231,7 @@ export function CementTab() {
   });
 
   const addStockMutation = useMutation({
-    mutationFn: async () {
+    mutationFn: async () => {
       const qty = Number(stockForm.quantity_tons);
       const ppt = Number(stockForm.price_per_ton);
       const total = qty * ppt;
