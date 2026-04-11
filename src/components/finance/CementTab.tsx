@@ -561,9 +561,13 @@ export function CementTab() {
       toast({ title: editingSale ? "تم التعديل بنجاح" : "تم تسجيل البيع بنجاح" });
       setSaleDialogOpen(false);
       setEditingSale(null);
+      setIsSubmittingSale(false);
       setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "balance_only", cash_amount: "", concrete_deduction_amount: "", notes: "" });
     },
-    onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
+    onError: (err: any) => {
+      setIsSubmittingSale(false);
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
   });
 
   const saleTotal = useMemo(() => {
