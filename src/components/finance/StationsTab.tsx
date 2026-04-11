@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, ArrowRight, Download, Send } from "lucide-react";
+import { generateStatementPDF, sendStatementWhatsApp } from "@/lib/statement-pdf";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -136,9 +137,48 @@ export function StationsTab() {
 
   const handlePrint = () => { window.print(); };
 
-  const handleWhatsApp = (station: StationSummary) => {
-    const msg = encodeURIComponent(`السلام عليكم 👋\nمرفق كشف حساب من شركة ركيزة لتوريد الخرسانة الجاهزة 🏗️\nالمحطة: ${station.name}\nالرصيد النهائي: ${fmt(station.finalBalance)}`);
-    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  const handleWhatsAppPDF = (station: StationSummary) => {
+    const totals = statementTotals ?? station;
+    const transactions: { date: string; description: string; amount: number }[] = [];
+
+    pours.forEach((t: any) => {
+      transactions.push({
+        date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+        description: `Concrete - ${t.quantity_m3 ?? 0} m³ (${t.client_name || extractClientName(t.notes)})`,
+        amount: Number(t.amount) || 0,
+      });
+    });
+
+    cementSales.forEach((t: any) => {
+      transactions.push({
+        date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+        description: `Cement - ${t.cement_tons ?? 0} ton`,
+        amount: -(Number(t.amount) || 0),
+      });
+    });
+
+    payments.forEach((t: any) => {
+      transactions.push({
+        date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+        description: `Payment`,
+        amount: -(Number(t.amount) || 0),
+      });
+    });
+
+    transactions.sort((a, b) => a.date.localeCompare(b.date));
+
+    generateStatementPDF({
+      entityName: station.name,
+      entityType: "محطة",
+      transactions,
+      totalDebt: totals.totalCost,
+      totalPaid: totals.totalPaid + totals.cementBalance,
+      balance: totals.finalBalance,
+    });
+
+    setTimeout(() => {
+      sendStatementWhatsApp(null, station.name);
+    }, 500);
   };
 
   // ──── Full-page statement view ────
@@ -300,9 +340,9 @@ export function StationsTab() {
             <Download className="h-4 w-4" />
             تحميل PDF
           </Button>
-          <Button onClick={() => handleWhatsApp(selectedStation)} className="w-full font-cairo gap-2 text-white" style={{ background: "#28A745" }}>
+          <Button onClick={() => handleWhatsAppPDF(selectedStation)} className="w-full font-cairo gap-2 text-white" style={{ background: "#28A745" }}>
             <Send className="h-4 w-4" />
-            إرسال واتساب
+            إرسال كشف حساب واتساب
           </Button>
           <Button variant="outline" onClick={() => setSelectedStation(null)} className="w-full font-cairo gap-2">
             <ArrowRight className="h-4 w-4" />
