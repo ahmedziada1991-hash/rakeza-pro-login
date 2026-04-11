@@ -115,16 +115,24 @@ export function OrderForm({ orderId }: { orderId?: string }) {
   const price = Number(form.agreed_price_per_m3) || 0;
   const total = quantity * price;
 
+  const purchasePrice = Number(form.purchase_price) || 0;
+
   const mutation = useMutation({
     mutationFn: async () => {
+      const selectedStation = stations?.find((s) => s.name === form.station_name);
+      const stationId = selectedStation?.id ?? null;
+      const clientName = clients?.find((c) => String(c.id) === form.client_id)?.name ?? "";
+
       const payload = {
         client_id: Number(form.client_id),
         station_name: form.station_name || null,
+        station_id: stationId,
         concrete_type: form.concrete_type || null,
         quantity_m3: quantity || null,
         agreed_quantity_m3: quantity || null,
         agreed_price_per_m3: price || null,
         total_agreed_amount: total || null,
+        purchase_price: purchasePrice || null,
         cement_content: Number(form.cement_content) || null,
         address: form.address || null,
         status: form.status,
@@ -139,8 +147,23 @@ export function OrderForm({ orderId }: { orderId?: string }) {
         const { error } = await supabase.from("pour_orders").update(payload).eq("id", Number(orderId));
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("pour_orders").insert({ ...payload, amount_paid: 0, amount_remaining: total || null });
+        const { data, error } = await supabase.from("pour_orders").insert({ ...payload, amount_paid: 0, amount_remaining: total || null }).select("id").single();
         if (error) throw error;
+
+        // Insert into station_accounts if station selected
+        if (stationId && quantity > 0) {
+          const stationAmount = purchasePrice > 0 ? quantity * purchasePrice : total;
+          await supabase.from("station_accounts").insert({
+            station_id: stationId,
+            station_name: form.station_name,
+            transaction_type: "concrete",
+            quantity_m3: quantity,
+            pour_order_id: data.id,
+            date: scheduledDate ? format(scheduledDate, "yyyy-MM-dd") : null,
+            amount: stationAmount,
+            description: `صبة ${form.concrete_type} - عميل: ${clientName}`,
+          } as any);
+        }
       }
     },
     onSuccess: () => {
