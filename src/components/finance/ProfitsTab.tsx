@@ -262,9 +262,12 @@ export function ProfitsTab() {
               <TableBody>
                 {[
                   { label: "عدد الصبات", curr: current.count, prev: prev.count, isMoney: false },
-                  { label: "الإيرادات", curr: current.revenue, prev: prev.revenue, isMoney: true },
-                  { label: "التكلفة", curr: current.cost, prev: prev.cost, isMoney: true },
-                  { label: "الربح", curr: current.profit, prev: prev.profit, isMoney: true },
+                  { label: "إيرادات الخرسانة", curr: current.revenue, prev: prev.revenue, isMoney: true },
+                  { label: "تكلفة الخرسانة", curr: current.cost, prev: prev.cost, isMoney: true },
+                  { label: "ربح الخرسانة", curr: current.profit, prev: prev.profit, isMoney: true },
+                  { label: "نقلات أسمنت", curr: currentCementTotals.count, prev: prevCementTotals.count, isMoney: false },
+                  { label: "ربح الأسمنت", curr: currentCementTotals.profit, prev: prevCementTotals.profit, isMoney: true },
+                  { label: "إجمالي الربح", curr: totalCurrentProfit, prev: totalPrevProfit, isMoney: true },
                 ].map((row) => {
                   const diff = row.curr - row.prev;
                   return (
