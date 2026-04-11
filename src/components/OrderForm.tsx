@@ -72,6 +72,7 @@ export function OrderForm({ orderId }: { orderId?: string }) {
       concrete_type: existingOrder.concrete_type ?? "",
       quantity_m3: String(existingOrder.quantity_m3 ?? ""),
       agreed_price_per_m3: String(existingOrder.agreed_price_per_m3 ?? ""),
+      purchase_price: String((existingOrder as any).purchase_price ?? ""),
       cement_content: String(existingOrder.cement_content ?? ""),
       address: existingOrder.address ?? "",
       status: existingOrder.status ?? "pending",
