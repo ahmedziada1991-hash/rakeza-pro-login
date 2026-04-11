@@ -74,7 +74,7 @@ export function StationsTab() {
 
       const { data: txns } = await supabase
         .from("station_accounts" as any)
-        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton")
+        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton, payment_method")
         .order("created_at", { ascending: false });
 
       const map = new Map<number, StationSummary>();
@@ -85,6 +85,7 @@ export function StationsTab() {
         });
       });
 
+      const concretePaymentsMap = new Map<number, number>();
       (txns ?? []).forEach((t: any) => {
         const acc = map.get(t.station_id);
         if (!acc) return;
@@ -93,7 +94,17 @@ export function StationsTab() {
         if (type === "concrete") {
           acc.totalPours++;
           acc.totalCost += amt;
-        } else if (type === "payment" || type === "دفعة" || type === "cement_deduction") {
+        } else if (type === "payment" || type === "دفعة") {
+          // Concrete deduction (from cement) counts as cement payment
+          if (t.payment_method === "concrete_deduction") {
+            acc.totalPaid += amt;
+          } else {
+            // Regular concrete payment from ركيزة to station
+            concretePaymentsMap.set(t.station_id, (concretePaymentsMap.get(t.station_id) || 0) + amt);
+          }
+        } else if (type === "cement_deduction") {
+          acc.totalPaid += amt;
+        } else if (type === "cement_payment") {
           acc.totalPaid += amt;
         } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
           acc.cementBalance += amt;
@@ -101,7 +112,10 @@ export function StationsTab() {
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = acc.cementBalance - acc.totalPaid - acc.totalCost;
+        const concretePayments = concretePaymentsMap.get(acc.id) || 0;
+        const netConcrete = acc.totalCost - concretePayments;
+        const cementNet = acc.cementBalance - acc.totalPaid;
+        acc.finalBalance = cementNet - netConcrete;
       });
 
       return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
@@ -214,7 +228,7 @@ export function StationsTab() {
   // Recalculate totals from statement data
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let totalCost = 0, totalPaid = 0, cementBalance = 0;
+    let totalCost = 0, totalPaid = 0, cementBalance = 0, concretePayments = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
@@ -222,13 +236,21 @@ export function StationsTab() {
         if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
         totalCost += amt;
-      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_deduction") {
+      } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة") {
+        if (t.payment_method === "concrete_deduction") {
+          totalPaid += amt;
+        } else {
+          concretePayments += amt;
+        }
+      } else if (t.transaction_type === "cement_deduction" || t.transaction_type === "cement_payment") {
         totalPaid += amt;
       } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
         cementBalance += amt;
       }
     });
-    return { totalCost, totalPaid, cementBalance, finalBalance: cementBalance - totalPaid - totalCost };
+    const netConcrete = totalCost - concretePayments;
+    const cementNet = cementBalance - totalPaid;
+    return { totalCost, totalPaid, cementBalance, finalBalance: cementNet - netConcrete };
   })();
 
   const handlePrint = () => { window.print(); };
