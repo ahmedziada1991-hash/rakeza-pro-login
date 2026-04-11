@@ -91,7 +91,7 @@ export function StationsTab() {
           acc.totalCost += amt;
         } else if (type === "payment" || type === "دفعة") {
           acc.totalPaid += amt;
-        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
+        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale" || type === "cement_deduction") {
           acc.cementBalance += amt;
         }
       });
@@ -133,7 +133,7 @@ export function StationsTab() {
       updateData.quantity_m3 = editRecord.quantity_m3 ? Number(editRecord.quantity_m3) : null;
       updateData.price_per_m3 = editRecord.price_per_m3 ? Number(editRecord.price_per_m3) : null;
     }
-    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") {
+    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale" || editRecord.transaction_type === "cement_deduction") {
       updateData.cement_tons = editRecord.cement_tons ? Number(editRecord.cement_tons) : null;
       updateData.cement_price_per_ton = editRecord.cement_price_per_ton ? Number(editRecord.cement_price_per_ton) : null;
     }
@@ -170,7 +170,7 @@ export function StationsTab() {
     return true;
   });
   const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة");
-  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
+  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction");
 
   // Recalculate totals from statement data
   const statementTotals = (() => {
@@ -185,7 +185,7 @@ export function StationsTab() {
         totalCost += amt;
       } else if (t.transaction_type === "payment" || t.transaction_type === "دفعة") {
         totalPaid += amt;
-      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
+      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale" || t.transaction_type === "cement_deduction") {
         cementBalance += amt;
       }
     });
@@ -453,7 +453,7 @@ export function StationsTab() {
                     </div>
                   </>
                 )}
-                {(editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") && (
+                {(editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale" || editRecord.transaction_type === "cement_deduction") && (
                   <>
                     <div className="space-y-1.5">
                       <Label className="font-cairo">الكمية (طن)</Label>
