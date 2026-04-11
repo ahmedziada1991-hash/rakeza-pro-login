@@ -311,14 +311,14 @@ export function StationsTab() {
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">إجمالي الكاش المدفوع</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي مديونية الأسمنت</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">إجمالي خصم من مديونية ركيزة</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي المدفوعات</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
