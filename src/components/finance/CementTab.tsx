@@ -693,6 +693,34 @@ export function CementTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cairo text-right">هل أنت متأكد من حذف هذا السجل؟</AlertDialogTitle>
+            <AlertDialogDescription className="font-cairo text-right">
+              سيتم حذف السجل والسجلات المرتبطة به نهائياً ولا يمكن التراجع.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+            <AlertDialogAction
+              className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletePurchaseMutation.isPending || deleteSaleMutation.isPending}
+              onClick={() => {
+                if (!deleteTarget) return;
+                if (deleteTarget.type === "purchase") deletePurchaseMutation.mutate(deleteTarget.record);
+                else deleteSaleMutation.mutate(deleteTarget.record);
+                setDeleteTarget(null);
+              }}
+            >
+              {(deletePurchaseMutation.isPending || deleteSaleMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
