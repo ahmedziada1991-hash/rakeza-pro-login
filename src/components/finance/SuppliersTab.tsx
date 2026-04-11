@@ -22,7 +22,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Search, ChevronLeft, Plus, CalendarIcon, Loader2 } from "lucide-react";
+import { Search, ChevronLeft, Plus, CalendarIcon, Loader2, Send } from "lucide-react";
+import { generateStatementPDF, sendStatementWhatsApp } from "@/lib/statement-pdf";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -303,6 +304,45 @@ export function SuppliersTab() {
                   )}
                 </CardContent>
               </Card>
+              {/* WhatsApp PDF button */}
+              <Button
+                onClick={() => {
+                  if (!selectedSupplier) return;
+                  const transactions: { date: string; description: string; amount: number }[] = [];
+                  purchases.forEach((t: any) => {
+                    transactions.push({
+                      date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+                      description: `Purchase - ${t.quantity_tons ?? 0} ton`,
+                      amount: Number(t.total_amount) || 0,
+                    });
+                  });
+                  payments.forEach((t: any) => {
+                    transactions.push({
+                      date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
+                      description: `Payment (${METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"})`,
+                      amount: -(Number(t.total_amount) || 0),
+                    });
+                  });
+                  transactions.sort((a, b) => a.date.localeCompare(b.date));
+                  generateStatementPDF({
+                    entityName: selectedSupplier.name,
+                    entityType: "مورد",
+                    phone: selectedSupplier.phone,
+                    transactions,
+                    totalDebt: selectedSupplier.totalPurchases,
+                    totalPaid: selectedSupplier.totalPaid,
+                    balance: selectedSupplier.remaining,
+                  });
+                  setTimeout(() => {
+                    sendStatementWhatsApp(selectedSupplier.phone, selectedSupplier.name);
+                  }, 500);
+                }}
+                className="w-full font-cairo gap-2 text-white"
+                style={{ background: "#28A745" }}
+              >
+                <Send className="h-4 w-4" />
+                إرسال كشف حساب واتساب
+              </Button>
             </div>
           )}
         </DialogContent>
