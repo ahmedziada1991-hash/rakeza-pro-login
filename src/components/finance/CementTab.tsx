@@ -292,14 +292,24 @@ export function CementTab() {
 
   const deleteSaleMutation = useMutation({
     mutationFn: async (record: any) => {
-      // Delete from station_accounts (the main record shown in table)
-      const { error: e1 } = await supabase.from("station_accounts" as any).delete().eq("id", record.id);
-      if (e1) throw e1;
-      // Delete matching cement_sales record
-      await supabase.from("cement_sales" as any)
-        .delete()
-        .eq("station_id", record.station_id)
-        .eq("created_at", record.created_at);
+      // Find the cement_sale_id linked to this station_accounts record
+      const cementSaleId = record.cement_sale_id;
+
+      if (cementSaleId) {
+        // Delete all station_accounts records linked to this cement_sale_id
+        await supabase.from("station_accounts" as any).delete().eq("cement_sale_id", cementSaleId);
+        // Delete the cement_sales record itself
+        await supabase.from("cement_sales" as any).delete().eq("id", cementSaleId);
+      } else {
+        // Fallback: delete only this specific station_accounts record
+        const { error: e1 } = await supabase.from("station_accounts" as any).delete().eq("id", record.id);
+        if (e1) throw e1;
+        // Try to delete matching cement_sales by station_id + created_at
+        await supabase.from("cement_sales" as any)
+          .delete()
+          .eq("station_id", record.station_id)
+          .eq("created_at", record.created_at);
+      }
     },
     onSuccess: () => { invalidateAll(); toast({ title: "تم حذف سجل البيع بنجاح" }); },
     onError: (err: any) => toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" }),
