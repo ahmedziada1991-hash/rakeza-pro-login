@@ -92,15 +92,15 @@ export function StationsTab() {
         if (type === "concrete") {
           acc.totalPours++;
           acc.totalCost += amt;
-        } else if (type === "payment" || type === "دفعة") {
+        } else if (type === "payment" || type === "دفعة" || type === "cement_deduction") {
           acc.totalPaid += amt;
-        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale" || type === "cement_deduction") {
+        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
           acc.cementBalance += amt;
         }
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = acc.totalCost - acc.totalPaid - acc.cementBalance;
+        acc.finalBalance = (acc.totalCost + acc.cementBalance) - acc.totalPaid;
       });
 
       return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
