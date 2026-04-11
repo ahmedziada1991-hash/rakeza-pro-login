@@ -295,7 +295,14 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     } else {
       if (!payForm.client_id) { toast({ title: "اختر العميل", variant: "destructive" }); return; }
     }
-    if (!payForm.amount || Number(payForm.amount) <= 0) { toast({ title: "أدخل المبلغ", variant: "destructive" }); return; }
+    const isCementMixed = isStation && payForm.station_transaction_type === "cement_payment" && payForm.payment_method === "mixed";
+    if (isCementMixed) {
+      const cashAmt = Number(payForm.cash_amount) || 0;
+      const deductAmt = Number(payForm.deduction_amount) || 0;
+      if (cashAmt + deductAmt <= 0) { toast({ title: "أدخل المبالغ", variant: "destructive" }); return; }
+    } else {
+      if (!payForm.amount || Number(payForm.amount) <= 0) { toast({ title: "أدخل المبلغ", variant: "destructive" }); return; }
+    }
     if (payForm.payment_method === "check" && !payForm.check_number) {
       toast({ title: "أدخل رقم الشيك", variant: "destructive" }); return;
     }
@@ -303,7 +310,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   }
 
   const isCheck = payForm.payment_method === "check";
-  const activeMethods = isStation ? STATION_PAYMENT_METHODS : PAYMENT_METHODS;
+  const isCement = isStation && payForm.station_transaction_type === "cement_payment";
+  const activeMethods = isCement ? CEMENT_PAYMENT_METHODS : isStation ? STATION_PAYMENT_METHODS : PAYMENT_METHODS;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
