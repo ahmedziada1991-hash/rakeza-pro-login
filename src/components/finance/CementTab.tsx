@@ -571,9 +571,9 @@ export function CementTab() {
       </Card>
 
       {/* Add Stock Dialog */}
-      <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
+      <Dialog open={stockDialogOpen} onOpenChange={(open) => { setStockDialogOpen(open); if (!open) { setEditingPurchase(null); setStockForm({ supplier_id: "", quantity_tons: "", price_per_ton: "", destination_station_id: "", notes: "" }); } }}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle className="font-cairo text-right">تسجيل وارد أسمنت</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-cairo text-right">{editingPurchase ? "تعديل سجل وارد" : "تسجيل وارد أسمنت"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label className="font-cairo">المورد *</Label>
