@@ -267,7 +267,7 @@ export function StationsTab() {
       entityType: "محطة",
       transactions,
       totalDebt: totals.totalCost,
-      totalPaid: totals.totalPaid + totals.cementBalance,
+      totalPaid: totals.totalPaid,
       balance: totals.finalBalance,
     });
 
