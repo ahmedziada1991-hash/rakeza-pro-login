@@ -21,9 +21,14 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Search, ChevronLeft, Plus, CalendarIcon, Loader2, Send } from "lucide-react";
+import { Search, ChevronLeft, Plus, CalendarIcon, Loader2, Send, Pencil, Trash2 } from "lucide-react";
 import { generateStatementPDF, sendStatementWhatsApp } from "@/lib/statement-pdf";
+import { useAuth } from "@/contexts/AuthContext";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -44,6 +49,8 @@ interface SupplierSummary {
 
 export function SuppliersTab() {
   const queryClient = useQueryClient();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === "admin";
   const [search, setSearch] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<SupplierSummary | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -51,6 +58,8 @@ export function SuppliersTab() {
   const [supplierForm, setSupplierForm] = useState({ name: "", phone: "", address: "" });
   const [payForm, setPayForm] = useState({ supplier_id: "", amount: "", payment_method: "cash", notes: "" });
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-suppliers-tab"],
@@ -152,6 +161,45 @@ export function SuppliersTab() {
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
   });
 
+  const editMutation = useMutation({
+    mutationFn: async (record: any) => {
+      const updateData: any = {
+        total_amount: Number(record.total_amount),
+        notes: record.notes || null,
+        payment_method: record.payment_method || null,
+        check_number: record.check_number || null,
+      };
+      if (record.transaction_type === "purchase" || record.transaction_type === "شراء" || record.transaction_type === "inbound") {
+        updateData.quantity_tons = record.quantity_tons ? Number(record.quantity_tons) : null;
+        updateData.price_per_ton = record.price_per_ton ? Number(record.price_per_ton) : null;
+        updateData.destination_name = record.destination_name || null;
+      }
+      const { error } = await supabase.from("supplier_accounts" as any).update(updateData).eq("id", record.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+      toast({ title: "تم تحديث السجل بنجاح" });
+      setEditRecord(null);
+    },
+    onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from("supplier_accounts" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+      toast({ title: "تم حذف السجل بنجاح" });
+      setDeleteRecordId(null);
+    },
+    onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
+  });
+
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   if (isLoading) {
@@ -219,6 +267,7 @@ export function SuppliersTab() {
                       <TableHead className="font-cairo text-right text-xs">الإجمالي</TableHead>
                       <TableHead className="font-cairo text-right text-xs">الوجهة</TableHead>
                       <TableHead className="font-cairo text-right text-xs">ملاحظات</TableHead>
+                      {isAdmin && <TableHead className="font-cairo text-right text-xs">إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -230,6 +279,16 @@ export function SuppliersTab() {
                         <TableCell className="font-cairo text-xs font-medium">{fmt(Number(t.total_amount) || 0)}</TableCell>
                         <TableCell className="font-cairo text-xs">{t.destination_name ?? "—"}</TableCell>
                         <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[100px]">{t.notes ?? "—"}</TableCell>
+                        {isAdmin && (
+                          <TableCell className="flex gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditRecord({ ...t })}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteRecordId(t.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -257,6 +316,7 @@ export function SuppliersTab() {
                       <TableHead className="font-cairo text-right text-xs">الطريقة</TableHead>
                       <TableHead className="font-cairo text-right text-xs">رقم الشيك</TableHead>
                       <TableHead className="font-cairo text-right text-xs">ملاحظات</TableHead>
+                      {isAdmin && <TableHead className="font-cairo text-right text-xs">إجراءات</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -267,6 +327,16 @@ export function SuppliersTab() {
                         <TableCell><Badge variant="outline" className="font-cairo text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge></TableCell>
                         <TableCell className="font-cairo text-xs">{t.check_number ?? "—"}</TableCell>
                         <TableCell className="font-cairo text-xs text-muted-foreground truncate max-w-[100px]">{t.notes ?? "—"}</TableCell>
+                        {isAdmin && (
+                          <TableCell className="flex gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditRecord({ ...t })}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteRecordId(t.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -354,6 +424,88 @@ export function SuppliersTab() {
               واتساب
             </Button>
           </div>
+
+          {/* Edit Record Dialog */}
+          <Dialog open={!!editRecord} onOpenChange={(open) => !open && setEditRecord(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader><DialogTitle className="font-cairo text-right">تعديل السجل</DialogTitle></DialogHeader>
+              {editRecord && (
+                <div className="space-y-3">
+                  {(editRecord.transaction_type === "purchase" || editRecord.transaction_type === "شراء" || editRecord.transaction_type === "inbound") && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">الكمية (طن)</Label>
+                        <Input type="number" value={editRecord.quantity_tons ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, quantity_tons: e.target.value }))} className="font-cairo" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">سعر الطن</Label>
+                        <Input type="number" value={editRecord.price_per_ton ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, price_per_ton: e.target.value }))} className="font-cairo" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">الوجهة</Label>
+                        <Input value={editRecord.destination_name ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, destination_name: e.target.value }))} className="font-cairo" />
+                      </div>
+                    </>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المبلغ الإجمالي</Label>
+                    <Input type="number" value={editRecord.total_amount ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, total_amount: e.target.value }))} className="font-cairo" />
+                  </div>
+                  {(editRecord.transaction_type === "payment" || editRecord.transaction_type === "دفعة") && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">طريقة الدفع</Label>
+                        <Select value={editRecord.payment_method ?? "cash"} onValueChange={(v) => setEditRecord((r: any) => ({ ...r, payment_method: v }))}>
+                          <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
+                            <SelectItem value="bank_transfer" className="font-cairo">تحويل بنكي</SelectItem>
+                            <SelectItem value="check" className="font-cairo">شيك</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">رقم الشيك</Label>
+                        <Input value={editRecord.check_number ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, check_number: e.target.value }))} className="font-cairo" />
+                      </div>
+                    </>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">ملاحظات</Label>
+                    <Textarea value={editRecord.notes ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, notes: e.target.value }))} className="font-cairo" rows={2} />
+                  </div>
+                </div>
+              )}
+              <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+                <Button onClick={() => editMutation.mutate(editRecord)} disabled={editMutation.isPending} className="font-cairo gap-1">
+                  {editMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  حفظ التعديلات
+                </Button>
+                <Button variant="outline" onClick={() => setEditRecord(null)} className="font-cairo">إلغاء</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation */}
+          <AlertDialog open={!!deleteRecordId} onOpenChange={(open) => !open && setDeleteRecordId(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-cairo text-right">هل تريد حذف هذا السجل؟</AlertDialogTitle>
+                <AlertDialogDescription className="font-cairo text-right">
+                  سيتم حذف السجل نهائياً وتحديث الأرقام تلقائياً.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+                <AlertDialogAction
+                  onClick={() => deleteRecordId && deleteMutation.mutate(deleteRecordId)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-cairo"
+                >
+                  {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حذف"}
+                </AlertDialogAction>
+                <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     );
