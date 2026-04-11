@@ -56,8 +56,6 @@ export function ClientsTab() {
   const isAdmin = userRole === "admin";
 
   const { data: accounts, isLoading } = useQuery({
-
-  const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-clients-tab"],
     queryFn: async () => {
       const { data: clients } = await supabase
