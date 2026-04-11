@@ -387,7 +387,37 @@ export function CementTab() {
     return qty * ppt;
   }, [stockForm.quantity_tons, stockForm.price_per_ton]);
 
-  const isLoading = loadingPurchases || loadingSales;
+  // Edit handlers
+  const handleEditPurchase = (r: any) => {
+    const matchedStation = (stations ?? []).find((s: any) => s.name === r.destination_name);
+    setStockForm({
+      supplier_id: String(r.supplier_id),
+      quantity_tons: String(r.quantity_tons ?? ""),
+      price_per_ton: String(r.price_per_ton ?? ""),
+      destination_station_id: matchedStation ? String(matchedStation.id) : "",
+      notes: r.notes ?? "",
+    });
+    setStockDate(r.created_at ? new Date(r.created_at) : new Date());
+    setEditingPurchase(r);
+    setStockDialogOpen(true);
+  };
+
+  const handleEditSale = (r: any) => {
+    setSaleForm({
+      purchase_id: "",
+      station_id: String(r.station_id),
+      quantity_tons: String(r.cement_tons ?? r.quantity_tons ?? ""),
+      price_per_ton: String(r.price_per_ton ?? (r.amount && (r.cement_tons || r.quantity_tons) ? Number(r.amount) / (Number(r.cement_tons) || Number(r.quantity_tons)) : "")),
+      payment_method: r.payment_method ?? "cash",
+      cash_amount: String(r.cash_amount ?? ""),
+      concrete_deduction_amount: String(r.concrete_deduction_amount ?? ""),
+      notes: r.notes ?? "",
+    });
+    setSaleDate(r.created_at ? new Date(r.created_at) : new Date());
+    setEditingSale(r);
+    setSaleDialogOpen(true);
+  };
+
 
   if (isLoading) {
     return <div className="space-y-3 p-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>;
