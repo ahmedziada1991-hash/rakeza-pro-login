@@ -22,13 +22,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Package, Plus, CalendarIcon, Loader2, ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarIcon, Loader2, TrendingUp } from "lucide-react";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
 }
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
+const PAYMENT_LABELS: Record<string, string> = {
   cash: "كاش",
   concrete_deduction: "خصم من خرسانة",
   mixed: "مختلط",
@@ -39,15 +39,20 @@ export function CementTab() {
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
 
-  const [stockForm, setStockForm] = useState({ supplier_id: "", quantity_tons: "", price_per_ton: "", notes: "" });
+  // Stock form
+  const [stockForm, setStockForm] = useState({
+    supplier_id: "", quantity_tons: "", price_per_ton: "", destination_station_id: "", notes: "",
+  });
   const [stockDate, setStockDate] = useState<Date | undefined>(new Date());
 
+  // Sale form
   const [saleForm, setSaleForm] = useState({
-    station_id: "", quantity_tons: "", price_per_ton: "",
+    purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "",
     payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "",
   });
   const [saleDate, setSaleDate] = useState<Date | undefined>(new Date());
 
+  // --- Queries ---
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers-list"],
     queryFn: async () => {
@@ -64,98 +69,215 @@ export function CementTab() {
     },
   });
 
-  const { data: incomingStock, isLoading: loadingStock } = useQuery({
-    queryKey: ["cement-stock-incoming"],
+  // Incoming purchases from supplier_accounts
+  const { data: purchases, isLoading: loadingPurchases } = useQuery({
+    queryKey: ["cement-purchases"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("cement_stock")
-        .select("id, supplier_id, quantity_tons, price_per_ton, total_amount, stock_date, notes")
-        .order("stock_date", { ascending: false });
-
-      const supplierIds = [...new Set((data ?? []).map((d) => d.supplier_id))];
-      const { data: sups } = await supabase.from("suppliers").select("id, name").in("id", supplierIds);
-      const supMap = new Map((sups ?? []).map((s) => [s.id, s.name]));
-
-      return (data ?? []).map((d) => ({ ...d, supplier_name: supMap.get(d.supplier_id) ?? "—" }));
+        .from("supplier_accounts" as any)
+        .select("*")
+        .eq("transaction_type", "purchase")
+        .order("created_at", { ascending: false });
+      // Get supplier names
+      const supIds = [...new Set((data ?? []).map((d: any) => d.supplier_id))];
+      const { data: sups } = supIds.length
+        ? await supabase.from("suppliers").select("id, name").in("id", supIds)
+        : { data: [] };
+      const supMap = new Map((sups ?? []).map((s: any) => [s.id, s.name]));
+      return (data ?? []).map((d: any) => ({ ...d, supplier_name: supMap.get(d.supplier_id) ?? "—" }));
     },
   });
 
-  const { data: outgoingSales, isLoading: loadingSales } = useQuery({
-    queryKey: ["cement-sales-outgoing"],
+  // Outgoing sales from station_accounts where transaction_type = 'cement'
+  const { data: sales, isLoading: loadingSales } = useQuery({
+    queryKey: ["cement-sales-station"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("cement_sales")
-        .select("id, station_id, quantity_tons, price_per_ton, total_amount, payment_method, cash_amount, concrete_deduction_amount, sale_date, notes")
-        .order("sale_date", { ascending: false });
-
-      const stationIds = [...new Set((data ?? []).map((d) => d.station_id))];
-      const { data: sts } = await supabase.from("stations").select("id, name").in("id", stationIds);
-      const stMap = new Map((sts ?? []).map((s) => [s.id, s.name]));
-
-      return (data ?? []).map((d) => ({ ...d, station_name: stMap.get(d.station_id) ?? "—" }));
+        .from("station_accounts" as any)
+        .select("*")
+        .eq("transaction_type", "cement")
+        .order("created_at", { ascending: false });
+      const stIds = [...new Set((data ?? []).map((d: any) => d.station_id))];
+      const { data: sts } = stIds.length
+        ? await supabase.from("stations").select("id, name").in("id", stIds)
+        : { data: [] };
+      const stMap = new Map((sts ?? []).map((s: any) => [s.id, s.name]));
+      return (data ?? []).map((d: any) => ({ ...d, station_name: stMap.get(d.station_id) ?? "—" }));
     },
   });
 
+  // Selected purchase for sale form
+  const selectedPurchase = useMemo(() => {
+    if (!saleForm.purchase_id || !purchases) return null;
+    return purchases.find((p: any) => String(p.id) === saleForm.purchase_id) ?? null;
+  }, [saleForm.purchase_id, purchases]);
+
+  // When selecting a purchase, auto-fill station & quantity
+  const handlePurchaseSelect = (purchaseId: string) => {
+    const p = (purchases ?? []).find((x: any) => String(x.id) === purchaseId);
+    if (p) {
+      // Try to find station by destination_name
+      const matchedStation = (stations ?? []).find((s: any) => s.name === p.destination_name);
+      setSaleForm((f) => ({
+        ...f,
+        purchase_id: purchaseId,
+        station_id: matchedStation ? String(matchedStation.id) : "",
+        quantity_tons: String(p.quantity_tons ?? ""),
+        price_per_ton: "",
+      }));
+    } else {
+      setSaleForm((f) => ({ ...f, purchase_id: purchaseId }));
+    }
+  };
+
+  // Inventory summary
   const inventory = useMemo(() => {
-    const totalIn = (incomingStock ?? []).reduce((s, r) => s + (Number(r.quantity_tons) || 0), 0);
-    const totalOut = (outgoingSales ?? []).reduce((s, r) => s + (Number(r.quantity_tons) || 0), 0);
-    const totalInValue = (incomingStock ?? []).reduce((s, r) => s + (Number(r.total_amount) || 0), 0);
-    const totalOutValue = (outgoingSales ?? []).reduce((s, r) => s + (Number(r.total_amount) || 0), 0);
+    const totalIn = (purchases ?? []).reduce((s: number, r: any) => s + (Number(r.quantity_tons) || 0), 0);
+    const totalOut = (sales ?? []).reduce((s: number, r: any) => s + (Number(r.quantity_tons) || 0), 0);
+    const totalInValue = (purchases ?? []).reduce((s: number, r: any) => s + (Number(r.total_amount) || 0), 0);
+    const totalOutValue = (sales ?? []).reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
     return { totalIn, totalOut, current: totalIn - totalOut, totalInValue, totalOutValue, profit: totalOutValue - totalInValue };
-  }, [incomingStock, outgoingSales]);
+  }, [purchases, sales]);
+
+  // Calculate profit per sale
+  const salesWithProfit = useMemo(() => {
+    if (!sales || !purchases) return [];
+    const purchaseMap = new Map((purchases ?? []).map((p: any) => [p.id, p]));
+    return (sales ?? []).map((s: any) => {
+      const purchasePrice = s.cement_price_per_ton ? Number(s.cement_price_per_ton) : 0;
+      const salePrice = Number(s.price_per_ton) || (Number(s.amount) / (Number(s.quantity_tons) || 1));
+      const qty = Number(s.quantity_tons) || 0;
+      const profit = (salePrice - purchasePrice) * qty;
+      return { ...s, profit, purchasePrice, salePrice };
+    });
+  }, [sales, purchases]);
+
+  // --- Mutations ---
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["cement-purchases"] });
+    queryClient.invalidateQueries({ queryKey: ["cement-sales-station"] });
+    queryClient.invalidateQueries({ queryKey: ["cement-stock-incoming"] });
+    queryClient.invalidateQueries({ queryKey: ["cement-sales-outgoing"] });
+    queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
+    queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+    queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
+    queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
+  };
 
   const addStockMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("cement_stock").insert({
+      const qty = Number(stockForm.quantity_tons);
+      const ppt = Number(stockForm.price_per_ton);
+      const total = qty * ppt;
+      const destStation = (stations ?? []).find((s: any) => String(s.id) === stockForm.destination_station_id);
+
+      // 1. Insert into supplier_accounts
+      const { error: saErr } = await supabase.from("supplier_accounts" as any).insert({
         supplier_id: Number(stockForm.supplier_id),
-        quantity_tons: Number(stockForm.quantity_tons),
-        price_per_ton: Number(stockForm.price_per_ton),
+        transaction_type: "purchase",
+        quantity_tons: qty,
+        price_per_ton: ppt,
+        total_amount: total,
+        destination_name: destStation?.name || null,
+        notes: stockForm.notes || null,
+      });
+      if (saErr) throw saErr;
+
+      // 2. Insert into cement_stock
+      const { error: csErr } = await supabase.from("cement_stock").insert({
+        supplier_id: Number(stockForm.supplier_id),
+        quantity_tons: qty,
+        price_per_ton: ppt,
         stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
         notes: stockForm.notes || null,
       });
-      if (error) throw error;
+      if (csErr) throw csErr;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cement-stock-incoming"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-sales-outgoing"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
-      toast({ title: "تم إضافة الوارد بنجاح" });
+      invalidateAll();
+      toast({ title: "تم تسجيل الوارد بنجاح" });
       setStockDialogOpen(false);
-      setStockForm({ supplier_id: "", quantity_tons: "", price_per_ton: "", notes: "" });
+      setStockForm({ supplier_id: "", quantity_tons: "", price_per_ton: "", destination_station_id: "", notes: "" });
     },
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
   });
 
   const addSaleMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("cement_sales").insert({
+      const qty = Number(saleForm.quantity_tons);
+      const ppt = Number(saleForm.price_per_ton);
+      const total = qty * ppt;
+      const purchasePrice = selectedPurchase ? Number(selectedPurchase.price_per_ton) : 0;
+
+      // 1. Insert into station_accounts
+      const stationPayload: any = {
         station_id: Number(saleForm.station_id),
-        quantity_tons: Number(saleForm.quantity_tons),
-        price_per_ton: Number(saleForm.price_per_ton),
+        transaction_type: "cement",
+        quantity_tons: qty,
+        price_per_ton: ppt,
+        amount: total,
+        cement_source_type: "purchased",
+        cement_price_per_ton: purchasePrice,
         payment_method: saleForm.payment_method,
-        cash_amount: Number(saleForm.cash_amount) || 0,
-        concrete_deduction_amount: Number(saleForm.concrete_deduction_amount) || 0,
+        notes: saleForm.notes || null,
+      };
+      const { error: stErr } = await supabase.from("station_accounts" as any).insert(stationPayload);
+      if (stErr) throw stErr;
+
+      // 2. Handle concrete deduction if needed
+      if (saleForm.payment_method === "concrete_deduction" || saleForm.payment_method === "mixed") {
+        const deductAmt = saleForm.payment_method === "concrete_deduction"
+          ? total
+          : Number(saleForm.concrete_deduction_amount) || 0;
+
+        if (deductAmt > 0) {
+          // Deduct from concrete debt
+          const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
+            station_id: Number(saleForm.station_id),
+            transaction_type: "payment",
+            amount: deductAmt,
+            payment_method: "concrete_deduction",
+            notes: "خصم تلقائي مقابل أسمنت",
+          });
+          if (deductErr) throw deductErr;
+        }
+      }
+
+      // 3. Insert negative record into cement_stock (deduction)
+      const { error: csErr } = await supabase.from("cement_sales").insert({
+        station_id: Number(saleForm.station_id),
+        quantity_tons: qty,
+        price_per_ton: ppt,
+        payment_method: saleForm.payment_method,
+        cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
+        concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
         sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
         notes: saleForm.notes || null,
       });
-      if (error) throw error;
+      if (csErr) throw csErr;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cement-sales-outgoing"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-stock-incoming"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
+      invalidateAll();
       toast({ title: "تم تسجيل البيع بنجاح" });
       setSaleDialogOpen(false);
-      setSaleForm({ station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" });
+      setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" });
     },
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
   });
 
-  const isLoading = loadingStock || loadingSales;
+  const saleTotal = useMemo(() => {
+    const qty = Number(saleForm.quantity_tons) || 0;
+    const ppt = Number(saleForm.price_per_ton) || 0;
+    return qty * ppt;
+  }, [saleForm.quantity_tons, saleForm.price_per_ton]);
+
+  const stockTotal = useMemo(() => {
+    const qty = Number(stockForm.quantity_tons) || 0;
+    const ppt = Number(stockForm.price_per_ton) || 0;
+    return qty * ppt;
+  }, [stockForm.quantity_tons, stockForm.price_per_ton]);
+
+  const isLoading = loadingPurchases || loadingSales;
 
   if (isLoading) {
     return <div className="space-y-3 p-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>;
@@ -193,11 +315,15 @@ export function CementTab() {
         </Button>
       </div>
 
-      {/* Incoming Stock Table */}
+      {/* Incoming Purchases Table */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm flex items-center gap-2"><ArrowDown className="h-4 w-4 text-emerald-600" /> حركات الوارد</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="font-cairo text-sm flex items-center gap-2">
+            <ArrowDown className="h-4 w-4 text-emerald-600" /> حركات الوارد (من الموردين)
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
-          {!(incomingStock ?? []).length ? (
+          {!(purchases ?? []).length ? (
             <p className="text-center text-muted-foreground font-cairo py-8 text-sm">لا توجد حركات وارد</p>
           ) : (
             <div className="overflow-auto">
@@ -209,16 +335,20 @@ export function CementTab() {
                     <TableHead className="font-cairo text-right">الكمية (طن)</TableHead>
                     <TableHead className="font-cairo text-right">سعر الطن</TableHead>
                     <TableHead className="font-cairo text-right">الإجمالي</TableHead>
+                    <TableHead className="font-cairo text-right">الوجهة</TableHead>
+                    <TableHead className="font-cairo text-right">ملاحظات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(incomingStock ?? []).map((r: any) => (
+                  {(purchases ?? []).map((r: any) => (
                     <TableRow key={r.id}>
-                      <TableCell className="font-cairo text-xs">{r.stock_date ?? "—"}</TableCell>
+                      <TableCell className="font-cairo text-xs">{r.created_at ? format(new Date(r.created_at), "yyyy/MM/dd") : "—"}</TableCell>
                       <TableCell className="font-cairo text-xs">{r.supplier_name}</TableCell>
                       <TableCell className="font-cairo">{r.quantity_tons}</TableCell>
                       <TableCell className="font-cairo">{fmt(Number(r.price_per_ton))}</TableCell>
                       <TableCell className="font-cairo font-medium">{fmt(Number(r.total_amount))}</TableCell>
+                      <TableCell className="font-cairo text-xs">{r.destination_name ?? "—"}</TableCell>
+                      <TableCell className="font-cairo text-xs text-muted-foreground">{r.notes ?? "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -230,9 +360,13 @@ export function CementTab() {
 
       {/* Outgoing Sales Table */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="font-cairo text-sm flex items-center gap-2"><ArrowUp className="h-4 w-4 text-orange-600" /> حركات الصادر (بيع للمحطات)</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="font-cairo text-sm flex items-center gap-2">
+            <ArrowUp className="h-4 w-4 text-orange-600" /> حركات الصادر (بيع للمحطات)
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
-          {!(outgoingSales ?? []).length ? (
+          {!salesWithProfit.length ? (
             <p className="text-center text-muted-foreground font-cairo py-8 text-sm">لا توجد حركات صادر</p>
           ) : (
             <div className="overflow-auto">
@@ -242,28 +376,32 @@ export function CementTab() {
                     <TableHead className="font-cairo text-right">التاريخ</TableHead>
                     <TableHead className="font-cairo text-right">المحطة</TableHead>
                     <TableHead className="font-cairo text-right">الكمية (طن)</TableHead>
+                    <TableHead className="font-cairo text-right">سعر الشراء</TableHead>
                     <TableHead className="font-cairo text-right">سعر البيع</TableHead>
                     <TableHead className="font-cairo text-right">الإجمالي</TableHead>
+                    <TableHead className="font-cairo text-right">الربح</TableHead>
                     <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(outgoingSales ?? []).map((r: any) => (
+                  {salesWithProfit.map((r: any) => (
                     <TableRow key={r.id}>
-                      <TableCell className="font-cairo text-xs">{r.sale_date ?? "—"}</TableCell>
+                      <TableCell className="font-cairo text-xs">{r.created_at ? format(new Date(r.created_at), "yyyy/MM/dd") : "—"}</TableCell>
                       <TableCell className="font-cairo text-xs">{r.station_name}</TableCell>
                       <TableCell className="font-cairo">{r.quantity_tons}</TableCell>
-                      <TableCell className="font-cairo">{fmt(Number(r.price_per_ton))}</TableCell>
-                      <TableCell className="font-cairo font-medium">{fmt(Number(r.total_amount))}</TableCell>
+                      <TableCell className="font-cairo text-xs">{fmt(r.purchasePrice)}</TableCell>
+                      <TableCell className="font-cairo text-xs">{fmt(r.salePrice)}</TableCell>
+                      <TableCell className="font-cairo font-medium">{fmt(Number(r.amount))}</TableCell>
+                      <TableCell>
+                        <Badge variant={r.profit >= 0 ? "default" : "destructive"} className="font-cairo text-[10px]">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          {fmt(r.profit)}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-cairo text-[10px]">
-                          {PAYMENT_METHOD_LABELS[r.payment_method] ?? r.payment_method}
+                          {PAYMENT_LABELS[r.payment_method] ?? r.payment_method}
                         </Badge>
-                        {r.payment_method === "mixed" && (
-                          <span className="text-[10px] font-cairo text-muted-foreground block mt-0.5">
-                            كاش: {fmt(Number(r.cash_amount))} | خصم: {fmt(Number(r.concrete_deduction_amount))}
-                          </span>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -299,6 +437,23 @@ export function CementTab() {
                 <Label className="font-cairo">سعر الطن *</Label>
                 <Input type="number" value={stockForm.price_per_ton} onChange={(e) => setStockForm((f) => ({ ...f, price_per_ton: e.target.value }))} className="font-cairo" min={0} />
               </div>
+            </div>
+            {stockTotal > 0 && (
+              <div className="bg-muted rounded-md p-2 text-center">
+                <span className="font-cairo text-sm text-muted-foreground">الإجمالي: </span>
+                <span className="font-cairo font-bold text-primary">{fmt(stockTotal)}</span>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="font-cairo">الوجهة (المحطة)</Label>
+              <Select value={stockForm.destination_station_id} onValueChange={(v) => setStockForm((f) => ({ ...f, destination_station_id: v }))}>
+                <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر المحطة" /></SelectTrigger>
+                <SelectContent>
+                  {(stations ?? []).map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)} className="font-cairo">{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="font-cairo">التاريخ</Label>
@@ -339,6 +494,27 @@ export function CementTab() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle className="font-cairo text-right">تسجيل بيع أسمنت لمحطة</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            {/* Select Purchase */}
+            <div className="space-y-1.5">
+              <Label className="font-cairo">اختر النقلة (الوارد) *</Label>
+              <Select value={saleForm.purchase_id} onValueChange={handlePurchaseSelect}>
+                <SelectTrigger className="font-cairo"><SelectValue placeholder="اختر النقلة" /></SelectTrigger>
+                <SelectContent>
+                  {(purchases ?? []).map((p: any) => (
+                    <SelectItem key={p.id} value={String(p.id)} className="font-cairo text-xs">
+                      {p.supplier_name} — {p.quantity_tons} طن — {p.created_at ? format(new Date(p.created_at), "yyyy/MM/dd") : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedPurchase && (
+                <p className="text-xs font-cairo text-muted-foreground">
+                  سعر الشراء: {fmt(Number(selectedPurchase.price_per_ton))} / طن
+                </p>
+              )}
+            </div>
+
+            {/* Station */}
             <div className="space-y-1.5">
               <Label className="font-cairo">المحطة *</Label>
               <Select value={saleForm.station_id} onValueChange={(v) => setSaleForm((f) => ({ ...f, station_id: v }))}>
@@ -350,39 +526,60 @@ export function CementTab() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="font-cairo">الكمية (طن) *</Label>
                 <Input type="number" value={saleForm.quantity_tons} onChange={(e) => setSaleForm((f) => ({ ...f, quantity_tons: e.target.value }))} className="font-cairo" min={0} />
               </div>
               <div className="space-y-1.5">
-                <Label className="font-cairo">سعر البيع *</Label>
+                <Label className="font-cairo">سعر البيع (ج.م/طن) *</Label>
                 <Input type="number" value={saleForm.price_per_ton} onChange={(e) => setSaleForm((f) => ({ ...f, price_per_ton: e.target.value }))} className="font-cairo" min={0} />
               </div>
             </div>
+
+            {saleTotal > 0 && (
+              <div className="bg-muted rounded-md p-2 text-center space-y-1">
+                <div>
+                  <span className="font-cairo text-sm text-muted-foreground">الإجمالي: </span>
+                  <span className="font-cairo font-bold text-primary">{fmt(saleTotal)}</span>
+                </div>
+                {selectedPurchase && (
+                  <div>
+                    <span className="font-cairo text-xs text-muted-foreground">الربح المتوقع: </span>
+                    <span className={`font-cairo text-xs font-bold ${(Number(saleForm.price_per_ton) - Number(selectedPurchase.price_per_ton)) >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+                      {fmt((Number(saleForm.price_per_ton) - Number(selectedPurchase.price_per_ton)) * Number(saleForm.quantity_tons))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Payment method */}
             <div className="space-y-1.5">
               <Label className="font-cairo">طريقة الدفع</Label>
               <Select value={saleForm.payment_method} onValueChange={(v) => setSaleForm((f) => ({ ...f, payment_method: v }))}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
-                  <SelectItem value="concrete_deduction" className="font-cairo">خصم من رصيد خرسانة</SelectItem>
+                  <SelectItem value="concrete_deduction" className="font-cairo">خصم من خرسانة</SelectItem>
                   <SelectItem value="mixed" className="font-cairo">مختلط (كاش + خصم)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {(saleForm.payment_method === "cash" || saleForm.payment_method === "mixed") && (
-              <div className="space-y-1.5">
-                <Label className="font-cairo">المبلغ النقدي</Label>
-                <Input type="number" value={saleForm.cash_amount} onChange={(e) => setSaleForm((f) => ({ ...f, cash_amount: e.target.value }))} className="font-cairo" min={0} />
+            {saleForm.payment_method === "mixed" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">مبلغ كاش</Label>
+                  <Input type="number" value={saleForm.cash_amount} onChange={(e) => setSaleForm((f) => ({ ...f, cash_amount: e.target.value }))} className="font-cairo" min={0} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">خصم خرسانة</Label>
+                  <Input type="number" value={saleForm.concrete_deduction_amount} onChange={(e) => setSaleForm((f) => ({ ...f, concrete_deduction_amount: e.target.value }))} className="font-cairo" min={0} />
+                </div>
               </div>
             )}
-            {(saleForm.payment_method === "concrete_deduction" || saleForm.payment_method === "mixed") && (
-              <div className="space-y-1.5">
-                <Label className="font-cairo">مبلغ خصم الخرسانة</Label>
-                <Input type="number" value={saleForm.concrete_deduction_amount} onChange={(e) => setSaleForm((f) => ({ ...f, concrete_deduction_amount: e.target.value }))} className="font-cairo" min={0} />
-              </div>
-            )}
+
             <div className="space-y-1.5">
               <Label className="font-cairo">التاريخ</Label>
               <Popover>
@@ -404,6 +601,7 @@ export function CementTab() {
           </div>
           <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
             <Button onClick={() => {
+              if (!saleForm.purchase_id) { toast({ title: "اختر النقلة", variant: "destructive" }); return; }
               if (!saleForm.station_id) { toast({ title: "اختر المحطة", variant: "destructive" }); return; }
               if (!saleForm.quantity_tons || Number(saleForm.quantity_tons) <= 0) { toast({ title: "أدخل الكمية", variant: "destructive" }); return; }
               if (!saleForm.price_per_ton || Number(saleForm.price_per_ton) <= 0) { toast({ title: "أدخل السعر", variant: "destructive" }); return; }
