@@ -340,8 +340,8 @@ export function StationsTab() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "الكمية (طن)", "سعر الطن", "الإجمالي"].map((h) => (
-                      <th key={h} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
+                    {["التاريخ", "الكمية (طن)", "سعر الطن", "الإجمالي", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -352,6 +352,14 @@ export function StationsTab() {
                       <td className="font-cairo px-3 py-2.5 text-xs">{t.cement_tons ?? "—"}</td>
                       <td className="font-cairo px-3 py-2.5 text-xs">{t.cement_price_per_ton ? fmt(Number(t.cement_price_per_ton)) : "—"}</td>
                       <td className="font-cairo px-3 py-2.5 text-xs font-bold">{fmt(Number(t.amount) || 0)}</td>
+                      {isAdmin && (
+                        <td className="px-2 py-2.5 print:hidden">
+                          <div className="flex gap-1">
+                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -370,8 +378,8 @@ export function StationsTab() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "المبلغ", "طريقة الدفع", "ملاحظات"].map((h) => (
-                      <th key={h} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
+                    {["التاريخ", "المبلغ", "طريقة الدفع", "ملاحظات", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -384,6 +392,14 @@ export function StationsTab() {
                         <Badge variant="outline" className="text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge>
                       </td>
                       <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{t.notes ?? "—"}</td>
+                      {isAdmin && (
+                        <td className="px-2 py-2.5 print:hidden">
+                          <div className="flex gap-1">
+                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
