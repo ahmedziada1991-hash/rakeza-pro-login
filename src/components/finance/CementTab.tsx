@@ -417,6 +417,11 @@ export function CementTab() {
                       <TableCell className="font-cairo font-medium">{fmt(Number(r.total_amount))}</TableCell>
                       <TableCell className="font-cairo text-xs">{r.destination_name ?? "—"}</TableCell>
                       <TableCell className="font-cairo text-xs text-muted-foreground">{r.notes ?? "—"}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: "purchase", record: r })}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
