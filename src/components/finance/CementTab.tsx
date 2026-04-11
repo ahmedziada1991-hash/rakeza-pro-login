@@ -262,6 +262,7 @@ export function CementTab() {
         }).eq("supplier_id", editingPurchase.supplier_id).eq("created_at", editingPurchase.created_at);
       } else {
         // INSERT mode
+        const saSelectedDateISO = stockDate ? new Date(stockDate.getFullYear(), stockDate.getMonth(), stockDate.getDate(), 12, 0, 0).toISOString() : undefined;
         const { error: saErr } = await supabase.from("supplier_accounts" as any).insert({
           supplier_id: Number(stockForm.supplier_id),
           transaction_type: "purchase",
@@ -270,15 +271,18 @@ export function CementTab() {
           total_amount: total,
           destination_name: destStation?.name || null,
           notes: stockForm.notes || null,
+          ...(saSelectedDateISO ? { created_at: saSelectedDateISO } : {}),
         });
         if (saErr) throw saErr;
 
+        const selectedDateISO = stockDate ? new Date(stockDate.getFullYear(), stockDate.getMonth(), stockDate.getDate(), 12, 0, 0).toISOString() : undefined;
         const { error: csErr } = await supabase.from("cement_stock").insert({
           supplier_id: Number(stockForm.supplier_id),
           quantity_tons: qty,
           price_per_ton: ppt,
           stock_date: stockDate ? format(stockDate, "yyyy-MM-dd") : null,
           notes: stockForm.notes || null,
+          ...(selectedDateISO ? { created_at: selectedDateISO } : {}),
         });
         if (csErr) throw csErr;
       }
