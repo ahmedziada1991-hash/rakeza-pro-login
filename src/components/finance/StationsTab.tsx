@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -7,11 +7,24 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, ArrowRight, Download, Send } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Search, ArrowRight, Download, Send, Pencil, Trash2 } from "lucide-react";
 import { generateStatementPDF, sendStatementWhatsApp } from "@/lib/statement-pdf";
+import { toast } from "sonner";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -41,8 +54,11 @@ interface StationSummary {
 export function StationsTab() {
   const { userRole } = useAuth();
   const isAdmin = userRole === "admin";
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedStation, setSelectedStation] = useState<StationSummary | null>(null);
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-stations-tab"],
@@ -101,6 +117,47 @@ export function StationsTab() {
     },
   });
 
+  const invalidateStation = () => {
+    queryClient.invalidateQueries({ queryKey: ["station-statement", selectedStation?.id] });
+    queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
+  };
+
+  const handleEditRecord = async () => {
+    if (!editRecord) return;
+    const updateData: any = {
+      amount: Number(editRecord.amount),
+      notes: editRecord.notes || null,
+      payment_method: editRecord.payment_method || null,
+    };
+    if (editRecord.transaction_type === "concrete") {
+      updateData.quantity_m3 = editRecord.quantity_m3 ? Number(editRecord.quantity_m3) : null;
+      updateData.price_per_m3 = editRecord.price_per_m3 ? Number(editRecord.price_per_m3) : null;
+    }
+    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") {
+      updateData.cement_tons = editRecord.cement_tons ? Number(editRecord.cement_tons) : null;
+      updateData.cement_price_per_ton = editRecord.cement_price_per_ton ? Number(editRecord.cement_price_per_ton) : null;
+    }
+    const { error } = await supabase.from("station_accounts" as any).update(updateData).eq("id", editRecord.id);
+    if (error) {
+      toast.error("فشل التحديث");
+    } else {
+      toast.success("تم التحديث بنجاح");
+      invalidateStation();
+    }
+    setEditRecord(null);
+  };
+
+  const handleDeleteRecord = async () => {
+    if (!deleteRecordId) return;
+    const { error } = await supabase.from("station_accounts" as any).delete().eq("id", deleteRecordId);
+    if (error) {
+      toast.error("فشل الحذف");
+    } else {
+      toast.success("تم الحذف بنجاح");
+      invalidateStation();
+    }
+    setDeleteRecordId(null);
+  };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   // Deduplicate pours
@@ -247,8 +304,8 @@ export function StationsTab() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "اسم العميل", "الكمية (م³)", "سعر الشراء", "الإجمالي"].map((h) => (
-                      <th key={h} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
+                    {["التاريخ", "اسم العميل", "الكمية (م³)", "سعر الشراء", "الإجمالي", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -260,6 +317,14 @@ export function StationsTab() {
                       <td className="font-cairo px-3 py-2.5 text-xs">{t.quantity_m3 ?? "—"}</td>
                       <td className="font-cairo px-3 py-2.5 text-xs">{t.price_per_m3 ? fmt(Number(t.price_per_m3)) : "—"}</td>
                       <td className="font-cairo px-3 py-2.5 text-xs font-bold">{fmt(Number(t.amount) || 0)}</td>
+                      {isAdmin && (
+                        <td className="px-2 py-2.5 print:hidden">
+                          <div className="flex gap-1">
+                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -276,8 +341,8 @@ export function StationsTab() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "الكمية (طن)", "سعر الطن", "الإجمالي"].map((h) => (
-                      <th key={h} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
+                    {["التاريخ", "الكمية (طن)", "سعر الطن", "الإجمالي", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -288,6 +353,14 @@ export function StationsTab() {
                       <td className="font-cairo px-3 py-2.5 text-xs">{t.cement_tons ?? "—"}</td>
                       <td className="font-cairo px-3 py-2.5 text-xs">{t.cement_price_per_ton ? fmt(Number(t.cement_price_per_ton)) : "—"}</td>
                       <td className="font-cairo px-3 py-2.5 text-xs font-bold">{fmt(Number(t.amount) || 0)}</td>
+                      {isAdmin && (
+                        <td className="px-2 py-2.5 print:hidden">
+                          <div className="flex gap-1">
+                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -306,8 +379,8 @@ export function StationsTab() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "المبلغ", "طريقة الدفع", "ملاحظات"].map((h) => (
-                      <th key={h} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
+                    {["التاريخ", "المبلغ", "طريقة الدفع", "ملاحظات", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -320,6 +393,14 @@ export function StationsTab() {
                         <Badge variant="outline" className="text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge>
                       </td>
                       <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{t.notes ?? "—"}</td>
+                      {isAdmin && (
+                        <td className="px-2 py-2.5 print:hidden">
+                          <div className="flex gap-1">
+                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -349,6 +430,81 @@ export function StationsTab() {
             رجوع للقائمة
           </Button>
         </div>
+
+        {/* Edit Record Dialog */}
+        <Dialog open={!!editRecord} onOpenChange={(open) => !open && setEditRecord(null)}>
+          <DialogContent dir="rtl" className="sm:max-w-sm">
+            <DialogHeader><DialogTitle className="font-cairo text-right">تعديل السجل</DialogTitle></DialogHeader>
+            {editRecord && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">المبلغ</Label>
+                  <Input type="number" value={editRecord.amount} onChange={(e) => setEditRecord((r: any) => ({ ...r, amount: e.target.value }))} className="font-cairo" />
+                </div>
+                {editRecord.transaction_type === "concrete" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="font-cairo">الكمية (م³)</Label>
+                      <Input type="number" value={editRecord.quantity_m3 ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, quantity_m3: e.target.value }))} className="font-cairo" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="font-cairo">سعر الشراء/م³</Label>
+                      <Input type="number" value={editRecord.price_per_m3 ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, price_per_m3: e.target.value }))} className="font-cairo" />
+                    </div>
+                  </>
+                )}
+                {(editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="font-cairo">الكمية (طن)</Label>
+                      <Input type="number" value={editRecord.cement_tons ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, cement_tons: e.target.value }))} className="font-cairo" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="font-cairo">سعر الطن</Label>
+                      <Input type="number" value={editRecord.cement_price_per_ton ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, cement_price_per_ton: e.target.value }))} className="font-cairo" />
+                    </div>
+                  </>
+                )}
+                {(editRecord.transaction_type === "payment" || editRecord.transaction_type === "دفعة") && (
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">طريقة الدفع</Label>
+                    <Select value={editRecord.payment_method ?? ""} onValueChange={(v) => setEditRecord((r: any) => ({ ...r, payment_method: v }))}>
+                      <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
+                        <SelectItem value="bank_transfer" className="font-cairo">تحويل بنكي</SelectItem>
+                        <SelectItem value="check" className="font-cairo">شيك</SelectItem>
+                        <SelectItem value="concrete_deduction" className="font-cairo">خصم خرسانة</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">ملاحظات</Label>
+                  <Textarea value={editRecord.notes ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, notes: e.target.value }))} className="font-cairo" rows={2} />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+              <Button onClick={handleEditRecord} className="font-cairo">حفظ التعديلات</Button>
+              <Button variant="outline" onClick={() => setEditRecord(null)} className="font-cairo">إلغاء</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={!!deleteRecordId} onOpenChange={(open) => !open && setDeleteRecordId(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-cairo">هل تريد حذف هذا السجل؟</AlertDialogTitle>
+              <AlertDialogDescription className="font-cairo">سيتم حذف السجل نهائياً وتحديث الأرقام.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex gap-2">
+              <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteRecord} className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }

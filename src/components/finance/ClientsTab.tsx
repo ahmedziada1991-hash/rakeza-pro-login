@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -7,13 +7,21 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Search, ArrowRight, Download, Send, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { generateStatementPDF, sendStatementWhatsApp } from "@/lib/statement-pdf";
@@ -41,6 +49,7 @@ export function ClientsTab() {
   const [selectedClient, setSelectedClient] = useState<ClientSummary | null>(null);
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null);
   const [editingPourId, setEditingPourId] = useState<number | null>(null);
+  const [editPayment, setEditPayment] = useState<any>(null);
   const [editPriceValue, setEditPriceValue] = useState("");
   const { userRole } = useAuth();
   const queryClient = useQueryClient();
@@ -221,6 +230,26 @@ export function ClientsTab() {
       invalidateAll();
     }
     setDeletePaymentId(null);
+  };
+
+  const handleEditPayment = async () => {
+    if (!editPayment) return;
+    const { error } = await supabase
+      .from("client_accounts" as any)
+      .update({
+        amount: Number(editPayment.amount),
+        payment_method: editPayment.payment_method || null,
+        notes: editPayment.notes || null,
+      } as any)
+      .eq("id", editPayment.id);
+    if (error) {
+      toast.error("فشل تحديث الدفعة");
+    } else {
+      toast.success("تم تحديث الدفعة بنجاح");
+      invalidateAll();
+    }
+    setEditPayment(null);
+  };
   };
 
   const getPourAccountPrice = (pourOrderId: number) => {
@@ -408,12 +437,20 @@ export function ClientsTab() {
                       <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{t.notes ?? "—"}</td>
                       {isAdmin && (
                         <td className="px-2 py-2.5 print:hidden">
-                          <button
-                            onClick={() => setDeletePaymentId(t.id)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => setEditPayment({ ...t })}
+                              className="text-muted-foreground hover:text-primary"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletePaymentId(t.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -463,6 +500,41 @@ export function ClientsTab() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit payment dialog */}
+        <Dialog open={!!editPayment} onOpenChange={(open) => !open && setEditPayment(null)}>
+          <DialogContent dir="rtl" className="sm:max-w-sm">
+            <DialogHeader><DialogTitle className="font-cairo text-right">تعديل الدفعة</DialogTitle></DialogHeader>
+            {editPayment && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">المبلغ</Label>
+                  <Input type="number" value={editPayment.amount} onChange={(e) => setEditPayment((p: any) => ({ ...p, amount: e.target.value }))} className="font-cairo" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">طريقة الدفع</Label>
+                  <Select value={editPayment.payment_method ?? ""} onValueChange={(v) => setEditPayment((p: any) => ({ ...p, payment_method: v }))}>
+                    <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
+                      <SelectItem value="bank_transfer" className="font-cairo">تحويل بنكي</SelectItem>
+                      <SelectItem value="check" className="font-cairo">شيك</SelectItem>
+                      <SelectItem value="online" className="font-cairo">أونلاين</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-cairo">ملاحظات</Label>
+                  <Textarea value={editPayment.notes ?? ""} onChange={(e) => setEditPayment((p: any) => ({ ...p, notes: e.target.value }))} className="font-cairo" rows={2} />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+              <Button onClick={handleEditPayment} className="font-cairo">حفظ التعديلات</Button>
+              <Button variant="outline" onClick={() => setEditPayment(null)} className="font-cairo">إلغاء</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
