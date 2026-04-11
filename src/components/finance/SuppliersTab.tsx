@@ -21,9 +21,14 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Search, ChevronLeft, Plus, CalendarIcon, Loader2, Send } from "lucide-react";
+import { Search, ChevronLeft, Plus, CalendarIcon, Loader2, Send, Pencil, Trash2 } from "lucide-react";
 import { generateStatementPDF, sendStatementWhatsApp } from "@/lib/statement-pdf";
+import { useAuth } from "@/contexts/AuthContext";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
