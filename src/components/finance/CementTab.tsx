@@ -295,20 +295,8 @@ export function CementTab() {
       const purchasePrice = selectedPurchase ? Number(selectedPurchase.price_per_ton) : 0;
 
       if (editingSale) {
-        // UPDATE mode
-        const { error: stErr } = await supabase.from("station_accounts" as any).update({
-          station_id: Number(saleForm.station_id),
-          quantity_tons: qty,
-          price_per_ton: ppt,
-          amount: total,
-          cement_price_per_ton: purchasePrice,
-          payment_method: saleForm.payment_method,
-          notes: saleForm.notes || null,
-        }).eq("id", editingSale.id);
-        if (stErr) throw stErr;
-
-        // Update cement_sales by matching station_id + created_at
-        await supabase.from("cement_sales" as any).update({
+        // UPDATE cement_sales by matching station_id + created_at
+        const { error: csErr } = await supabase.from("cement_sales" as any).update({
           station_id: Number(saleForm.station_id),
           quantity_tons: qty,
           price_per_ton: ppt,
@@ -319,6 +307,33 @@ export function CementTab() {
           sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
           notes: saleForm.notes || null,
         }).eq("station_id", editingSale.station_id).eq("created_at", editingSale.created_at);
+        if (csErr) throw csErr;
+
+        // UPDATE station_accounts - update by id AND also try by station_id + created_at for safety
+        const stUpdatePayload: any = {
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          amount: total,
+          total_amount: total,
+          cement_price_per_ton: purchasePrice,
+          payment_method: saleForm.payment_method,
+          notes: saleForm.notes || null,
+        };
+        const { error: stErr, count: stCount } = await supabase.from("station_accounts" as any)
+          .update(stUpdatePayload)
+          .eq("id", editingSale.id)
+          .select("id", { count: "exact", head: true });
+        
+        // If no rows updated by id, try matching by station_id + created_at + transaction_type
+        if (!stErr && (stCount === 0 || stCount === null)) {
+          await supabase.from("station_accounts" as any)
+            .update(stUpdatePayload)
+            .eq("station_id", editingSale.station_id)
+            .eq("created_at", editingSale.created_at)
+            .eq("transaction_type", "cement");
+        }
+        if (stErr) throw stErr;
       } else {
         // INSERT mode
         const stationPayload: any = {
