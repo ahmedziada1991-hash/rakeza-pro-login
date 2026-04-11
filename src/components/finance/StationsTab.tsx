@@ -232,46 +232,64 @@ export function StationsTab() {
     return { totalCost, totalPaid, cementBalance, finalBalance: cementBalance - totalPaid - totalCost };
   })();
 
-  const handlePrint = () => { window.print(); };
+  const buildStationPDFData = (station: StationSummary): StationStatementPDFData => {
+    const totals = statementTotals ?? station;
+    
+    const pourRows = pours.map((t: any) => ({
+      date: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "—",
+      clientName: t.client_name || extractClientName(t.notes),
+      quantity: String(t.quantity_m3 ?? "—"),
+      purchasePrice: t.price_per_m3 ? fmt(Number(t.price_per_m3)) : "—",
+      total: fmt(Number(t.amount) || 0),
+    }));
+
+    const cementRows = (cementSalesData ?? []).map((s: any) => {
+      const saleTotal = Number(s.total_amount) || (Number(s.quantity_tons) * Number(s.sale_price_per_ton || s.price_per_ton));
+      const cashPaid = Number(s.cash_amount) || 0;
+      const deducted = Number(s.concrete_deduction_amount) || 0;
+      const remaining = saleTotal - cashPaid - deducted;
+      return {
+        date: s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB") : "—",
+        quantity: String(s.quantity_tons ?? "—"),
+        pricePerTon: s.sale_price_per_ton ? fmt(Number(s.sale_price_per_ton)) : (s.price_per_ton ? fmt(Number(s.price_per_ton)) : "—"),
+        total: fmt(saleTotal),
+        paymentMethod: METHOD_LABELS[s.payment_method] ?? s.payment_method ?? "—",
+        cashPaid: cashPaid > 0 ? fmt(cashPaid) : "—",
+        deducted: deducted > 0 ? fmt(deducted) : "—",
+        remaining: fmt(remaining),
+        notes: s.notes ?? "—",
+      };
+    });
+
+    const paymentRows = payments.map((t: any) => ({
+      date: t.created_at ? new Date(t.created_at).toLocaleDateString("en-GB") : "—",
+      amount: fmt(Number(t.amount) || 0),
+      method: METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—",
+      notes: t.notes ?? "—",
+    }));
+
+    return {
+      stationName: station.name,
+      totals: {
+        totalCost: totals.totalCost,
+        cementBalance: totals.cementBalance,
+        totalPaid: totals.totalPaid,
+        finalBalance: totals.finalBalance,
+      },
+      pours: pourRows,
+      cementSales: cementRows,
+      payments: paymentRows,
+    };
+  };
+
+  const handleDownloadPDF = (station: StationSummary) => {
+    const pdfData = buildStationPDFData(station);
+    generateStationStatementPDF(pdfData);
+  };
 
   const handleWhatsAppPDF = (station: StationSummary) => {
-    const totals = statementTotals ?? station;
-    const transactions: { date: string; description: string; amount: number }[] = [];
-
-    pours.forEach((t: any) => {
-      transactions.push({
-        date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
-        description: `Concrete - ${t.quantity_m3 ?? 0} m³ (${t.client_name || extractClientName(t.notes)})`,
-        amount: Number(t.amount) || 0,
-      });
-    });
-
-    cementSales.forEach((t: any) => {
-      transactions.push({
-        date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
-        description: `Cement - ${t.cement_tons ?? 0} ton`,
-        amount: -(Number(t.amount) || 0),
-      });
-    });
-
-    payments.forEach((t: any) => {
-      transactions.push({
-        date: t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—",
-        description: `Payment`,
-        amount: -(Number(t.amount) || 0),
-      });
-    });
-
-    transactions.sort((a, b) => a.date.localeCompare(b.date));
-
-    generateStatementPDF({
-      entityName: station.name,
-      entityType: "محطة",
-      transactions,
-      totalDebt: totals.cementBalance,
-      totalPaid: totals.totalPaid,
-      balance: totals.finalBalance,
-    });
+    const pdfData = buildStationPDFData(station);
+    generateStationStatementPDF(pdfData);
 
     setTimeout(() => {
       sendStatementWhatsApp(null, station.name);
