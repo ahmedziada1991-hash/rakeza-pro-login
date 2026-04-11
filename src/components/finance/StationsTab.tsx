@@ -119,6 +119,19 @@ export function StationsTab() {
     },
   });
 
+  const { data: cementSalesData } = useQuery({
+    queryKey: ["station-cement-sales", selectedStation?.id],
+    enabled: !!selectedStation,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cement_sales" as any)
+        .select("*")
+        .eq("station_id", selectedStation!.id)
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
   const invalidateStation = () => {
     queryClient.invalidateQueries({ queryKey: ["station-statement", selectedStation?.id] });
     queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
