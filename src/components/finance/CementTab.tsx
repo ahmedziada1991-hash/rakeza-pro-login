@@ -22,7 +22,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowDown, ArrowUp, CalendarIcon, Loader2, TrendingUp } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarIcon, Loader2, Trash2, TrendingUp } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function fmt(n: number) {
   return `${n.toLocaleString("ar-EG")} ج.م`;
@@ -38,6 +42,7 @@ export function CementTab() {
   const queryClient = useQueryClient();
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "purchase" | "sale"; record: any } | null>(null);
 
   // Stock form
   const [stockForm, setStockForm] = useState({
@@ -189,6 +194,36 @@ export function CementTab() {
     queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
     queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
   };
+
+  const deletePurchaseMutation = useMutation({
+    mutationFn: async (record: any) => {
+      // Delete from supplier_accounts (the main record shown in table)
+      const { error: e1 } = await supabase.from("supplier_accounts" as any).delete().eq("id", record.id);
+      if (e1) throw e1;
+      // Delete matching cement_stock record
+      await supabase.from("cement_stock" as any)
+        .delete()
+        .eq("supplier_id", record.supplier_id)
+        .eq("created_at", record.created_at);
+    },
+    onSuccess: () => { invalidateAll(); toast({ title: "تم حذف سجل الوارد بنجاح" }); },
+    onError: (err: any) => toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (record: any) => {
+      // Delete from station_accounts (the main record shown in table)
+      const { error: e1 } = await supabase.from("station_accounts" as any).delete().eq("id", record.id);
+      if (e1) throw e1;
+      // Delete matching cement_sales record
+      await supabase.from("cement_sales" as any)
+        .delete()
+        .eq("station_id", record.station_id)
+        .eq("created_at", record.created_at);
+    },
+    onSuccess: () => { invalidateAll(); toast({ title: "تم حذف سجل البيع بنجاح" }); },
+    onError: (err: any) => toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" }),
+  });
 
   const addStockMutation = useMutation({
     mutationFn: async () => {
@@ -363,8 +398,9 @@ export function CementTab() {
                     <TableHead className="font-cairo text-right">سعر الطن</TableHead>
                     <TableHead className="font-cairo text-right">الإجمالي</TableHead>
                     <TableHead className="font-cairo text-right">الوجهة</TableHead>
-                    <TableHead className="font-cairo text-right">ملاحظات</TableHead>
-                  </TableRow>
+                     <TableHead className="font-cairo text-right">ملاحظات</TableHead>
+                     <TableHead className="w-10"></TableHead>
+                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {(purchases ?? []).map((r: any) => (
@@ -376,6 +412,11 @@ export function CementTab() {
                       <TableCell className="font-cairo font-medium">{fmt(Number(r.total_amount))}</TableCell>
                       <TableCell className="font-cairo text-xs">{r.destination_name ?? "—"}</TableCell>
                       <TableCell className="font-cairo text-xs text-muted-foreground">{r.notes ?? "—"}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: "purchase", record: r })}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -407,8 +448,9 @@ export function CementTab() {
                     <TableHead className="font-cairo text-right">سعر البيع</TableHead>
                     <TableHead className="font-cairo text-right">الإجمالي</TableHead>
                     <TableHead className="font-cairo text-right">الربح</TableHead>
-                    <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
-                  </TableRow>
+                     <TableHead className="font-cairo text-right">طريقة الدفع</TableHead>
+                     <TableHead className="w-10"></TableHead>
+                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {salesWithProfit.map((r: any) => (
@@ -429,6 +471,11 @@ export function CementTab() {
                         <Badge variant="outline" className="font-cairo text-[10px]">
                           {PAYMENT_LABELS[r.payment_method] ?? r.payment_method}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ type: "sale", record: r })}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -641,6 +688,34 @@ export function CementTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cairo text-right">هل أنت متأكد من حذف هذا السجل؟</AlertDialogTitle>
+            <AlertDialogDescription className="font-cairo text-right">
+              سيتم حذف السجل والسجلات المرتبطة به نهائياً ولا يمكن التراجع.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2 sm:justify-start">
+            <AlertDialogAction
+              className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletePurchaseMutation.isPending || deleteSaleMutation.isPending}
+              onClick={() => {
+                if (!deleteTarget) return;
+                if (deleteTarget.type === "purchase") deletePurchaseMutation.mutate(deleteTarget.record);
+                else deleteSaleMutation.mutate(deleteTarget.record);
+                setDeleteTarget(null);
+              }}
+            >
+              {(deletePurchaseMutation.isPending || deleteSaleMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
+              حذف
+            </AlertDialogAction>
+            <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
