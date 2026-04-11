@@ -49,10 +49,9 @@ export function ClientsTab() {
   const [selectedClient, setSelectedClient] = useState<ClientSummary | null>(null);
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null);
   const [editingPourId, setEditingPourId] = useState<number | null>(null);
-  const [editPriceValue, setEditPriceValue] = useState("");
-  const { userRole } = useAuth();
-  const queryClient = useQueryClient();
-  const isAdmin = userRole === "admin";
+  const [editPayment, setEditPayment] = useState<any>(null);
+
+  const { data: accounts, isLoading } = useQuery({
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-clients-tab"],
