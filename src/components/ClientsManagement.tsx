@@ -802,8 +802,8 @@ export function ClientsManagement() {
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={closeDialog} className="font-cairo">إلغاء</Button>
-            <Button onClick={handleSave} className="font-cairo">
-              حفظ
+            <Button onClick={handleSave} disabled={saving} className="font-cairo">
+              {saving ? "جاري الحفظ..." : "حفظ"}
             </Button>
           </DialogFooter>
         </DialogContent>
