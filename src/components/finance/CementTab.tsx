@@ -187,33 +187,81 @@ export function CementTab() {
   // Calculate profit per sale
   const salesWithProfit = useMemo(() => {
     if (!sales || !purchases) return [];
+
+    // Build a map of cement_stock by id for quick lookup
+    const stockMap = new Map((cementStockData ?? []).map((st: any) => [st.id, st]));
+
+    // Build a map: find matching cement_sales record for each station_accounts sale
+    // Match by station_id + created_at (approximate) or amount
+    const cementSalesByStation = new Map<string, any[]>();
+    (cementSalesData ?? []).forEach((cs: any) => {
+      const key = String(cs.station_id);
+      if (!cementSalesByStation.has(key)) cementSalesByStation.set(key, []);
+      cementSalesByStation.get(key)!.push(cs);
+    });
+
+    // Calculate average purchase price from all cement_stock
+    const allStockPrices = (cementStockData ?? []).filter((st: any) => Number(st.price_per_ton) > 0);
+    const avgPurchasePrice = allStockPrices.length > 0
+      ? allStockPrices.reduce((sum: number, st: any) => sum + Number(st.price_per_ton), 0) / allStockPrices.length
+      : 0;
+
     return (sales ?? []).map((s: any) => {
       const qty = Number(s.cement_tons) || Number(s.quantity_tons) || 0;
       const salePrice = Number(s.price_per_ton) || (qty > 0 ? Number(s.amount) / qty : 0);
 
-      // Purchase price: first try cement_price_per_ton from station_accounts
-      let purchasePrice = Number(s.cement_price_per_ton) || 0;
+      let purchasePrice = 0;
 
-      // Fallback: match supplier_accounts by destination_name = station name and closest date
+      // 1) Try to find matching cement_sales record to get stock_id
+      const stationSales = cementSalesByStation.get(String(s.station_id)) ?? [];
+      const saleDate = new Date(s.created_at).getTime();
+      // Match by closest created_at date and similar amount
+      const matchedCementSale = stationSales.find((cs: any) => {
+        const csDate = new Date(cs.created_at).getTime();
+        return Math.abs(csDate - saleDate) < 60000; // within 1 minute
+      }) || stationSales.find((cs: any) => {
+        return Math.abs(Number(cs.total_amount) - Number(s.amount)) < 1;
+      });
+
+      if (matchedCementSale?.stock_id) {
+        // Get price from cement_stock using stock_id
+        const stockRecord = stockMap.get(matchedCementSale.stock_id);
+        if (stockRecord) {
+          purchasePrice = Number(stockRecord.price_per_ton) || 0;
+        }
+      }
+
+      // 2) Fallback: match supplier_accounts by destination_name = station name and closest date
       if (!purchasePrice && s.station_name) {
         const matchingPurchases = (purchases ?? []).filter(
           (p: any) => p.destination_name === s.station_name
         );
         if (matchingPurchases.length > 0) {
-          const saleDate = new Date(s.created_at).getTime();
           matchingPurchases.sort(
             (a: any, b: any) =>
               Math.abs(new Date(a.created_at).getTime() - saleDate) -
               Math.abs(new Date(b.created_at).getTime() - saleDate)
           );
-          purchasePrice = Number(matchingPurchases[0].price_per_ton) || 0;
+          // Get the price from cement_stock for this supplier purchase
+          const closestPurchase = matchingPurchases[0];
+          // Try to find cement_stock record matching this supplier purchase
+          const matchingStock = (cementStockData ?? []).find((st: any) =>
+            st.supplier_id === closestPurchase.supplier_id &&
+            Math.abs(new Date(st.created_at).getTime() - new Date(closestPurchase.created_at).getTime()) < 60000
+          );
+          purchasePrice = matchingStock ? Number(matchingStock.price_per_ton) || 0 : Number(closestPurchase.price_per_ton) || 0;
         }
+      }
+
+      // 3) Final fallback: average purchase price from all cement_stock
+      if (!purchasePrice) {
+        purchasePrice = avgPurchasePrice;
       }
 
       const profit = (salePrice - purchasePrice) * qty;
       return { ...s, profit, purchasePrice, salePrice, displayQty: qty };
     });
-  }, [sales, purchases]);
+  }, [sales, purchases, cementStockData, cementSalesData]);
 
   // --- Mutations ---
   const invalidateAll = () => {
