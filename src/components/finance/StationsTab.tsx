@@ -33,6 +33,8 @@ function fmt(n: number) {
 const METHOD_LABELS: Record<string, string> = {
   cash: "كاش", bank_transfer: "تحويل بنكي", check: "شيك", online: "أونلاين",
   cement: "أسمنت", concrete_deduction: "خصم خرسانة", mixed: "مختلط",
+  balance_only: "رصيد فقط", cash_full: "كاش كامل", cash_partial: "كاش جزئي",
+  deduction_full: "خصم كامل من مديونيتي", deduction_partial: "خصم جزئي من مديونيتي",
 };
 
 function extractClientName(notes: string | null): string {
@@ -117,8 +119,22 @@ export function StationsTab() {
     },
   });
 
+  const { data: cementSalesData } = useQuery({
+    queryKey: ["station-cement-sales", selectedStation?.id],
+    enabled: !!selectedStation,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cement_sales" as any)
+        .select("*")
+        .eq("station_id", selectedStation!.id)
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
   const invalidateStation = () => {
     queryClient.invalidateQueries({ queryKey: ["station-statement", selectedStation?.id] });
+    queryClient.invalidateQueries({ queryKey: ["station-cement-sales", selectedStation?.id] });
     queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
   };
 
@@ -267,26 +283,29 @@ export function StationsTab() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">مديونية خرسانة</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي مديونية الخرسانة</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: "#DC2626" }}>{fmt(totals.totalCost)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">المدفوع</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي الكاش المدفوع</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">خصم أسمنت</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي خصم من مديونية ركيزة</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#1B3A6B" }}>{fmt(totals.finalBalance)}</p>
+                <p className="font-cairo font-bold text-lg" style={{ color: totals.finalBalance > 0 ? "#DC2626" : "#16A34A" }}>
+                  {fmt(totals.finalBalance)}
+                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "المحطة مدينة" : totals.finalBalance < 0 ? "ركيزة مدينة" : "متساوي"}</span>
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -333,36 +352,48 @@ export function StationsTab() {
           )}
         </div>
 
-        {/* Cement Sales */}
-        {cementSales.length > 0 && (
+        {/* Cement Sales - from cement_sales table */}
+        {(cementSalesData ?? []).length > 0 && (
           <div className="px-5 py-4">
             <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>مبيعات الأسمنت</h3>
             <div className="overflow-auto rounded-lg border">
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "الكمية (طن)", "سعر الطن", "الإجمالي", ...(isAdmin ? [""] : [])].map((h, idx) => (
-                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
+                    {["التاريخ", "الكمية (طن)", "سعر الطن", "الإجمالي", "طريقة الدفع", "كاش مدفوع", "خصم من مديونية", "الرصيد المتبقي", "ملاحظات", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {cementSales.map((t: any, i: number) => (
-                    <tr key={t.id} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.cement_tons ?? "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.cement_price_per_ton ? fmt(Number(t.cement_price_per_ton)) : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs font-bold">{fmt(Number(t.amount) || 0)}</td>
-                      {isAdmin && (
-                        <td className="px-2 py-2.5 print:hidden">
-                          <div className="flex gap-1">
-                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
-                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
-                          </div>
+                  {(cementSalesData ?? []).map((s: any, i: number) => {
+                    const saleTotal = Number(s.total_amount) || (Number(s.quantity_tons) * Number(s.sale_price_per_ton || s.price_per_ton));
+                    const cashPaid = Number(s.cash_amount) || 0;
+                    const deducted = Number(s.concrete_deduction_amount) || 0;
+                    const remaining = saleTotal - cashPaid - deducted;
+                    return (
+                      <tr key={s.id} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
+                        <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">{s.created_at ? new Date(s.created_at).toLocaleDateString("ar-EG") : "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs">{s.quantity_tons ?? "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs">{s.sale_price_per_ton ? fmt(Number(s.sale_price_per_ton)) : (s.price_per_ton ? fmt(Number(s.price_per_ton)) : "—")}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs font-bold">{fmt(saleTotal)}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs">
+                          <Badge variant="outline" className="text-[10px] whitespace-nowrap">{METHOD_LABELS[s.payment_method] ?? s.payment_method ?? "—"}</Badge>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="font-cairo px-3 py-2.5 text-xs" style={{ color: cashPaid > 0 ? "#16A34A" : undefined }}>{cashPaid > 0 ? fmt(cashPaid) : "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs" style={{ color: deducted > 0 ? "#F59E0B" : undefined }}>{deducted > 0 ? fmt(deducted) : "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs font-bold" style={{ color: remaining > 0 ? "#DC2626" : "#16A34A" }}>{fmt(remaining)}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{s.notes ?? "—"}</td>
+                        {isAdmin && (
+                          <td className="px-2 py-2.5 print:hidden">
+                            <div className="flex gap-1">
+                              <button onClick={() => setEditRecord({ ...s, _source: "cement_sales" })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
