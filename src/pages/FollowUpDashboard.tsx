@@ -10,6 +10,7 @@ import { FollowUpTargetsAdmin } from "@/components/FollowUpTargetsAdmin";
 import { ClientAssignment } from "@/components/ClientAssignment";
 import { PriceOffersPage } from "@/components/PriceOffersPage";
 import { NotificationBell } from "@/components/NotificationBell";
+import { TeamChat } from "@/components/TeamChat";
 
 const FollowUpDashboard = () => {
   const navigate = useNavigate();
@@ -49,6 +50,7 @@ const FollowUpDashboard = () => {
               <SidebarTrigger className="mr-1" />
             </div>
             <div className="flex items-center gap-2">
+              <TeamChat />
               <NotificationBell />
               <span className="text-sm font-cairo text-muted-foreground">مرحباً يا {userName ?? "المتابع"}! 👋</span>
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">

@@ -6,6 +6,7 @@ import { ExecutionSidebar } from "@/components/ExecutionSidebar";
 import { ExecutionContent } from "@/components/ExecutionContent";
 import { ExecutionDailyReport } from "@/components/ExecutionDailyReport";
 import { NotificationBell } from "@/components/NotificationBell";
+import { TeamChat } from "@/components/TeamChat";
 
 const ExecutionDashboard = () => {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ const ExecutionDashboard = () => {
               <SidebarTrigger className="mr-1" />
             </div>
             <div className="flex items-center gap-2">
+              <TeamChat />
               <NotificationBell />
               <span className="text-sm font-cairo text-muted-foreground">مرحباً، التنفيذ</span>
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
