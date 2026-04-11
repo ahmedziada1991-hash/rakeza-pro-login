@@ -294,58 +294,82 @@ export function CementTab() {
       const total = qty * ppt;
       const purchasePrice = selectedPurchase ? Number(selectedPurchase.price_per_ton) : 0;
 
-      // 1. Insert into station_accounts
-      const stationPayload: any = {
-        station_id: Number(saleForm.station_id),
-        transaction_type: "cement",
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        amount: total,
-        cement_source_type: "purchased",
-        cement_price_per_ton: purchasePrice,
-        payment_method: saleForm.payment_method,
-        notes: saleForm.notes || null,
-      };
-      const { error: stErr } = await supabase.from("station_accounts" as any).insert(stationPayload);
-      if (stErr) throw stErr;
+      if (editingSale) {
+        // UPDATE mode
+        const { error: stErr } = await supabase.from("station_accounts" as any).update({
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          amount: total,
+          cement_price_per_ton: purchasePrice,
+          payment_method: saleForm.payment_method,
+          notes: saleForm.notes || null,
+        }).eq("id", editingSale.id);
+        if (stErr) throw stErr;
 
-      // 2. Handle concrete deduction if needed
-      if (saleForm.payment_method === "concrete_deduction" || saleForm.payment_method === "mixed") {
-        const deductAmt = saleForm.payment_method === "concrete_deduction"
-          ? total
-          : Number(saleForm.concrete_deduction_amount) || 0;
+        // Update cement_sales by matching station_id + created_at
+        await supabase.from("cement_sales" as any).update({
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          sale_price_per_ton: ppt,
+          payment_method: saleForm.payment_method,
+          cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
+          concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
+          sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
+          notes: saleForm.notes || null,
+        }).eq("station_id", editingSale.station_id).eq("created_at", editingSale.created_at);
+      } else {
+        // INSERT mode
+        const stationPayload: any = {
+          station_id: Number(saleForm.station_id),
+          transaction_type: "cement",
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          amount: total,
+          cement_source_type: "purchased",
+          cement_price_per_ton: purchasePrice,
+          payment_method: saleForm.payment_method,
+          notes: saleForm.notes || null,
+        };
+        const { error: stErr } = await supabase.from("station_accounts" as any).insert(stationPayload);
+        if (stErr) throw stErr;
 
-        if (deductAmt > 0) {
-          // Deduct from concrete debt
-          const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
-            station_id: Number(saleForm.station_id),
-            transaction_type: "payment",
-            amount: deductAmt,
-            payment_method: "concrete_deduction",
-            notes: "خصم تلقائي مقابل أسمنت",
-          });
-          if (deductErr) throw deductErr;
+        if (saleForm.payment_method === "concrete_deduction" || saleForm.payment_method === "mixed") {
+          const deductAmt = saleForm.payment_method === "concrete_deduction"
+            ? total
+            : Number(saleForm.concrete_deduction_amount) || 0;
+          if (deductAmt > 0) {
+            const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
+              station_id: Number(saleForm.station_id),
+              transaction_type: "payment",
+              amount: deductAmt,
+              payment_method: "concrete_deduction",
+              notes: "خصم تلقائي مقابل أسمنت",
+            });
+            if (deductErr) throw deductErr;
+          }
         }
-      }
 
-      // 3. Insert negative record into cement_stock (deduction)
-      const { error: csErr } = await supabase.from("cement_sales").insert({
-        station_id: Number(saleForm.station_id),
-        quantity_tons: qty,
-        price_per_ton: ppt,
-        sale_price_per_ton: ppt,
-        payment_method: saleForm.payment_method,
-        cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
-        concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
-        sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
-        notes: saleForm.notes || null,
-      });
-      if (csErr) throw csErr;
+        const { error: csErr } = await supabase.from("cement_sales").insert({
+          station_id: Number(saleForm.station_id),
+          quantity_tons: qty,
+          price_per_ton: ppt,
+          sale_price_per_ton: ppt,
+          payment_method: saleForm.payment_method,
+          cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
+          concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
+          sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
+          notes: saleForm.notes || null,
+        });
+        if (csErr) throw csErr;
+      }
     },
     onSuccess: () => {
       invalidateAll();
-      toast({ title: "تم تسجيل البيع بنجاح" });
+      toast({ title: editingSale ? "تم التعديل بنجاح" : "تم تسجيل البيع بنجاح" });
       setSaleDialogOpen(false);
+      setEditingSale(null);
       setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" });
     },
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
