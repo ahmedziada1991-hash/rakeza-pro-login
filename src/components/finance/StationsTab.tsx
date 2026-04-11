@@ -134,6 +134,7 @@ export function StationsTab() {
 
   const invalidateStation = () => {
     queryClient.invalidateQueries({ queryKey: ["station-statement", selectedStation?.id] });
+    queryClient.invalidateQueries({ queryKey: ["station-cement-sales", selectedStation?.id] });
     queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
   };
 
