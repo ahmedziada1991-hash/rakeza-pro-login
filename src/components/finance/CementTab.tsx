@@ -333,9 +333,10 @@ export function CementTab() {
         }).eq("station_id", editingSale.station_id).eq("created_at", editingSale.created_at);
         if (csErr) throw csErr;
 
-        // UPDATE the main station_accounts cement record
+        // UPDATE the main station_accounts cement_sale record
         const stUpdatePayload: any = {
           station_id: Number(saleForm.station_id),
+          transaction_type: "cement_sale",
           quantity_tons: qty,
           price_per_ton: ppt,
           amount: total,
@@ -344,17 +345,46 @@ export function CementTab() {
           payment_method: pm,
           notes: saleForm.notes || null,
         };
+        // Delete old related payment/deduction records for this sale
+        await supabase.from("station_accounts" as any).delete()
+          .eq("station_id", editingSale.station_id)
+          .eq("created_at", editingSale.created_at)
+          .in("transaction_type", ["payment", "cement_deduction"]);
+        // Update the main cement record
         await supabase.from("station_accounts" as any).update(stUpdatePayload).eq("id", editingSale.id);
         await supabase.from("station_accounts" as any).update(stUpdatePayload)
           .eq("station_id", editingSale.station_id)
           .eq("created_at", editingSale.created_at)
-          .eq("transaction_type", "cement");
+          .in("transaction_type", ["cement", "cement_sale"]);
+
+        // Re-insert payment records if needed
+        const editDateOverride = editingSale.created_at;
+        if (cashAmt > 0) {
+          await supabase.from("station_accounts" as any).insert({
+            station_id: Number(saleForm.station_id),
+            transaction_type: "payment",
+            amount: cashAmt,
+            payment_method: "cash",
+            notes: "دفعة كاش مقابل أسمنت",
+            ...(editDateOverride && { created_at: editDateOverride }),
+          });
+        }
+        if (deductAmt > 0) {
+          await supabase.from("station_accounts" as any).insert({
+            station_id: Number(saleForm.station_id),
+            transaction_type: "payment",
+            amount: deductAmt,
+            payment_method: "deduction",
+            notes: "خصم من مديونية ركيزة مقابل أسمنت",
+            ...(editDateOverride && { created_at: editDateOverride }),
+          });
+        }
       } else {
         // INSERT: 1) Sale record in station_accounts (full amount as debt)
         const saleDateOverride = saleDate ? new Date(format(saleDate, "yyyy-MM-dd") + "T00:00:00").toISOString() : undefined;
         const { error: stErr } = await supabase.from("station_accounts" as any).insert({
           station_id: Number(saleForm.station_id),
-          transaction_type: "cement",
+          transaction_type: "cement_sale",
           quantity_tons: qty,
           price_per_ton: ppt,
           amount: total,
@@ -383,10 +413,10 @@ export function CementTab() {
         if (deductAmt > 0) {
           const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
             station_id: Number(saleForm.station_id),
-            transaction_type: "cement_deduction",
+            transaction_type: "payment",
             amount: deductAmt,
-            payment_method: "concrete_deduction",
-            notes: "خصم تلقائي من مديونية مقابل أسمنت",
+            payment_method: "deduction",
+            notes: "خصم من مديونية ركيزة مقابل أسمنت",
             ...(saleDateOverride && { created_at: saleDateOverride }),
           });
           if (deductErr) throw deductErr;
