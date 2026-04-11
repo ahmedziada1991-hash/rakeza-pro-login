@@ -215,18 +215,22 @@ export function ProfitsTab() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card><CardContent className="p-3 text-center">
-          <p className="text-xs font-cairo text-muted-foreground">إيرادات البيع</p>
+          <p className="text-xs font-cairo text-muted-foreground">إيرادات الخرسانة</p>
           <p className="font-cairo font-bold text-primary text-lg">{fmt(current.revenue)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3 text-center">
-          <p className="text-xs font-cairo text-muted-foreground">تكلفة الشراء</p>
-          <p className="font-cairo font-bold text-orange-600 text-lg">{fmt(current.cost)}</p>
+          <p className="text-xs font-cairo text-muted-foreground">ربح الخرسانة</p>
+          <p className={`font-cairo font-bold text-lg ${current.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(current.profit)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3 text-center">
-          <p className="text-xs font-cairo text-muted-foreground">صافي الربح</p>
-          <p className={`font-cairo font-bold text-lg ${current.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(current.profit)}</p>
+          <p className="text-xs font-cairo text-muted-foreground">ربح الأسمنت</p>
+          <p className={`font-cairo font-bold text-lg ${currentCementTotals.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(currentCementTotals.profit)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-3 text-center">
+          <p className="text-xs font-cairo text-muted-foreground">إجمالي الربح</p>
+          <p className={`font-cairo font-bold text-lg ${totalCurrentProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(totalCurrentProfit)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3 text-center">
           <p className="text-xs font-cairo text-muted-foreground">مقارنة بالشهر السابق</p>
