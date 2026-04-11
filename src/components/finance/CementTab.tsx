@@ -296,14 +296,17 @@ export function CementTab() {
 
       if (editingSale) {
         // UPDATE cement_sales by matching station_id + created_at
+        const cashAmt = saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0);
+        const deductAmt = saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0);
         const { error: csErr } = await supabase.from("cement_sales" as any).update({
           station_id: Number(saleForm.station_id),
           quantity_tons: qty,
           price_per_ton: ppt,
           sale_price_per_ton: ppt,
+          total_amount: total,
           payment_method: saleForm.payment_method,
-          cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
-          concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
+          cash_amount: cashAmt,
+          concrete_deduction_amount: deductAmt,
           sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
           notes: saleForm.notes || null,
         }).eq("station_id", editingSale.station_id).eq("created_at", editingSale.created_at);
@@ -371,6 +374,7 @@ export function CementTab() {
           quantity_tons: qty,
           price_per_ton: ppt,
           sale_price_per_ton: ppt,
+          total_amount: total,
           payment_method: saleForm.payment_method,
           cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
           concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
