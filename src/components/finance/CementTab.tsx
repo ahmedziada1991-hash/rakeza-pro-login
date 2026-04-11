@@ -33,9 +33,15 @@ function fmt(n: number) {
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
+  balance_only: "رصيد فقط",
+  cash_full: "كاش كامل",
+  cash_partial: "كاش جزئي",
+  deduction_full: "خصم كامل من مديونيتي",
+  deduction_partial: "خصم جزئي من مديونيتي",
+  mixed: "مختلط",
+  // Legacy
   cash: "كاش",
   concrete_deduction: "خصم من خرسانة",
-  mixed: "مختلط",
 };
 
 export function CementTab() {
@@ -55,7 +61,7 @@ export function CementTab() {
   // Sale form
   const [saleForm, setSaleForm] = useState({
     purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "",
-    payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "",
+    payment_method: "balance_only", cash_amount: "", concrete_deduction_amount: "", notes: "",
   });
   const [saleDate, setSaleDate] = useState<Date | undefined>(new Date());
 
@@ -293,18 +299,29 @@ export function CementTab() {
       const ppt = Number(saleForm.price_per_ton);
       const total = qty * ppt;
       const purchasePrice = selectedPurchase ? Number(selectedPurchase.price_per_ton) : 0;
+      const pm = saleForm.payment_method;
+
+      // Calculate cash and deduction amounts based on payment method
+      let cashAmt = 0;
+      let deductAmt = 0;
+      if (pm === "cash_full") { cashAmt = total; }
+      else if (pm === "cash_partial") { cashAmt = Number(saleForm.cash_amount) || 0; }
+      else if (pm === "deduction_full") { deductAmt = total; }
+      else if (pm === "deduction_partial") { deductAmt = Number(saleForm.concrete_deduction_amount) || 0; }
+      else if (pm === "mixed") { cashAmt = Number(saleForm.cash_amount) || 0; deductAmt = Number(saleForm.concrete_deduction_amount) || 0; }
+      // balance_only: both stay 0
+
+      const remaining = total - cashAmt - deductAmt;
 
       if (editingSale) {
-        // UPDATE cement_sales by matching station_id + created_at
-        const cashAmt = saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0);
-        const deductAmt = saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0);
+        // UPDATE cement_sales
         const { error: csErr } = await supabase.from("cement_sales" as any).update({
           station_id: Number(saleForm.station_id),
           quantity_tons: qty,
           price_per_ton: ppt,
           sale_price_per_ton: ppt,
           total_amount: total,
-          payment_method: saleForm.payment_method,
+          payment_method: pm,
           cash_amount: cashAmt,
           concrete_deduction_amount: deductAmt,
           sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
@@ -312,7 +329,7 @@ export function CementTab() {
         }).eq("station_id", editingSale.station_id).eq("created_at", editingSale.created_at);
         if (csErr) throw csErr;
 
-        // UPDATE station_accounts - update by id AND also try by station_id + created_at for safety
+        // UPDATE the main station_accounts cement record
         const stUpdatePayload: any = {
           station_id: Number(saleForm.station_id),
           quantity_tons: qty,
@@ -320,26 +337,17 @@ export function CementTab() {
           amount: total,
           total_amount: total,
           cement_price_per_ton: purchasePrice,
-          payment_method: saleForm.payment_method,
+          payment_method: pm,
           notes: saleForm.notes || null,
         };
-        const { error: stErr } = await supabase.from("station_accounts" as any)
-          .update(stUpdatePayload)
-          .eq("id", editingSale.id);
-        
-        // Also try matching by station_id + created_at + transaction_type as fallback
-        if (!stErr) {
-          await supabase.from("station_accounts" as any)
-            .update(stUpdatePayload)
-            .eq("station_id", editingSale.station_id)
-            .eq("created_at", editingSale.created_at)
-            .eq("transaction_type", "cement");
-        }
-        
-        if (stErr) throw stErr;
+        await supabase.from("station_accounts" as any).update(stUpdatePayload).eq("id", editingSale.id);
+        await supabase.from("station_accounts" as any).update(stUpdatePayload)
+          .eq("station_id", editingSale.station_id)
+          .eq("created_at", editingSale.created_at)
+          .eq("transaction_type", "cement");
       } else {
-        // INSERT mode
-        const stationPayload: any = {
+        // INSERT: 1) Sale record in station_accounts (full amount as debt)
+        const { error: stErr } = await supabase.from("station_accounts" as any).insert({
           station_id: Number(saleForm.station_id),
           transaction_type: "cement",
           quantity_tons: qty,
@@ -347,37 +355,45 @@ export function CementTab() {
           amount: total,
           cement_source_type: "purchased",
           cement_price_per_ton: purchasePrice,
-          payment_method: saleForm.payment_method,
+          payment_method: pm,
           notes: saleForm.notes || null,
-        };
-        const { error: stErr } = await supabase.from("station_accounts" as any).insert(stationPayload);
+        });
         if (stErr) throw stErr;
 
-        if (saleForm.payment_method === "concrete_deduction" || saleForm.payment_method === "mixed") {
-          const deductAmt = saleForm.payment_method === "concrete_deduction"
-            ? total
-            : Number(saleForm.concrete_deduction_amount) || 0;
-          if (deductAmt > 0) {
-            const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
-              station_id: Number(saleForm.station_id),
-              transaction_type: "payment",
-              amount: deductAmt,
-              payment_method: "concrete_deduction",
-              notes: "خصم تلقائي مقابل أسمنت",
-            });
-            if (deductErr) throw deductErr;
-          }
+        // 2) Cash payment record if any
+        if (cashAmt > 0) {
+          const { error: cashErr } = await supabase.from("station_accounts" as any).insert({
+            station_id: Number(saleForm.station_id),
+            transaction_type: "payment",
+            amount: cashAmt,
+            payment_method: "cash",
+            notes: "دفعة كاش مقابل أسمنت",
+          });
+          if (cashErr) throw cashErr;
         }
 
+        // 3) Deduction payment record if any
+        if (deductAmt > 0) {
+          const { error: deductErr } = await supabase.from("station_accounts" as any).insert({
+            station_id: Number(saleForm.station_id),
+            transaction_type: "payment",
+            amount: deductAmt,
+            payment_method: "concrete_deduction",
+            notes: "خصم تلقائي من مديونية مقابل أسمنت",
+          });
+          if (deductErr) throw deductErr;
+        }
+
+        // 4) Insert into cement_sales
         const { error: csErr } = await supabase.from("cement_sales").insert({
           station_id: Number(saleForm.station_id),
           quantity_tons: qty,
           price_per_ton: ppt,
           sale_price_per_ton: ppt,
           total_amount: total,
-          payment_method: saleForm.payment_method,
-          cash_amount: saleForm.payment_method === "mixed" ? Number(saleForm.cash_amount) || 0 : (saleForm.payment_method === "cash" ? total : 0),
-          concrete_deduction_amount: saleForm.payment_method === "mixed" ? Number(saleForm.concrete_deduction_amount) || 0 : (saleForm.payment_method === "concrete_deduction" ? total : 0),
+          payment_method: pm,
+          cash_amount: cashAmt,
+          concrete_deduction_amount: deductAmt,
           sale_date: saleDate ? format(saleDate, "yyyy-MM-dd") : null,
           notes: saleForm.notes || null,
         });
@@ -389,7 +405,7 @@ export function CementTab() {
       toast({ title: editingSale ? "تم التعديل بنجاح" : "تم تسجيل البيع بنجاح" });
       setSaleDialogOpen(false);
       setEditingSale(null);
-      setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" });
+      setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "balance_only", cash_amount: "", concrete_deduction_amount: "", notes: "" });
     },
     onError: (err: any) => toast({ title: "خطأ", description: err.message, variant: "destructive" }),
   });
@@ -399,6 +415,17 @@ export function CementTab() {
     const ppt = Number(saleForm.price_per_ton) || 0;
     return qty * ppt;
   }, [saleForm.quantity_tons, saleForm.price_per_ton]);
+
+  const saleRemaining = useMemo(() => {
+    const pm = saleForm.payment_method;
+    let cash = 0, deduct = 0;
+    if (pm === "cash_full") cash = saleTotal;
+    else if (pm === "cash_partial") cash = Number(saleForm.cash_amount) || 0;
+    else if (pm === "deduction_full") deduct = saleTotal;
+    else if (pm === "deduction_partial") deduct = Number(saleForm.concrete_deduction_amount) || 0;
+    else if (pm === "mixed") { cash = Number(saleForm.cash_amount) || 0; deduct = Number(saleForm.concrete_deduction_amount) || 0; }
+    return saleTotal - cash - deduct;
+  }, [saleTotal, saleForm.payment_method, saleForm.cash_amount, saleForm.concrete_deduction_amount]);
 
   const stockTotal = useMemo(() => {
     const qty = Number(stockForm.quantity_tons) || 0;
@@ -667,7 +694,7 @@ export function CementTab() {
       </Dialog>
 
       {/* Add Sale Dialog */}
-      <Dialog open={saleDialogOpen} onOpenChange={(open) => { setSaleDialogOpen(open); if (!open) { setEditingSale(null); setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "cash", cash_amount: "", concrete_deduction_amount: "", notes: "" }); } }}>
+      <Dialog open={saleDialogOpen} onOpenChange={(open) => { setSaleDialogOpen(open); if (!open) { setEditingSale(null); setSaleForm({ purchase_id: "", station_id: "", quantity_tons: "", price_per_ton: "", payment_method: "balance_only", cash_amount: "", concrete_deduction_amount: "", notes: "" }); } }}>
         <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle className="font-cairo text-right">{editingSale ? "تعديل سجل بيع" : "تسجيل بيع أسمنت لمحطة"}</DialogTitle></DialogHeader>
           <div className="space-y-3 overflow-y-auto flex-1 pl-1">
@@ -737,25 +764,40 @@ export function CementTab() {
             {/* Payment method */}
             <div className="space-y-1.5">
               <Label className="font-cairo">طريقة الدفع</Label>
-              <Select value={saleForm.payment_method} onValueChange={(v) => setSaleForm((f) => ({ ...f, payment_method: v }))}>
+              <Select value={saleForm.payment_method} onValueChange={(v) => setSaleForm((f) => ({ ...f, payment_method: v, cash_amount: "", concrete_deduction_amount: "" }))}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
-                  <SelectItem value="concrete_deduction" className="font-cairo">خصم من خرسانة</SelectItem>
+                  <SelectItem value="balance_only" className="font-cairo">رصيد فقط (دين)</SelectItem>
+                  <SelectItem value="cash_full" className="font-cairo">كاش كامل</SelectItem>
+                  <SelectItem value="cash_partial" className="font-cairo">كاش جزئي</SelectItem>
+                  <SelectItem value="deduction_full" className="font-cairo">خصم كامل من مديونيتي</SelectItem>
+                  <SelectItem value="deduction_partial" className="font-cairo">خصم جزئي من مديونيتي</SelectItem>
                   <SelectItem value="mixed" className="font-cairo">مختلط (كاش + خصم)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {saleForm.payment_method === "mixed" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">مبلغ كاش</Label>
-                  <Input type="number" value={saleForm.cash_amount} onChange={(e) => setSaleForm((f) => ({ ...f, cash_amount: e.target.value }))} className="font-cairo" min={0} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">خصم خرسانة</Label>
-                  <Input type="number" value={saleForm.concrete_deduction_amount} onChange={(e) => setSaleForm((f) => ({ ...f, concrete_deduction_amount: e.target.value }))} className="font-cairo" min={0} />
-                </div>
+
+            {/* Conditional cash field */}
+            {(saleForm.payment_method === "cash_partial" || saleForm.payment_method === "mixed") && (
+              <div className="space-y-1.5">
+                <Label className="font-cairo">المحطة دفعت كاش</Label>
+                <Input type="number" value={saleForm.cash_amount} onChange={(e) => setSaleForm((f) => ({ ...f, cash_amount: e.target.value }))} className="font-cairo" min={0} />
+              </div>
+            )}
+
+            {/* Conditional deduction field */}
+            {(saleForm.payment_method === "deduction_partial" || saleForm.payment_method === "mixed") && (
+              <div className="space-y-1.5">
+                <Label className="font-cairo">المبلغ المخصوم من مديونيتي</Label>
+                <Input type="number" value={saleForm.concrete_deduction_amount} onChange={(e) => setSaleForm((f) => ({ ...f, concrete_deduction_amount: e.target.value }))} className="font-cairo" />
+              </div>
+            )}
+
+            {/* Remaining balance display */}
+            {saleTotal > 0 && saleForm.payment_method !== "balance_only" && saleForm.payment_method !== "cash_full" && saleForm.payment_method !== "deduction_full" && (
+              <div className="bg-muted rounded-md p-2 text-center">
+                <span className="font-cairo text-sm text-muted-foreground">الباقي رصيد على المحطة: </span>
+                <span className={`font-cairo font-bold ${saleRemaining > 0 ? "text-orange-600" : "text-emerald-600"}`}>{fmt(saleRemaining)}</span>
               </div>
             )}
 
