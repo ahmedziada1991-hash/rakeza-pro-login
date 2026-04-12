@@ -265,7 +265,7 @@ export function FieldTab() {
               <Button
                 type="button"
                 variant="outline"
-                className={cn("w-full font-cairo gap-2", savedLocation && "border-green-500 text-green-700")}
+                className={cn("w-full font-cairo gap-2", savedLocation && "border-primary text-primary")}
                 disabled={isGettingLocation}
                 onClick={async () => {
                   setIsGettingLocation(true);
