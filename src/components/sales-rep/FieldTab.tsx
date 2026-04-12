@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "@/hooks/use-toast";
 import { MapPin, Plus, Clock, Mic, MicOff, Contact, CalendarDays, ArrowRightLeft, Phone, MessageCircle, FileText } from "lucide-react";
 import { CallLogDialog } from "./CallLogDialog";
+import { PourDateAlerts } from "./PourDateAlerts";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -206,6 +207,9 @@ export function FieldTab() {
 
   return (
     <div className="space-y-4">
+      {/* Pour date alerts */}
+      <PourDateAlerts />
+
       <Button onClick={() => setDialogOpen(true)} className="w-full font-cairo gap-2">
         <Plus className="h-4 w-4" />
         تسجيل زيارة جديدة
