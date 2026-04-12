@@ -18,6 +18,7 @@ const CALL_TYPES = [
   { value: "call", label: "مكالمة" },
   { value: "field_visit", label: "زيارة ميدانية" },
   { value: "followup", label: "متابعة" },
+  { value: "note", label: "ملاحظة" },
 ];
 
 const CALL_RESULTS = [
@@ -41,6 +42,7 @@ const TYPE_LABELS: Record<string, string> = {
   call: "📞 مكالمة",
   field_visit: "📍 زيارة ميدانية",
   followup: "🔄 متابعة",
+  note: "📝 ملاحظة",
 };
 
 interface CallLogDialogProps {

@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, Clock, Plus, Contact, Search, Layers } from "lucide-react";
 import { useClientPourHistory } from "@/hooks/useClientPourHistory";
 import { CallLogDialog } from "./CallLogDialog";
+import { PourDateAlerts } from "./PourDateAlerts";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -204,7 +205,15 @@ export function MyClientsTab() {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Get the newly created client to auto-open call log
+      const { data: latestClients } = await (supabase as any)
+        .from("clients")
+        .select("id, name")
+        .eq("assigned_sales_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
       queryClient.invalidateQueries({ queryKey: ["client-call-counts"] });
       setAddDialogOpen(false);
@@ -216,6 +225,12 @@ export function MyClientsTab() {
       setAddPourDate(undefined);
       addRecorder.resetRecording();
       toast({ title: "تم إضافة العميل بنجاح ✅" });
+
+      // Auto-open call log for the new client
+      if (latestClients?.[0]) {
+        setCallLogClient(latestClients[0]);
+        setCallLogDialogOpen(true);
+      }
     },
     onError: (err: Error) => {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
@@ -264,6 +279,9 @@ export function MyClientsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Pour date alerts */}
+      <PourDateAlerts />
+
       <Button onClick={() => setAddDialogOpen(true)} className="w-full font-cairo gap-2">
         <Plus className="h-4 w-4" />
         إضافة عميل جديد
