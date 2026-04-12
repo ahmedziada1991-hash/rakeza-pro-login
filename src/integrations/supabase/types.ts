@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      call_logs: {
+        Row: {
+          audio_url: string | null
+          call_date: string
+          call_type: string
+          client_id: number
+          created_at: string
+          duration_minutes: number | null
+          employee_name: string
+          id: string
+          notes: string | null
+          result: string
+          user_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          call_date?: string
+          call_type?: string
+          client_id: number
+          created_at?: string
+          duration_minutes?: number | null
+          employee_name?: string
+          id?: string
+          notes?: string | null
+          result?: string
+          user_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          call_date?: string
+          call_type?: string
+          client_id?: number
+          created_at?: string
+          duration_minutes?: number | null
+          employee_name?: string
+          id?: string
+          notes?: string | null
+          result?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       field_locations: {
         Row: {
           area: string | null
