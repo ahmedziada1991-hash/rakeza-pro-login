@@ -49,7 +49,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_id_by_auth_id: { Args: { p_auth_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never

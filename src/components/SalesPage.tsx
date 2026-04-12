@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ interface ClientForm {
 const EMPTY_FORM: ClientForm = { name: "", phone: "", status: "hot", notes: "" };
 
 export function SalesPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -75,7 +77,7 @@ export function SalesPage() {
   });
 
   const addMutation = useMutation({
-    mutationFn: async (payload: Partial<ClientForm>) => {
+    mutationFn: async (payload: any) => {
       const { error } = await supabase.from("clients").insert(payload);
       if (error) throw error;
     },
@@ -112,16 +114,23 @@ export function SalesPage() {
     setForm(EMPTY_FORM);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name.trim()) {
       toast({ title: "اسم العميل مطلوب", variant: "destructive" });
       return;
+    }
+    // Resolve numeric user ID
+    let numericUserId: number | null = null;
+    if (user) {
+      const { data } = await supabase.rpc('get_user_id_by_auth_id', { p_auth_id: user.id });
+      numericUserId = data;
     }
     addMutation.mutate({
       name: form.name.trim(),
       phone: form.phone || null,
       status: form.status,
       notes: form.notes || null,
+      assigned_sales_id: numericUserId,
     });
   }
 
