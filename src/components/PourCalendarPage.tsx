@@ -19,7 +19,7 @@ interface PourClient {
   expected_pour_date: string;
   status: string;
   area?: string;
-  assigned_sales_id?: number;
+  assigned_sales_id?: string;
   sales_name?: string;
 }
 
@@ -46,53 +46,29 @@ export function PourCalendarPage() {
         .lte("expected_pour_date", `${endStr}T23:59:59`)
         .order("expected_pour_date", { ascending: true });
 
-      // Sales rep sees only their clients
+      // Non-admin: RLS handles filtering, but also filter by assigned_sales_id
       if (!isAdmin && user) {
-        // Get profile id for current user
-        const { data: profile } = await (supabase as any)
-          .from("profiles")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-        // Filter: assigned_sales_id matches or fallback
+        query = query.eq("assigned_sales_id", user.id);
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      // Fetch sales names for all clients
+      // Fetch sales names from users table using auth_id
       const salesIds = [...new Set((data || []).map((c: any) => c.assigned_sales_id).filter(Boolean))];
-      let salesMap: Record<number, string> = {};
+      let salesMap: Record<string, string> = {};
       if (salesIds.length > 0) {
-        const { data: profiles } = await (supabase as any)
-          .from("profiles")
-          .select("id, name")
-          .in("id", salesIds);
-        (profiles || []).forEach((p: any) => { salesMap[p.id] = p.name; });
+        const { data: users } = await (supabase as any)
+          .from("users")
+          .select("auth_id, name")
+          .in("auth_id", salesIds);
+        (users || []).forEach((u: any) => { salesMap[u.auth_id] = u.name; });
       }
 
-      let result = (data || []).map((c: any) => ({
+      return (data || []).map((c: any) => ({
         ...c,
         sales_name: salesMap[c.assigned_sales_id] || null,
       })) as PourClient[];
-
-      // For non-admin, filter to own clients only
-      if (!isAdmin && user) {
-        // Match by user id (UUID) against assigned_sales_id (which could be integer)
-        // We need the profile numeric id
-        const { data: myProfile } = await (supabase as any)
-          .from("profiles")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-        // assigned_sales_id might be integer profile reference
-        // Try filtering by assigned_sales_id matching user's numeric or UUID id
-        result = result.filter((c) =>
-          c.assigned_sales_id && (String(c.assigned_sales_id) === String(user.id) || String(c.assigned_sales_id) === String(myProfile?.id))
-        );
-      }
-
-      return result;
     },
     enabled: !!user,
   });

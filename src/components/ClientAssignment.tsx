@@ -34,30 +34,29 @@ export function ClientAssignment() {
 
       const userIds = roles.map((r) => r.user_id);
 
-      // Get profiles
-      const { data: profiles, error: profErr } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
-      if (profErr) throw profErr;
+      // Get users from users table
+      const { data: users, error: usersErr } = await (supabase as any)
+        .from("users")
+        .select("id, name, auth_id")
+        .in("auth_id", userIds);
+      if (usersErr) throw usersErr;
 
-      // Get client counts per assigned_to
-      const { data: clients, error: clErr } = await supabase
+      // Get client counts per assigned_followup_id
+      const { data: clients, error: clErr } = await (supabase as any)
         .from("clients")
-        .select("assigned_to")
-        .in("status", ["followup", "hot", "warm", "cold", "inactive", "active"])
-        .not("assigned_to", "is", null);
+        .select("assigned_followup_id")
+        .not("assigned_followup_id", "is", null);
       if (clErr) throw clErr;
 
       const countMap: Record<string, number> = {};
-      clients?.forEach((c: any) => {
-        countMap[c.assigned_to] = (countMap[c.assigned_to] || 0) + 1;
+      (clients || []).forEach((c: any) => {
+        countMap[c.assigned_followup_id] = (countMap[c.assigned_followup_id] || 0) + 1;
       });
 
-      return (profiles || []).map((p) => ({
-        id: p.id,
-        full_name: p.full_name || "بدون اسم",
-        client_count: countMap[p.id] || 0,
+      return (users || []).map((u: any) => ({
+        id: u.auth_id,
+        full_name: u.name || "بدون اسم",
+        client_count: countMap[u.auth_id] || 0,
       })) as FollowUpUser[];
     },
   });
@@ -98,9 +97,9 @@ export function ClientAssignment() {
   // Mutation to assign client
   const assignMutation = useMutation({
     mutationFn: async ({ clientId, userId, clientName }: { clientId: number; userId: string; clientName: string }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("clients")
-        .update({ assigned_to: userId } as any)
+        .update({ assigned_followup_id: userId })
         .eq("id", clientId);
       if (error) throw error;
       await sendAssignNotification(userId, clientName);

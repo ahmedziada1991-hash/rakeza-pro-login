@@ -34,11 +34,11 @@ export function DailyReportPage() {
         .eq("role", "sales");
       if (!roles?.length) return [];
       const userIds = roles.map((r: any) => r.user_id);
-      const { data: profiles } = await (supabase as any)
-        .from("profiles")
-        .select("id, name")
-        .in("id", userIds);
-      return profiles || [];
+      const { data: users } = await (supabase as any)
+        .from("users")
+        .select("id, name, auth_id")
+        .in("auth_id", userIds);
+      return (users || []).map((u: any) => ({ ...u, id: u.auth_id }));
     },
   });
 
@@ -52,11 +52,11 @@ export function DailyReportPage() {
         .eq("role", "followup");
       if (!roles?.length) return [];
       const userIds = roles.map((r: any) => r.user_id);
-      const { data: profiles } = await (supabase as any)
-        .from("profiles")
-        .select("id, name")
-        .in("id", userIds);
-      return profiles || [];
+      const { data: users } = await (supabase as any)
+        .from("users")
+        .select("id, name, auth_id")
+        .in("auth_id", userIds);
+      return (users || []).map((u: any) => ({ ...u, id: u.auth_id }));
     },
   });
 

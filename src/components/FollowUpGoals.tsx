@@ -40,18 +40,13 @@ export function FollowUpGoals() {
     queryKey: ["followup-today-calls", user?.id, today],
     queryFn: async () => {
       if (!user?.id) return 0;
-      // Get profile name for matching
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
-
-      const { count, error } = await supabase
+      const { count, error } = await (supabase as any)
         .from("call_logs")
         .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
         .eq("call_type", "followup")
-        .eq("call_date", today);
+        .gte("call_date", `${today}T00:00:00`)
+        .lte("call_date", `${today}T23:59:59`);
       if (error) return 0;
       return count || 0;
     },

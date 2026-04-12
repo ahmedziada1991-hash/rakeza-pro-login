@@ -15,14 +15,14 @@ export function TodayTargets() {
     day: "numeric",
   });
 
-  // Get profile name
+  // Get user name from users table
   const { data: profile } = useQuery({
     queryKey: ["my-profile", user?.id],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from("profiles")
+        .from("users")
         .select("name")
-        .eq("id", user!.id)
+        .eq("auth_id", user!.id)
         .maybeSingle();
       return data;
     },
