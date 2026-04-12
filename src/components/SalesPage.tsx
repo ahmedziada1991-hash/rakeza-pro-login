@@ -114,7 +114,7 @@ export function SalesPage() {
     setForm(EMPTY_FORM);
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (!form.name.trim()) {
       toast({ title: "اسم العميل مطلوب", variant: "destructive" });
       return;
