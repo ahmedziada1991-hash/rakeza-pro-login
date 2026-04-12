@@ -69,7 +69,10 @@ export function MyClientsTab() {
   const { data: allClients, isLoading: isLoadingClients } = useQuery({
     queryKey: ["my-clients", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_my_clients");
+      const { data, error } = await (supabase as any)
+        .from("clients")
+        .select("*")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
