@@ -119,7 +119,7 @@ export function ClientAssignment() {
   // Auto-assign all unassigned
   const autoAssignAll = useMutation({
     mutationFn: async () => {
-      const unassigned = followupClients.filter((c: any) => !c.assigned_to);
+      const unassigned = followupClients.filter((c: any) => !c.assigned_followup_id);
       if (!unassigned.length) throw new Error("no_unassigned");
       if (!followUpUsers.length) throw new Error("no_followers");
 
@@ -134,9 +134,9 @@ export function ClientAssignment() {
         );
         const userId = minUser[0];
 
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("clients")
-          .update({ assigned_to: userId } as any)
+          .update({ assigned_followup_id: userId })
           .eq("id", (client as any).id);
         if (error) throw error;
         await sendAssignNotification(userId, (client as any).name || "عميل");
