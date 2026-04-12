@@ -76,9 +76,17 @@ export function FollowUpContent() {
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["followup-clients", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_my_followup_clients");
+      const { data, error } = await (supabase as any)
+        .from("clients")
+        .select("*")
+        .order("status", { ascending: true });
       if (error) throw error;
-      return data || [];
+      // Sort: 'contacted' first, then the rest
+      return (data || []).sort((a: any, b: any) => {
+        if (a.status === "contacted" && b.status !== "contacted") return -1;
+        if (a.status !== "contacted" && b.status === "contacted") return 1;
+        return 0;
+      });
     },
     enabled: !!user,
   });
