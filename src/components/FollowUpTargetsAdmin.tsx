@@ -53,7 +53,7 @@ export function FollowUpTargetsAdmin() {
         userId: u.auth_id,
         fullName: u.name || "بدون اسم",
         targetCalls: perfMap[u.auth_id]?.target_calls || 10,
-        targetDeals: perfMap[p.id]?.target_visits || 15, // reusing target_visits as monthly deals target
+        targetDeals: perfMap[u.auth_id]?.target_visits || 15, // reusing target_visits as monthly deals target
       })) as FollowerTarget[];
     },
   });
