@@ -77,7 +77,7 @@ export function SalesPage() {
   });
 
   const addMutation = useMutation({
-    mutationFn: async (payload: Partial<ClientForm>) => {
+    mutationFn: async (payload: any) => {
       const { error } = await supabase.from("clients").insert(payload);
       if (error) throw error;
     },
