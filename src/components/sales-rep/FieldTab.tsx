@@ -32,6 +32,8 @@ export function FieldTab() {
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [area, setArea] = useState("");
+  const [savedLocation, setSavedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [notes, setNotes] = useState("");
   const [classification, setClassification] = useState("cold");
   const [pourDate, setPourDate] = useState<Date>();
