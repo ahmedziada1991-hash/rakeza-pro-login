@@ -78,7 +78,7 @@ export function FieldTab() {
       if (!clientName.trim()) throw new Error("أدخل اسم العميل");
       if (!clientPhone.trim()) throw new Error("أدخل رقم الهاتف");
 
-      const location = await getCurrentLocation();
+      const location = savedLocation || await getCurrentLocation();
 
       // Insert client
       const { data: newClient, error: clientError } = await (supabase as any)
@@ -119,6 +119,7 @@ export function FieldTab() {
       setNotes("");
       setClassification("cold");
       setPourDate(undefined);
+      setSavedLocation(null);
       toast({ title: "تم تسجيل الزيارة بنجاح ✅" });
     },
     onError: (err: Error) => {
