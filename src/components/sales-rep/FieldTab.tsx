@@ -78,6 +78,9 @@ export function FieldTab() {
 
       const location = await getCurrentLocation();
 
+      // Resolve numeric user ID from auth UUID
+      const { data: numericUserId } = await supabase.rpc('get_user_id_by_auth_id', { p_auth_id: user!.id });
+
       // Insert client
       const { data: newClient, error: clientError } = await (supabase as any)
         .from("clients")
@@ -88,6 +91,7 @@ export function FieldTab() {
           notes: notes.trim() || null,
           status: classification === "hot" || classification === "warm" ? "followup" : "active",
           expected_pour_date: pourDate ? pourDate.toISOString() : null,
+          assigned_sales_id: numericUserId || null,
         })
         .select("id")
         .single();
