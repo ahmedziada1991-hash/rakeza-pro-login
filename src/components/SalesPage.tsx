@@ -114,16 +114,23 @@ export function SalesPage() {
     setForm(EMPTY_FORM);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name.trim()) {
       toast({ title: "اسم العميل مطلوب", variant: "destructive" });
       return;
+    }
+    // Resolve numeric user ID
+    let numericUserId: number | null = null;
+    if (user) {
+      const { data } = await supabase.rpc('get_user_id_by_auth_id', { p_auth_id: user.id });
+      numericUserId = data;
     }
     addMutation.mutate({
       name: form.name.trim(),
       phone: form.phone || null,
       status: form.status,
       notes: form.notes || null,
+      assigned_sales_id: numericUserId,
     });
   }
 
