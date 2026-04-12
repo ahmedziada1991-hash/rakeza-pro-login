@@ -70,7 +70,7 @@ export function ExecutionContent() {
       if (!clientIds.length) return [];
       const { data, error } = await supabase
         .from("clients")
-        .select("id, name, phone, status, assigned_to, salesperson_name")
+        .select("id, name, phone, status, assigned_followup_id, salesperson_name")
         .in("id", clientIds);
       if (error) throw error;
       return data || [];
@@ -78,18 +78,18 @@ export function ExecutionContent() {
     enabled: clientIds.length > 0,
   });
 
-  // Fetch follow-up user names for assigned_to
-  const assignedIds = [...new Set(clients.filter((c: any) => c.assigned_to).map((c: any) => c.assigned_to))];
+  // Fetch follow-up user names for assigned_followup_id
+  const assignedIds = [...new Set(clients.filter((c: any) => c.assigned_followup_id).map((c: any) => c.assigned_followup_id))];
   const { data: followerProfiles = [] } = useQuery({
     queryKey: ["follower-profiles", assignedIds],
     queryFn: async () => {
       if (!assignedIds.length) return [];
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", assignedIds);
+      const { data, error } = await (supabase as any)
+        .from("users")
+        .select("auth_id, name")
+        .in("auth_id", assignedIds);
       if (error) throw error;
-      return data || [];
+      return (data || []).map((u: any) => ({ id: u.auth_id, full_name: u.name }));
     },
     enabled: assignedIds.length > 0,
   });
@@ -297,7 +297,7 @@ export function ExecutionContent() {
           {orders.map((order: any) => {
             const client = getClient(order.client_id);
             const status = STATUS_MAP[order.status] || STATUS_MAP.scheduled;
-            const isFromFollowup = client?.status === "execution" && client?.assigned_to;
+            const isFromFollowup = client?.status === "execution" && client?.assigned_followup_id;
 
             return (
               <Card key={order.id} className="overflow-hidden">
@@ -373,7 +373,7 @@ export function ExecutionContent() {
                     )}
                     {isFromFollowup && (
                       <span className="font-cairo text-primary flex items-center gap-1">
-                        <Users className="h-3 w-3" /> المتابع: {getFollowerName(client.assigned_to)}
+                        <Users className="h-3 w-3" /> المتابع: {getFollowerName(client.assigned_followup_id)}
                       </span>
                     )}
                   </div>
