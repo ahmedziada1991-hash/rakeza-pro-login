@@ -57,6 +57,7 @@ interface ClientForm {
 const EMPTY_FORM: ClientForm = { name: "", phone: "", status: "hot", notes: "" };
 
 export function SalesPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
