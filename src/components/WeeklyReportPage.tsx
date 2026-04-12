@@ -26,8 +26,8 @@ export function WeeklyReportPage() {
     queryFn: async () => {
       const { data: roles } = await (supabase as any).from("user_roles").select("user_id").eq("role", "sales");
       if (!roles?.length) return [];
-      const { data: profiles } = await (supabase as any).from("profiles").select("id, name").in("id", roles.map((r: any) => r.user_id));
-      return profiles || [];
+      const { data: users } = await (supabase as any).from("users").select("auth_id, name").in("auth_id", roles.map((r: any) => r.user_id));
+      return (users || []).map((u: any) => ({ id: u.auth_id, name: u.name }));
     },
   });
 
@@ -37,8 +37,8 @@ export function WeeklyReportPage() {
     queryFn: async () => {
       const { data: roles } = await (supabase as any).from("user_roles").select("user_id").eq("role", "followup");
       if (!roles?.length) return [];
-      const { data: profiles } = await (supabase as any).from("profiles").select("id, name").in("id", roles.map((r: any) => r.user_id));
-      return profiles || [];
+      const { data: users } = await (supabase as any).from("users").select("auth_id, name").in("auth_id", roles.map((r: any) => r.user_id));
+      return (users || []).map((u: any) => ({ id: u.auth_id, name: u.name }));
     },
   });
 

@@ -33,10 +33,10 @@ export function FollowUpTargetsAdmin() {
       if (!roles?.length) return [];
 
       const userIds = roles.map((r) => r.user_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
+      const { data: users } = await (supabase as any)
+        .from("users")
+        .select("auth_id, name")
+        .in("auth_id", userIds);
 
       // Get current targets from daily_performance for today
       const today = format(new Date(), "yyyy-MM-dd");
@@ -49,10 +49,10 @@ export function FollowUpTargetsAdmin() {
       const perfMap: Record<string, any> = {};
       perfs?.forEach((p: any) => { perfMap[p.user_id] = p; });
 
-      return (profiles || []).map((p) => ({
-        userId: p.id,
-        fullName: p.full_name || "بدون اسم",
-        targetCalls: perfMap[p.id]?.target_calls || 10,
+      return (users || []).map((u: any) => ({
+        userId: u.auth_id,
+        fullName: u.name || "بدون اسم",
+        targetCalls: perfMap[u.auth_id]?.target_calls || 10,
         targetDeals: perfMap[p.id]?.target_visits || 15, // reusing target_visits as monthly deals target
       })) as FollowerTarget[];
     },

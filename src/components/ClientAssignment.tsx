@@ -163,7 +163,7 @@ export function ClientAssignment() {
     return followUpUsers.find((u) => u.id === userId)?.full_name || "غير معين";
   };
 
-  const unassignedCount = followupClients.filter((c: any) => !c.assigned_to).length;
+  const unassignedCount = followupClients.filter((c: any) => !c.assigned_followup_id).length;
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -257,9 +257,9 @@ export function ClientAssignment() {
                           </Select>
                         ) : (
                           <span className="font-cairo text-sm">
-                            {client.assigned_to ? (
+                            {client.assigned_followup_id ? (
                               <Badge variant="secondary" className="font-cairo">
-                                {getFollowerName(client.assigned_to)}
+                                {getFollowerName(client.assigned_followup_id)}
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="font-cairo text-destructive border-destructive/30">
@@ -299,7 +299,7 @@ export function ClientAssignment() {
                             variant="outline"
                             onClick={() => {
                               setChangingClient(client.id);
-                              setSelectedFollower(client.assigned_to || "");
+                              setSelectedFollower(client.assigned_followup_id || "");
                             }}
                             className="font-cairo text-xs gap-1"
                           >
