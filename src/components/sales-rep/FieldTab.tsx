@@ -32,6 +32,8 @@ export function FieldTab() {
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [area, setArea] = useState("");
+  const [savedLocation, setSavedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [notes, setNotes] = useState("");
   const [classification, setClassification] = useState("cold");
   const [pourDate, setPourDate] = useState<Date>();
@@ -76,7 +78,7 @@ export function FieldTab() {
       if (!clientName.trim()) throw new Error("أدخل اسم العميل");
       if (!clientPhone.trim()) throw new Error("أدخل رقم الهاتف");
 
-      const location = await getCurrentLocation();
+      const location = savedLocation || await getCurrentLocation();
 
       // Insert client
       const { data: newClient, error: clientError } = await (supabase as any)
@@ -117,6 +119,7 @@ export function FieldTab() {
       setNotes("");
       setClassification("cold");
       setPourDate(undefined);
+      setSavedLocation(null);
       toast({ title: "تم تسجيل الزيارة بنجاح ✅" });
     },
     onError: (err: Error) => {
@@ -258,13 +261,28 @@ export function FieldTab() {
             </div>
 
             <div className="space-y-2">
-              <Label className="font-cairo">المنطقة / الموقع</Label>
-              <Input
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                placeholder="مثال: المعادي - شارع 9"
-                className="font-cairo"
-              />
+              <Label className="font-cairo">الموقع الجغرافي</Label>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn("w-full font-cairo gap-2", savedLocation && "border-primary text-primary")}
+                disabled={isGettingLocation}
+                onClick={async () => {
+                  setIsGettingLocation(true);
+                  const loc = await getCurrentLocation();
+                  setIsGettingLocation(false);
+                  if (loc) {
+                    setSavedLocation(loc);
+                    setArea(`${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`);
+                    toast({ title: "تم تسجيل موقعك ✅" });
+                  } else {
+                    toast({ title: "يرجى السماح بالوصول للموقع", variant: "destructive" });
+                  }
+                }}
+              >
+                <MapPin className="h-4 w-4" />
+                {isGettingLocation ? "جاري تحديد الموقع..." : savedLocation ? `📍 ${savedLocation.lat.toFixed(6)}, ${savedLocation.lng.toFixed(6)}` : "تسجيل موقعي الحالي 📍"}
+              </Button>
             </div>
 
             <div className="space-y-2">
