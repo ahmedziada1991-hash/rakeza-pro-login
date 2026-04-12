@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { MapPin, Plus, Clock, Mic, MicOff, Contact, CalendarDays, ArrowRightLeft } from "lucide-react";
+import { MapPin, Plus, Clock, Mic, MicOff, Contact, CalendarDays, ArrowRightLeft, Phone, MessageCircle, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -39,8 +39,10 @@ export function FieldTab() {
   const [pourDate, setPourDate] = useState<Date>();
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [callHistoryDialogOpen, setCallHistoryDialogOpen] = useState(false);
+  const [selectedVisitClientId, setSelectedVisitClientId] = useState<number | null>(null);
 
-  // Today's visits
+  // Today's visits with client data
   const { data: visits } = useQuery({
     queryKey: ["my-field-visits-today", user?.id, todayStr],
     queryFn: async () => {
@@ -48,7 +50,7 @@ export function FieldTab() {
       const endOfDay = `${todayStr}T23:59:59`;
       const { data, error } = await (supabase as any)
         .from("field_locations")
-        .select("*")
+        .select("*, clients:client_id(id, name, phone, status)")
         .eq("user_id", user!.id)
         .gte("created_at", startOfDay)
         .lte("created_at", endOfDay)
@@ -57,6 +59,21 @@ export function FieldTab() {
       return data || [];
     },
     enabled: !!user,
+  });
+
+  // Call history for selected client
+  const { data: callHistory } = useQuery({
+    queryKey: ["client-call-history", selectedVisitClientId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("call_logs")
+        .select("*")
+        .eq("client_id", selectedVisitClientId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedVisitClientId,
   });
 
   const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {
@@ -96,17 +113,32 @@ export function FieldTab() {
         .single();
       if (clientError) throw clientError;
 
-      // Insert field location
+      // Insert field location with client_id
       const { error: locError } = await (supabase as any)
         .from("field_locations")
         .insert({
           user_id: user!.id,
+          client_id: newClient.id,
           lat: location?.lat || null,
           lng: location?.lng || null,
           area: area.trim() || null,
           notes: `${clientName.trim()} - ${notes.trim() || "زيارة ميدانية"}`,
         });
       if (locError) throw locError;
+
+      // Save visit notes as a call_log entry of type "field_visit"
+      if (notes.trim()) {
+        await (supabase as any)
+          .from("call_logs")
+          .insert({
+            user_id: user!.id,
+            client_id: newClient.id,
+            employee_name: user!.email?.split("@")[0] || "",
+            call_date: new Date().toISOString(),
+            result: "field_visit",
+            notes: notes.trim(),
+          });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-field-visits-today"] });
@@ -121,6 +153,25 @@ export function FieldTab() {
       setPourDate(undefined);
       setSavedLocation(null);
       toast({ title: "تم تسجيل الزيارة بنجاح ✅" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const transferMutation = useMutation({
+    mutationFn: async ({ clientId, newStatus }: { clientId: number; newStatus: string }) => {
+      const { error } = await (supabase as any)
+        .from("clients")
+        .update({ status: newStatus })
+        .eq("id", clientId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { newStatus }) => {
+      queryClient.invalidateQueries({ queryKey: ["my-field-visits-today"] });
+      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      const label = newStatus === "contacted" ? "المتابعة" : "التنفيذ";
+      toast({ title: `تم تحويل العميل لـ${label} ✅` });
     },
     onError: (err: Error) => {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
@@ -173,6 +224,21 @@ export function FieldTab() {
     }
   };
 
+  const normalizePhone = (phone: string) => {
+    let cleaned = phone.replace(/\D/g, "");
+    if (cleaned.startsWith("0")) cleaned = "20" + cleaned.slice(1);
+    return cleaned;
+  };
+
+  const RESULT_LABELS: Record<string, string> = {
+    interested: "مهتم",
+    not_interested: "غير مهتم",
+    postponed: "تأجيل",
+    no_answer: "لم يرد",
+    completed: "مكتمل",
+    field_visit: "زيارة ميدانية",
+  };
+
   return (
     <div className="space-y-4">
       <Button
@@ -188,45 +254,160 @@ export function FieldTab() {
         <p className="text-center font-cairo text-muted-foreground py-8">لا توجد زيارات اليوم</p>
       ) : (
         <div className="space-y-3">
-          {visits.map((visit: any) => (
-            <Card key={visit.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-cairo font-bold text-foreground">{visit.notes?.split(" - ")[0] || "زيارة"}</h3>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground font-cairo mt-1">
-                      <Clock className="h-3 w-3" />
-                      {new Date(visit.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}
+          {visits.map((visit: any) => {
+            const client = visit.clients;
+            const clientPhone = client?.phone || "";
+            const clientName = client?.name || visit.notes?.split(" - ")[0] || "زيارة";
+
+            return (
+              <Card key={visit.id}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-cairo font-bold text-foreground">{clientName}</h3>
+                      {clientPhone && (
+                        <p className="text-sm text-muted-foreground font-cairo mt-0.5" dir="ltr">
+                          📞 {clientPhone}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground font-cairo mt-1">
+                        <Clock className="h-3 w-3" />
+                        {new Date(visit.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}
+                      </div>
                     </div>
-                    {visit.notes && (
-                      <p className="text-sm text-muted-foreground font-cairo mt-2">{visit.notes}</p>
+                    {visit.lat && visit.lng && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-cairo gap-1 shrink-0"
+                        onClick={() =>
+                          window.open(
+                            `https://www.google.com/maps?q=${visit.lat},${visit.lng}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        الخريطة
+                      </Button>
                     )}
                   </div>
-                  {visit.lat && visit.lng && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="font-cairo gap-1 shrink-0"
-                      onClick={() =>
-                        window.open(
-                          `https://www.google.com/maps?q=${visit.lat},${visit.lng}`,
-                          "_blank"
-                        )
-                      }
-                    >
-                      <MapPin className="h-3.5 w-3.5" />
-                      الخريطة
-                    </Button>
+
+                  {visit.area && (
+                    <p className="text-xs text-muted-foreground font-cairo">📍 {visit.area}</p>
                   )}
-                </div>
-                {visit.area && (
-                  <p className="text-xs text-muted-foreground font-cairo mt-1">📍 {visit.area}</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  {visit.notes && (
+                    <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">{visit.notes}</p>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {/* اتصال */}
+                    {clientPhone && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-cairo text-xs gap-1"
+                        onClick={() => window.open(`tel:${clientPhone.replace(/\D/g, "")}`, "_self")}
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        اتصال
+                      </Button>
+                    )}
+
+                    {/* واتساب */}
+                    {clientPhone && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-cairo text-xs gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10"
+                        onClick={() => window.open(`https://wa.me/${normalizePhone(clientPhone)}`, "_blank")}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        واتساب
+                      </Button>
+                    )}
+
+                    {/* تحويل لمتابعة */}
+                    {client && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-cairo text-xs gap-1 text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "contacted" })}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
+                        تحويل لمتابعة
+                      </Button>
+                    )}
+
+                    {/* تحويل لتنفيذ */}
+                    {client && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-cairo text-xs gap-1 text-chart-4 border-chart-4/30 hover:bg-chart-4/10"
+                        onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "execution" })}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
+                        تحويل لتنفيذ
+                      </Button>
+                    )}
+
+                    {/* سجل المكالمات */}
+                    {client && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-cairo text-xs gap-1"
+                        onClick={() => {
+                          setSelectedVisitClientId(client.id);
+                          setCallHistoryDialogOpen(true);
+                        }}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        سجل المكالمات
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      {/* Call History Dialog */}
+      <Dialog open={callHistoryDialogOpen} onOpenChange={setCallHistoryDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-cairo">سجل المكالمات والملاحظات</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {!callHistory?.length ? (
+              <p className="text-center font-cairo text-muted-foreground py-6">لا يوجد سجل مكالمات</p>
+            ) : (
+              callHistory.map((log: any) => (
+                <Card key={log.id}>
+                  <CardContent className="p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-cairo font-bold text-foreground">
+                        {RESULT_LABELS[log.result] || log.result}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-cairo">
+                        {log.call_date ? format(new Date(log.call_date), "d/M/yyyy HH:mm") : ""}
+                      </span>
+                    </div>
+                    {log.notes && (
+                      <p className="text-xs text-muted-foreground font-cairo">{log.notes}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* New Visit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -295,7 +476,6 @@ export function FieldTab() {
               />
             </div>
 
-            {/* تصنيف العميل */}
             <div className="space-y-2">
               <Label className="font-cairo">تصنيف العميل</Label>
               <Select value={classification} onValueChange={setClassification}>
@@ -312,7 +492,6 @@ export function FieldTab() {
               </Select>
             </div>
 
-            {/* موعد الصبة التقريبي */}
             <div className="space-y-2">
               <Label className="font-cairo">موعد الصبة التقريبي</Label>
               <Popover>
@@ -328,7 +507,6 @@ export function FieldTab() {
               </Popover>
             </div>
 
-            {/* تحويل للمتابعة - يظهر فقط لو ساخن أو دافئ */}
             {(classification === "hot" || classification === "warm") && (
               <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
                 <p className="text-xs font-cairo text-muted-foreground mb-2">
@@ -339,7 +517,6 @@ export function FieldTab() {
                   size="sm"
                   className="font-cairo gap-2 text-primary border-primary/30"
                   onClick={() => {
-                    // Will be handled after save
                     toast({ title: "سيتم تحويل العميل للمتابعة بعد الحفظ" });
                   }}
                 >
