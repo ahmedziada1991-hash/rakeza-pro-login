@@ -260,14 +260,28 @@ export function FieldTab() {
             </div>
 
             <div className="space-y-2">
-              <Label className="font-cairo">المنطقة / الموقع</Label>
-              <Input
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                placeholder="مثال: المعادي - شارع 9"
-                className="font-cairo"
-              />
-            </div>
+              <Label className="font-cairo">الموقع الجغرافي</Label>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn("w-full font-cairo gap-2", savedLocation && "border-green-500 text-green-700")}
+                disabled={isGettingLocation}
+                onClick={async () => {
+                  setIsGettingLocation(true);
+                  const loc = await getCurrentLocation();
+                  setIsGettingLocation(false);
+                  if (loc) {
+                    setSavedLocation(loc);
+                    setArea(`${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`);
+                    toast({ title: "تم تسجيل موقعك ✅" });
+                  } else {
+                    toast({ title: "يرجى السماح بالوصول للموقع", variant: "destructive" });
+                  }
+                }}
+              >
+                <MapPin className="h-4 w-4" />
+                {isGettingLocation ? "جاري تحديد الموقع..." : savedLocation ? `📍 ${savedLocation.lat.toFixed(6)}, ${savedLocation.lng.toFixed(6)}` : "تسجيل موقعي الحالي 📍"}
+              </Button>
 
             <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
