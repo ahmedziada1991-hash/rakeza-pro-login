@@ -17,6 +17,7 @@ export type Database = {
       field_locations: {
         Row: {
           area: string | null
+          client_id: number | null
           contractor_name: string | null
           created_at: string
           id: string
@@ -27,6 +28,7 @@ export type Database = {
         }
         Insert: {
           area?: string | null
+          client_id?: number | null
           contractor_name?: string | null
           created_at?: string
           id?: string
@@ -37,6 +39,7 @@ export type Database = {
         }
         Update: {
           area?: string | null
+          client_id?: number | null
           contractor_name?: string | null
           created_at?: string
           id?: string

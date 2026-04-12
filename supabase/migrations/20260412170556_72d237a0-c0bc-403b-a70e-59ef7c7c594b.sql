@@ -1,0 +1,1 @@
+ALTER TABLE public.field_locations ADD COLUMN client_id bigint;
