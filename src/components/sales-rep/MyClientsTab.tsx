@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUsersTableId } from "@/hooks/useUsersTableId";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, ChevronDown, ChevronUp, Clock, Plus, Contact, Search, Layers } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, Clock, Plus, Contact, Search, Layers } from "lucide-react";
 import { useClientPourHistory } from "@/hooks/useClientPourHistory";
+import { CallLogDialog } from "./CallLogDialog";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -40,16 +41,12 @@ export function MyClientsTab() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
-  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [callLogDialogOpen, setCallLogDialogOpen] = useState(false);
+  const [callLogClient, setCallLogClient] = useState<any>(null);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [callResult, setCallResult] = useState("");
-  const [callNotes, setCallNotes] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [pourDate, setPourDate] = useState<Date>();
   // Edit form state
   const [editName, setEditName] = useState("");
@@ -65,6 +62,25 @@ export function MyClientsTab() {
   const [addNotes, setAddNotes] = useState("");
   const [addArea, setAddArea] = useState("");
   const [addPourDate, setAddPourDate] = useState<Date>();
+  const addRecorder = useAudioRecorder();
+
+  // Call log counts per client
+  const { data: callCounts = {} } = useQuery({
+    queryKey: ["client-call-counts", user?.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("call_logs")
+        .select("client_id")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        counts[r.client_id] = (counts[r.client_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: !!user,
+  });
 
   const { data: allClients, isLoading: isLoadingClients } = useQuery({
     queryKey: ["my-clients", user?.id],
@@ -88,37 +104,6 @@ export function MyClientsTab() {
     return allClients;
   })();
 
-  const isLoading = isLoadingClients;
-
-  const saveCallMutation = useMutation({
-    mutationFn: async () => {
-      if (!callResult) throw new Error("اختر نتيجة المكالمة");
-
-      const { error } = await (supabase as any).from("call_logs").insert({
-        user_id: user!.id,
-        client_id: selectedClient.id,
-        employee_name: user!.email?.split("@")[0] || "",
-        call_date: new Date().toISOString(),
-        result: callResult,
-        notes: callNotes,
-      });
-      if (error) throw error;
-
-      // No last_contact column - skip update
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
-      queryClient.invalidateQueries({ queryKey: ["my-calls-today"] });
-      setCallDialogOpen(false);
-      setCallResult("");
-      setCallNotes("");
-      toast({ title: "تم تسجيل المكالمة بنجاح ✅" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    },
-  });
-
   const savePourDateMutation = useMutation({
     mutationFn: async () => {
       if (!pourDate) throw new Error("اختر تاريخ الصبة");
@@ -140,16 +125,17 @@ export function MyClientsTab() {
   });
 
   const transferMutation = useMutation({
-    mutationFn: async (clientId: string) => {
+    mutationFn: async ({ clientId, newStatus }: { clientId: string; newStatus: string }) => {
       const { error } = await (supabase as any)
         .from("clients")
-        .update({ status: "followup" })
+        .update({ status: newStatus })
         .eq("id", clientId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, { newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
-      toast({ title: "تم تحويل العميل للمتابعة ✅" });
+      const label = newStatus === "contacted" ? "المتابعة" : "التنفيذ";
+      toast({ title: `تم تحويل العميل لـ${label} ✅` });
     },
   });
 
@@ -183,7 +169,8 @@ export function MyClientsTab() {
     mutationFn: async () => {
       if (!addName.trim()) throw new Error("أدخل اسم العميل");
       if (!addPhone.trim()) throw new Error("أدخل رقم الهاتف");
-      const { error } = await (supabase as any)
+
+      const { data: newClient, error } = await (supabase as any)
         .from("clients")
         .insert({
           name: addName.trim(),
@@ -193,11 +180,33 @@ export function MyClientsTab() {
           area: addArea.trim() || null,
           expected_pour_date: addPourDate ? addPourDate.toISOString() : null,
           assigned_sales_id: user!.id,
-        });
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      // Upload audio and create call log if recording exists
+      if (addRecorder.audioBlob) {
+        let audioUrl: string | null = null;
+        audioUrl = await addRecorder.uploadAudio(newClient.id);
+
+        const notes = [addNotes.trim(), addRecorder.transcribedText].filter(Boolean).join("\n");
+
+        await (supabase as any).from("call_logs").insert({
+          user_id: user!.id,
+          client_id: newClient.id,
+          employee_name: user!.email?.split("@")[0] || "",
+          call_date: new Date().toISOString(),
+          call_type: "field_visit",
+          result: "completed",
+          notes: notes || null,
+          audio_url: audioUrl,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      queryClient.invalidateQueries({ queryKey: ["client-call-counts"] });
       setAddDialogOpen(false);
       setAddName("");
       setAddPhone("");
@@ -205,6 +214,7 @@ export function MyClientsTab() {
       setAddNotes("");
       setAddArea("");
       setAddPourDate(undefined);
+      addRecorder.resetRecording();
       toast({ title: "تم إضافة العميل بنجاح ✅" });
     },
     onError: (err: Error) => {
@@ -223,34 +233,6 @@ export function MyClientsTab() {
     setEditDialogOpen(true);
   };
 
-  const toggleRecording = async () => {
-    if (isRecording && mediaRecorder) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks: BlobPart[] = [];
-
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        // For now just note it in the call notes
-        setCallNotes((prev) => prev + "\n🎙️ [تسجيل صوتي مرفق]");
-      };
-
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-    } catch {
-      toast({ title: "لا يمكن الوصول للميكروفون", variant: "destructive" });
-    }
-  };
-
   const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     new: { label: "جديد", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
     contacted: { label: "تم التواصل", color: "bg-chart-4/15 text-chart-4 border-chart-4/30" },
@@ -262,13 +244,12 @@ export function MyClientsTab() {
     cold: { label: "بارد", color: "bg-chart-1/15 text-chart-1 border-chart-1/30" },
     inactive: { label: "خامل", color: "bg-muted-foreground/15 text-muted-foreground border-muted-foreground/30" },
     followup: { label: "متابعة", color: "bg-primary/15 text-primary border-primary/30" },
+    execution: { label: "تنفيذ", color: "bg-chart-5/15 text-chart-5 border-chart-5/30" },
   };
 
   const getClassBadge = (classification: string) => {
     const cls = STATUS_LABELS[classification];
-    return cls ? (
-      <Badge className={`${cls.color} font-cairo text-xs`}>{cls.label}</Badge>
-    ) : null;
+    return cls ? <Badge className={`${cls.color} font-cairo text-xs`}>{cls.label}</Badge> : null;
   };
 
   const filteredClients = (() => {
@@ -279,232 +260,147 @@ export function MyClientsTab() {
   const allClientIds = (clients || []).map((c: any) => c.id);
   const { data: pourHistory = {} } = useClientPourHistory(allClientIds);
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   return (
     <div className="space-y-4">
-      {/* Add client button */}
       <Button onClick={() => setAddDialogOpen(true)} className="w-full font-cairo gap-2">
         <Plus className="h-4 w-4" />
         إضافة عميل جديد
       </Button>
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="بحث بالاسم أو رقم الهاتف..."
-          className="font-cairo pr-9"
-        />
+        <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="بحث بالاسم أو رقم الهاتف..." className="font-cairo pr-9" />
       </div>
 
-      {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
         {CLASSIFICATIONS.map((c) => (
-          <Button
-            key={c.value}
-            variant={filter === c.value ? "default" : "outline"}
-            size="sm"
-            className="font-cairo"
-            onClick={() => setFilter(c.value)}
-          >
+          <Button key={c.value} variant={filter === c.value ? "default" : "outline"} size="sm" className="font-cairo" onClick={() => setFilter(c.value)}>
             {c.label}
           </Button>
         ))}
       </div>
 
-      {isLoading ? (
+      {isLoadingClients ? (
         <p className="text-center font-cairo text-muted-foreground py-8">جاري التحميل...</p>
       ) : !filteredClients.length ? (
         <p className="text-center font-cairo text-muted-foreground py-8">لا يوجد عملاء</p>
       ) : (
         <div className="space-y-3">
-          {filteredClients.map((client: any) => (
-            <Card key={client.id}>
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={() => openEditDialog(client)}>
-                  <div>
-                    <h3 className="font-cairo font-bold text-foreground">{client.name}</h3>
-                    <p className="text-sm text-muted-foreground font-cairo direction-ltr">{client.phone}</p>
+          {filteredClients.map((client: any) => {
+            const isToday = client.expected_pour_date && client.expected_pour_date.startsWith(todayStr);
+            return (
+              <Card key={client.id} className={cn(isToday && "border-destructive/50 bg-destructive/5")}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={() => openEditDialog(client)}>
+                    <div>
+                      <h3 className="font-cairo font-bold text-foreground">{client.name}</h3>
+                      <p className="text-sm text-muted-foreground font-cairo direction-ltr">{client.phone}</p>
+                    </div>
+                    {getClassBadge(client.status)}
                   </div>
-                  {getClassBadge(client.status)}
-                </div>
 
-                {/* Pour history */}
-                {pourHistory[client.id] && (
-                  <div className="flex flex-wrap gap-3 text-xs font-cairo bg-muted/50 rounded-md p-2">
-                    <span className="flex items-center gap-1">
+                  {/* Pour date display */}
+                  {client.expected_pour_date && (
+                    <div className={cn(
+                      "flex items-center gap-1.5 text-xs font-cairo rounded-md px-2 py-1",
+                      isToday ? "bg-destructive/10 text-destructive font-bold" : "bg-muted/50 text-muted-foreground"
+                    )}>
                       <CalendarDays className="h-3 w-3" />
-                      آخر صبة: {pourHistory[client.id].lastPourDate ? format(new Date(pourHistory[client.id].lastPourDate!), "d/M/yyyy") : "—"}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Layers className="h-3 w-3" />
-                      {pourHistory[client.id].totalQuantity} م³
-                    </span>
-                    <span>{pourHistory[client.id].pourCount} صبة</span>
-                  </div>
-                )}
-
-                {/* Followup person */}
-                {client.followup_name && (
-                  <p className="text-xs text-muted-foreground font-cairo">المتابع: {client.followup_name}</p>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                  {/* Call */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="font-cairo gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10"
-                    onClick={() => {
-                      const phone = (client.phone || "").replace(/[^0-9]/g, "");
-                      window.open(`tel:${phone}`);
-                    }}
-                  >
-                    <Phone className="h-3.5 w-3.5" />
-                    اتصال
-                  </Button>
-
-                  {/* WhatsApp */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="font-cairo gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10"
-                    onClick={() => {
-                      const phone = (client.phone || "").replace(/[^0-9]/g, "");
-                      window.open(`https://wa.me/${phone}`, "_blank");
-                    }}
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    واتساب
-                  </Button>
-
-                  {/* Log call */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="font-cairo gap-1"
-                    onClick={() => {
-                      setSelectedClient(client);
-                      setCallDialogOpen(true);
-                    }}
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    تسجيل مكالمة
-                  </Button>
-
-                  {/* Pour date */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="font-cairo gap-1"
-                    onClick={() => {
-                      setSelectedClient(client);
-                      setDateDialogOpen(true);
-                    }}
-                  >
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    موعد الصبة
-                  </Button>
-
-                  {/* Transfer - only for hot/warm */}
-                  {(client.status === "hot" || client.status === "warm") && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="font-cairo gap-1 text-primary"
-                      onClick={() => transferMutation.mutate(client.id)}
-                    >
-                      <ArrowRightLeft className="h-3.5 w-3.5" />
-                      تحويل للمتابعة
-                    </Button>
+                      موعد الصبة: {format(new Date(client.expected_pour_date), "d/M/yyyy")}
+                      {isToday && " ⚠️ اليوم!"}
+                    </div>
                   )}
 
-                  {/* Edit */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="font-cairo gap-1"
-                    onClick={() => openEditDialog(client)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    تعديل
-                  </Button>
-                  {/* Show call history */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="font-cairo gap-1"
-                    onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}
-                  >
-                    {expandedClientId === client.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    سجل المكالمات
-                  </Button>
-                </div>
+                  {/* Pour history */}
+                  {pourHistory[client.id] && (
+                    <div className="flex flex-wrap gap-3 text-xs font-cairo bg-muted/50 rounded-md p-2">
+                      <span className="flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        آخر صبة: {pourHistory[client.id].lastPourDate ? format(new Date(pourHistory[client.id].lastPourDate!), "d/M/yyyy") : "—"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Layers className="h-3 w-3" />
+                        {pourHistory[client.id].totalQuantity} م³
+                      </span>
+                      <span>{pourHistory[client.id].pourCount} صبة</span>
+                    </div>
+                  )}
 
-                {/* Expandable Call History */}
-                {expandedClientId === client.id && (
-                  <ClientCallHistory clientId={client.id} />
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  {client.followup_name && (
+                    <p className="text-xs text-muted-foreground font-cairo">المتابع: {client.followup_name}</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    {/* Call */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10"
+                      onClick={() => window.open(`tel:${(client.phone || "").replace(/[^0-9]/g, "")}`)}>
+                      <Phone className="h-3.5 w-3.5" />
+                      اتصال
+                    </Button>
+
+                    {/* WhatsApp */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10"
+                      onClick={() => window.open(`https://wa.me/${(client.phone || "").replace(/[^0-9]/g, "")}`, "_blank")}>
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      واتساب
+                    </Button>
+
+                    {/* Transfer to followup */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-primary border-primary/30 hover:bg-primary/10"
+                      onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "contacted" })}>
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                      تحويل لمتابعة
+                    </Button>
+
+                    {/* Transfer to execution */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-chart-4 border-chart-4/30 hover:bg-chart-4/10"
+                      onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "execution" })}>
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                      تحويل لتنفيذ
+                    </Button>
+
+                    {/* Call log */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1"
+                      onClick={() => { setCallLogClient(client); setCallLogDialogOpen(true); }}>
+                      <FileText className="h-3.5 w-3.5" />
+                      سجل المكالمات
+                      {callCounts[client.id] > 0 && (
+                        <Badge variant="secondary" className="text-[10px] px-1 h-4 min-w-4">{callCounts[client.id]}</Badge>
+                      )}
+                    </Button>
+
+                    {/* Pour date */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1"
+                      onClick={() => { setSelectedClient(client); setDateDialogOpen(true); }}>
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      موعد الصبة
+                    </Button>
+
+                    {/* Edit */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1"
+                      onClick={() => openEditDialog(client)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                      تعديل
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       {/* Call Log Dialog */}
-      <Dialog open={callDialogOpen} onOpenChange={setCallDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-cairo">تسجيل مكالمة - {selectedClient?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="font-cairo">نتيجة المكالمة</Label>
-              <Select value={callResult} onValueChange={setCallResult}>
-                <SelectTrigger className="font-cairo">
-                  <SelectValue placeholder="اختر النتيجة" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CALL_RESULTS.map((r) => (
-                    <SelectItem key={r.value} value={r.value} className="font-cairo">
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="font-cairo">ملاحظات</Label>
-              <Textarea
-                value={callNotes}
-                onChange={(e) => setCallNotes(e.target.value)}
-                placeholder="أضف ملاحظاتك هنا..."
-                className="font-cairo min-h-[80px]"
-              />
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn("font-cairo gap-2", isRecording && "text-destructive border-destructive")}
-              onClick={toggleRecording}
-            >
-              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              {isRecording ? "إيقاف التسجيل" : "تسجيل صوتي"}
-            </Button>
-
-            <Button
-              onClick={() => saveCallMutation.mutate()}
-              disabled={saveCallMutation.isPending}
-              className="w-full font-cairo"
-            >
-              {saveCallMutation.isPending ? "جاري الحفظ..." : "حفظ المكالمة"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {callLogClient && (
+        <CallLogDialog
+          open={callLogDialogOpen}
+          onOpenChange={setCallLogDialogOpen}
+          clientId={callLogClient.id}
+          clientName={callLogClient.name}
+        />
+      )}
 
       {/* Pour Date Dialog */}
       <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
@@ -521,24 +417,16 @@ export function MyClientsTab() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={pourDate}
-                  onSelect={setPourDate}
-                  className="p-3 pointer-events-auto"
-                />
+                <Calendar mode="single" selected={pourDate} onSelect={setPourDate} className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
-            <Button
-              onClick={() => savePourDateMutation.mutate()}
-              disabled={savePourDateMutation.isPending || !pourDate}
-              className="w-full font-cairo"
-            >
+            <Button onClick={() => savePourDateMutation.mutate()} disabled={savePourDateMutation.isPending || !pourDate} className="w-full font-cairo">
               {savePourDateMutation.isPending ? "جاري الحفظ..." : "حفظ الموعد"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
       {/* Edit Client Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -557,9 +445,7 @@ export function MyClientsTab() {
             <div className="space-y-2">
               <Label className="font-cairo">التصنيف</Label>
               <Select value={editClassification} onValueChange={setEditClassification}>
-                <SelectTrigger className="font-cairo">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CLASSIFICATIONS.filter((c) => c.value !== "all").map((c) => (
                     <SelectItem key={c.value} value={c.value} className="font-cairo">{c.label}</SelectItem>
@@ -589,11 +475,7 @@ export function MyClientsTab() {
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="font-cairo min-h-[80px]" />
             </div>
-            <Button
-              onClick={() => editClientMutation.mutate()}
-              disabled={editClientMutation.isPending}
-              className="w-full font-cairo"
-            >
+            <Button onClick={() => editClientMutation.mutate()} disabled={editClientMutation.isPending} className="w-full font-cairo">
               {editClientMutation.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
             </Button>
           </div>
@@ -626,9 +508,7 @@ export function MyClientsTab() {
                     } else {
                       toast({ title: "غير مدعوم", description: "استيراد جهات الاتصال غير مدعوم في هذا المتصفح", variant: "destructive" });
                     }
-                  } catch {
-                    toast({ title: "تم الإلغاء", variant: "destructive" });
-                  }
+                  } catch { toast({ title: "تم الإلغاء", variant: "destructive" }); }
                 }}>
                   <Contact className="h-4 w-4" />
                 </Button>
@@ -637,9 +517,7 @@ export function MyClientsTab() {
             <div className="space-y-2">
               <Label className="font-cairo">التصنيف</Label>
               <Select value={addClassification} onValueChange={setAddClassification}>
-                <SelectTrigger className="font-cairo">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CLASSIFICATIONS.filter((c) => c.value !== "all").map((c) => (
                     <SelectItem key={c.value} value={c.value} className="font-cairo">{c.label}</SelectItem>
@@ -654,6 +532,9 @@ export function MyClientsTab() {
             <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
+              {addRecorder.transcribedText && (
+                <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">🎙️ نص مكتوب: {addRecorder.transcribedText}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="font-cairo">موعد الصبة التقريبي</Label>
@@ -672,83 +553,28 @@ export function MyClientsTab() {
             <Button
               variant="outline"
               size="sm"
-              className={cn("font-cairo gap-2", isRecording && "text-destructive border-destructive")}
-              onClick={toggleRecording}
+              className={cn("font-cairo gap-2", addRecorder.isRecording && "text-destructive border-destructive")}
+              onClick={async () => {
+                if (addRecorder.isRecording) {
+                  addRecorder.stopRecording();
+                } else {
+                  try { await addRecorder.startRecording(); }
+                  catch { toast({ title: "لا يمكن الوصول للميكروفون", variant: "destructive" }); }
+                }
+              }}
             >
-              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              {isRecording ? "إيقاف التسجيل" : "تسجيل صوتي"}
+              {addRecorder.isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {addRecorder.isRecording ? "إيقاف التسجيل" : "تسجيل صوتي 🎙️"}
             </Button>
-            <Button
-              onClick={() => addClientMutation.mutate()}
-              disabled={addClientMutation.isPending}
-              className="w-full font-cairo"
-            >
+            {addRecorder.audioBlob && (
+              <p className="text-xs text-muted-foreground font-cairo">🎙️ تسجيل صوتي جاهز للرفع</p>
+            )}
+            <Button onClick={() => addClientMutation.mutate()} disabled={addClientMutation.isPending} className="w-full font-cairo">
               {addClientMutation.isPending ? "جاري الحفظ..." : "إضافة العميل"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-const RESULT_LABELS: Record<string, string> = {
-  interested: "مهتم",
-  not_interested: "غير مهتم",
-  postponed: "تأجيل",
-  no_answer: "لم يرد",
-  completed: "مكتمل",
-};
-
-function ClientCallHistory({ clientId }: { clientId: string | number }) {
-  const { data: calls, isLoading } = useQuery({
-    queryKey: ["client-call-history", clientId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("call_logs")
-        .select("*")
-        .eq("client_id", clientId)
-        .order("call_date", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  if (isLoading) {
-    return <p className="text-xs font-cairo text-muted-foreground py-2 text-center">جاري التحميل...</p>;
-  }
-
-  if (!calls?.length) {
-    return <p className="text-xs font-cairo text-muted-foreground py-2 text-center">لا توجد مكالمات سابقة</p>;
-  }
-
-  return (
-    <div className="border-t border-border pt-3 space-y-2">
-      <p className="text-xs font-cairo font-bold text-muted-foreground">📞 سجل المكالمات ({calls.length})</p>
-      {calls.map((call: any) => (
-        <div key={call.id} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50 text-sm">
-          <Clock className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-cairo text-foreground font-medium">
-                {RESULT_LABELS[call.result] || call.result}
-              </span>
-              <span className="text-xs text-muted-foreground font-cairo">
-                {call.call_date
-                  ? new Date(call.call_date).toLocaleDateString("ar-EG", { day: "numeric", month: "short", year: "numeric" })
-                  : new Date(call.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short", year: "numeric" })}
-              </span>
-              {call.duration_minutes > 0 && (
-                <span className="text-xs text-muted-foreground font-cairo">{call.duration_minutes} د</span>
-              )}
-            </div>
-            {call.notes && (
-              <p className="text-xs text-muted-foreground font-cairo mt-1 truncate">{call.notes}</p>
-            )}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
