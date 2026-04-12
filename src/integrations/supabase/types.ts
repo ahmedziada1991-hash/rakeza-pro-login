@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      field_locations: {
+        Row: {
+          area: string | null
+          contractor_name: string | null
+          created_at: string
+          id: string
+          lat: number | null
+          lng: number | null
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          area?: string | null
+          contractor_name?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          area?: string | null
+          contractor_name?: string | null
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           created_at: string
