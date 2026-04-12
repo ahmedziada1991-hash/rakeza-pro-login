@@ -282,6 +282,7 @@ export function FieldTab() {
                 <MapPin className="h-4 w-4" />
                 {isGettingLocation ? "جاري تحديد الموقع..." : savedLocation ? `📍 ${savedLocation.lat.toFixed(6)}, ${savedLocation.lng.toFixed(6)}` : "تسجيل موقعي الحالي 📍"}
               </Button>
+            </div>
 
             <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
