@@ -180,8 +180,6 @@ export function MyClientsTab() {
     mutationFn: async () => {
       if (!addName.trim()) throw new Error("أدخل اسم العميل");
       if (!addPhone.trim()) throw new Error("أدخل رقم الهاتف");
-      // Resolve numeric user ID from auth UUID
-      const { data: numericUserId } = await supabase.rpc('get_user_id_by_auth_id', { p_auth_id: user!.id });
       const { error } = await (supabase as any)
         .from("clients")
         .insert({
@@ -191,7 +189,7 @@ export function MyClientsTab() {
           notes: addNotes.trim() || null,
           area: addArea.trim() || null,
           expected_pour_date: addPourDate ? addPourDate.toISOString() : null,
-          assigned_sales_id: numericUserId || null,
+          assigned_sales_id: user!.id,
         });
       if (error) throw error;
     },
