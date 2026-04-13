@@ -45,6 +45,8 @@ export function MyClientsTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [callLogDialogOpen, setCallLogDialogOpen] = useState(false);
   const [callLogClient, setCallLogClient] = useState<any>(null);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiClient, setAiClient] = useState<any>(null);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -402,6 +404,13 @@ export function MyClientsTab() {
                       onClick={() => openEditDialog(client)}>
                       <Pencil className="h-3.5 w-3.5" />
                       تعديل
+                    </Button>
+
+                    {/* AI Assistant */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-primary border-primary/30 hover:bg-primary/10"
+                      onClick={() => { setAiClient(client); setAiDialogOpen(true); }}>
+                      <Bot className="h-3.5 w-3.5" />
+                      مساعد AI 🤖
                     </Button>
                   </div>
                 </CardContent>
