@@ -189,7 +189,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const senderId = authUser?.id ?? userId;
     
-    const { error } = await supabase.from("messages").insert({
+    const { error } = await (supabase as any).from("messages").insert({
       conversation_id: conversationId,
       sender_id: senderId,
       sender_name: currentUserName ?? "مستخدم",
@@ -241,7 +241,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const duration = recordingTime;
 
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("messages").insert({
+    const { error } = await (supabase as any).from("messages").insert({
       conversation_id: conversationId, sender_id: authUser?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
       content: `🎙️ رسالة صوتية (${formatDuration(duration)})`,
@@ -283,7 +283,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       : `📄 ${file.name} (${formatFileSize(file.size)})`;
 
     const { data: { user: authUser2 } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("messages").insert({
+    const { error } = await (supabase as any).from("messages").insert({
       conversation_id: conversationId, sender_id: authUser2?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
       content: label, message_type: msgType,
