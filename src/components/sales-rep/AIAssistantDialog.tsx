@@ -96,6 +96,12 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
 ${logsText}`;
 
     try {
+      // Refresh session to avoid 401
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await supabase.auth.refreshSession();
+      }
+
       const { data, error: invokeError } = await supabase.functions.invoke('ai-assistant', {
         body: { action, role, clientData },
       });
