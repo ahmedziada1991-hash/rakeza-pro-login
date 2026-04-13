@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { ConversationList } from "./ConversationList";
 import { ChatArea } from "./ChatArea";
 import { NewConversationDialog } from "./NewConversationDialog";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Plus, ArrowRight } from "lucide-react";
+import { MessageCircle, Plus, Home } from "lucide-react";
 
 export function ChatPage() {
   const { user } = useAuth();
