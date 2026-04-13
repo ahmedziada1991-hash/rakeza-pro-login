@@ -18,6 +18,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Plus, Phone, MessageCircle, ArrowLeftRight, Search, Users, ContactRound, Bot } from "lucide-react";
 import { AIAssistantDialog } from "@/components/sales-rep/AIAssistantDialog";
+import { ClientQualificationForm, QualificationData, INITIAL_QUALIFICATION_DATA } from "@/components/sales-rep/ClientQualificationForm";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -65,6 +66,9 @@ export function SalesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ClientForm>(EMPTY_FORM);
   const [aiClient, setAiClient] = useState<Client | null>(null);
+  const [qualData, setQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
+  const [suggestedStatus, setSuggestedStatus] = useState("cold");
+  const [qualScore, setQualScore] = useState(0);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["sales-clients"],
@@ -114,6 +118,9 @@ export function SalesPage() {
   function closeDialog() {
     setDialogOpen(false);
     setForm(EMPTY_FORM);
+    setQualData(INITIAL_QUALIFICATION_DATA);
+    setSuggestedStatus("cold");
+    setQualScore(0);
   }
 
   function handleSave() {
@@ -124,9 +131,17 @@ export function SalesPage() {
     addMutation.mutate({
       name: form.name.trim(),
       phone: form.phone || null,
-      status: form.status,
+      status: form.status || suggestedStatus,
       notes: form.notes || null,
       assigned_sales_id: user?.id || null,
+      expected_pour_date: qualData.expectedPourDate ? qualData.expectedPourDate.toISOString() : null,
+      project_type: qualData.projectType || null,
+      area: qualData.area || null,
+      payment_type: qualData.paymentType || null,
+      has_current_project: qualData.hasCurrentProject,
+      estimated_quantity: qualData.knowsQuantity === "yes" ? qualData.estimatedQuantity : null,
+      has_other_supplier: qualData.hasOtherSupplier,
+      qualification_score: qualScore,
     });
   }
 
@@ -350,11 +365,11 @@ export function SalesPage() {
 
       {/* Add client dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-cairo">إضافة عميل جديد</DialogTitle>
             <DialogDescription className="font-cairo text-muted-foreground">
-              أدخل بيانات العميل الجديد
+              أدخل بيانات العميل وأجب على أسئلة التصنيف
             </DialogDescription>
           </DialogHeader>
 
@@ -392,8 +407,21 @@ export function SalesPage() {
               </div>
             </div>
 
+            {/* Qualification Questions */}
+            <div className="border-t pt-4">
+              <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
+              <ClientQualificationForm
+                onChange={(qData, status, score) => {
+                  setQualData(qData);
+                  setSuggestedStatus(status);
+                  setQualScore(score);
+                  setForm((f) => ({ ...f, status }));
+                }}
+              />
+            </div>
+
             <div className="space-y-1.5">
-              <Label className="font-cairo">التصنيف</Label>
+              <Label className="font-cairo">التصنيف (يمكنك تغييره يدوياً)</Label>
               <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
                 <SelectTrigger className="font-cairo">
                   <SelectValue />

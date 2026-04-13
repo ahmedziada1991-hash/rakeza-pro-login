@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ClientQualificationForm, QualificationData, INITIAL_QUALIFICATION_DATA } from "./ClientQualificationForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +43,8 @@ export function FieldTab() {
   const [notes, setNotes] = useState("");
   const [classification, setClassification] = useState("cold");
   const [pourDate, setPourDate] = useState<Date>();
+  const [qualData, setQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
+  const [qualScore, setQualScore] = useState(0);
   const [callLogDialogOpen, setCallLogDialogOpen] = useState(false);
   const [callLogClient, setCallLogClient] = useState<any>(null);
 
@@ -104,11 +107,17 @@ export function FieldTab() {
         .insert({
           name: clientName.trim(),
           phone: clientPhone.trim(),
-          area: area.trim() || null,
+          area: qualData.area || area.trim() || null,
           notes: notes.trim() || null,
-          status: classification === "hot" || classification === "warm" ? "followup" : "active",
-          expected_pour_date: pourDate ? pourDate.toISOString() : null,
+          status: classification,
+          expected_pour_date: qualData.expectedPourDate ? qualData.expectedPourDate.toISOString() : (pourDate ? pourDate.toISOString() : null),
           assigned_sales_id: user!.id,
+          project_type: qualData.projectType || null,
+          payment_type: qualData.paymentType || null,
+          has_current_project: qualData.hasCurrentProject,
+          estimated_quantity: qualData.knowsQuantity === "yes" ? qualData.estimatedQuantity : null,
+          has_other_supplier: qualData.hasOtherSupplier,
+          qualification_score: qualScore,
         })
         .select("id")
         .single();
@@ -158,6 +167,9 @@ export function FieldTab() {
       setClassification("cold");
       setPourDate(undefined);
       setSavedLocation(null);
+      recorder.resetRecording();
+      setQualData(INITIAL_QUALIFICATION_DATA);
+      setQualScore(0);
       recorder.resetRecording();
       toast({ title: "تم تسجيل الزيارة بنجاح ✅" });
     },
@@ -368,8 +380,21 @@ export function FieldTab() {
                 <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">🎙️ نص مكتوب: {recorder.transcribedText}</p>
               )}
             </div>
+
+            {/* Qualification Questions */}
+            <div className="border-t pt-4">
+              <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
+              <ClientQualificationForm
+                onChange={(qData, status, score) => {
+                  setQualData(qData);
+                  setClassification(status);
+                  setQualScore(score);
+                }}
+              />
+            </div>
+
             <div className="space-y-2">
-              <Label className="font-cairo">تصنيف العميل</Label>
+              <Label className="font-cairo">تصنيف العميل (يمكنك تغييره يدوياً)</Label>
               <Select value={classification} onValueChange={setClassification}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -378,20 +403,6 @@ export function FieldTab() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="font-cairo">موعد الصبة التقريبي</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !pourDate && "text-muted-foreground")}>
-                    <CalendarDays className="h-4 w-4 ml-2" />
-                    {pourDate ? format(pourDate, "yyyy-MM-dd") : "اختر التاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={pourDate} onSelect={setPourDate} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
             </div>
             <Button
               variant="outline"

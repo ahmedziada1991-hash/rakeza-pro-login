@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ClientQualificationForm, QualificationData, INITIAL_QUALIFICATION_DATA } from "./ClientQualificationForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,6 +68,8 @@ export function MyClientsTab() {
   const [addArea, setAddArea] = useState("");
   const [addPourDate, setAddPourDate] = useState<Date>();
   const addRecorder = useAudioRecorder();
+  const [addQualData, setAddQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
+  const [addQualScore, setAddQualScore] = useState(0);
 
   // Call log counts per client
   const { data: callCounts = {} } = useQuery({
@@ -181,9 +184,15 @@ export function MyClientsTab() {
           phone: addPhone.trim(),
           status: addClassification,
           notes: addNotes.trim() || null,
-          area: addArea.trim() || null,
-          expected_pour_date: addPourDate ? addPourDate.toISOString() : null,
+          area: addQualData.area || addArea.trim() || null,
+          expected_pour_date: addQualData.expectedPourDate ? addQualData.expectedPourDate.toISOString() : (addPourDate ? addPourDate.toISOString() : null),
           assigned_sales_id: user!.id,
+          project_type: addQualData.projectType || null,
+          payment_type: addQualData.paymentType || null,
+          has_current_project: addQualData.hasCurrentProject,
+          estimated_quantity: addQualData.knowsQuantity === "yes" ? addQualData.estimatedQuantity : null,
+          has_other_supplier: addQualData.hasOtherSupplier,
+          qualification_score: addQualScore,
         })
         .select("id")
         .single();
@@ -227,6 +236,8 @@ export function MyClientsTab() {
       setAddArea("");
       setAddPourDate(undefined);
       addRecorder.resetRecording();
+      setAddQualData(INITIAL_QUALIFICATION_DATA);
+      setAddQualScore(0);
       toast({ title: "تم إضافة العميل بنجاح ✅" });
 
       // Auto-open call log for the new client
@@ -552,8 +563,21 @@ export function MyClientsTab() {
                 </Button>
               </div>
             </div>
+
+            {/* Qualification Questions */}
+            <div className="border-t pt-4">
+              <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
+              <ClientQualificationForm
+                onChange={(qData, status, score) => {
+                  setAddQualData(qData);
+                  setAddClassification(status);
+                  setAddQualScore(score);
+                }}
+              />
+            </div>
+
             <div className="space-y-2">
-              <Label className="font-cairo">التصنيف</Label>
+              <Label className="font-cairo">التصنيف (يمكنك تغييره يدوياً)</Label>
               <Select value={addClassification} onValueChange={setAddClassification}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -564,29 +588,11 @@ export function MyClientsTab() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="font-cairo">المنطقة</Label>
-              <Input value={addArea} onChange={(e) => setAddArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
-            </div>
-            <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
               {addRecorder.transcribedText && (
                 <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">🎙️ نص مكتوب: {addRecorder.transcribedText}</p>
               )}
-            </div>
-            <div className="space-y-2">
-              <Label className="font-cairo">موعد الصبة التقريبي</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !addPourDate && "text-muted-foreground")}>
-                    <CalendarDays className="h-4 w-4 ml-2" />
-                    {addPourDate ? format(addPourDate, "yyyy-MM-dd") : "اختر التاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={addPourDate} onSelect={setAddPourDate} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
             </div>
             <Button
               variant="outline"
