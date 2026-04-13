@@ -27,7 +27,7 @@ export function ChatHeaderIcon() {
       for (const m of memberships) {
         if (!m.last_seen_at) continue;
         const { count } = await (supabase as any)
-          .from("messages")
+          .from("messages_view")
           .select("id", { count: "exact", head: true })
           .eq("conversation_id", m.conversation_id)
           .gt("created_at", m.last_seen_at)
