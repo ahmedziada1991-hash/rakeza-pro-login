@@ -96,20 +96,9 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
 ${logsText}`;
 
     try {
-      const res = await fetch(
-        "https://ssuwzsdpzohmfuhvuzmx.supabase.co/functions/v1/ai-assistant",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzdXd6c2Rwem9obWZ1aHZ1em14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTEzNjcsImV4cCI6MjA5MDg2NzM2N30.266UWBIopQo5w349uU3z_SPUJYtEgtxQUXtv95xVh9U",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzdXd6c2Rwem9obWZ1aHZ1em14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTEzNjcsImV4cCI6MjA5MDg2NzM2N30.266UWBIopQo5w349uU3z_SPUJYtEgtxQUXtv95xVh9U",
-          },
-          body: JSON.stringify({ action, role, clientData }),
-        }
-      );
-
-      const data = await res.json();
+      const { data, error: invokeError } = await supabase.functions.invoke('ai-assistant', {
+        body: { action, role, clientData },
+      });
       console.log('AI Response:', JSON.stringify(data));
 
       if (!res.ok) {
