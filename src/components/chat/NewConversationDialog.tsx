@@ -133,7 +133,7 @@ export function NewConversationDialog({ open, onOpenChange, userId, onCreated }:
       if (convErr) throw convErr;
 
       // Add members (creator + selected)
-      const members = [userId, ...selectedIds].map((uid) => ({
+      const members = [currentUserId, ...selectedIds].map((uid) => ({
         conversation_id: conv.id,
         user_id: uid,
       }));
