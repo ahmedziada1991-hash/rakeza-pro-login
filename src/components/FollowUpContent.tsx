@@ -508,6 +508,16 @@ export function FollowUpContent() {
         </TabsContent>
       </Tabs>
 
+      {/* AI Assistant Dialog */}
+      {aiClient && (
+        <AIAssistantDialog
+          open={aiDialogOpen}
+          onOpenChange={setAiDialogOpen}
+          client={aiClient}
+          role="followup"
+        />
+      )}
+
       {/* Follow-up Call Dialog */}
       <Dialog open={callDialogOpen} onOpenChange={setCallDialogOpen}>
         <DialogContent className="max-w-md">
