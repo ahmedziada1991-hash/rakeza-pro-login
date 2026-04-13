@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TodayTargets } from "@/components/sales-rep/TodayTargets";
@@ -8,13 +8,16 @@ import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AISearchBar } from "@/components/sales-rep/AISearchBar";
 import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
+import { ChatPage } from "@/components/chat/ChatPage";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 import { Users, MapPin, LogOut, Target, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const SalesRepDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session, userRole, isLoading, signOut } = useAuth();
+  const isChatPage = location.pathname.endsWith("/chat");
 
   useEffect(() => {
     if (isLoading) return;
@@ -42,54 +45,58 @@ const SalesRepDashboard = () => {
         </div>
       </header>
 
-      <main className="p-4 max-w-2xl mx-auto space-y-6 pb-8">
-        {/* AI Search Bar */}
-        <AISearchBar />
+      {isChatPage ? (
+        <ChatPage />
+      ) : (
+        <main className="p-4 max-w-2xl mx-auto space-y-6 pb-8">
+          {/* AI Search Bar */}
+          <AISearchBar />
 
-        {/* Section 1: Today's Targets */}
-        <TodayTargets />
+          {/* Section 1: Today's Targets */}
+          <TodayTargets />
 
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            className="font-cairo gap-2"
-            onClick={() => navigate("/dashboard/sales-rep/goals")}
-          >
-            <Target className="h-4 w-4" />
-            أهدافي الشهرية
-          </Button>
-          <Button
-            variant="outline"
-            className="font-cairo gap-2"
-            onClick={() => navigate("/dashboard/sales-rep/calendar")}
-          >
-            <CalendarDays className="h-4 w-4" />
-            تقويم الصبات
-          </Button>
-        </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              className="font-cairo gap-2"
+              onClick={() => navigate("/dashboard/sales-rep/goals")}
+            >
+              <Target className="h-4 w-4" />
+              أهدافي الشهرية
+            </Button>
+            <Button
+              variant="outline"
+              className="font-cairo gap-2"
+              onClick={() => navigate("/dashboard/sales-rep/calendar")}
+            >
+              <CalendarDays className="h-4 w-4" />
+              تقويم الصبات
+            </Button>
+          </div>
 
-        {/* Tabs for Clients & Field */}
-        <Tabs defaultValue="clients" dir="rtl">
-          <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="clients" className="font-cairo gap-2">
-              <Users className="h-4 w-4" />
-              عملائي
-            </TabsTrigger>
-            <TabsTrigger value="field" className="font-cairo gap-2">
-              <MapPin className="h-4 w-4" />
-              ميداني
-            </TabsTrigger>
-          </TabsList>
+          {/* Tabs for Clients & Field */}
+          <Tabs defaultValue="clients" dir="rtl">
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="clients" className="font-cairo gap-2">
+                <Users className="h-4 w-4" />
+                عملائي
+              </TabsTrigger>
+              <TabsTrigger value="field" className="font-cairo gap-2">
+                <MapPin className="h-4 w-4" />
+                ميداني
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="clients">
-            <MyClientsTab />
-          </TabsContent>
+            <TabsContent value="clients">
+              <MyClientsTab />
+            </TabsContent>
 
-          <TabsContent value="field">
-            <FieldTab />
-          </TabsContent>
-        </Tabs>
-      </main>
+            <TabsContent value="field">
+              <FieldTab />
+            </TabsContent>
+          </Tabs>
+        </main>
+      )}
     </div>
   );
 };
