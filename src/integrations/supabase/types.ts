@@ -56,6 +56,62 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          id: string
+          joined_at: string
+          last_seen_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          joined_at?: string
+          last_seen_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          joined_at?: string
+          last_seen_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_group: boolean
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_group?: boolean
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_group?: boolean
+          name?: string | null
+        }
+        Relationships: []
+      }
       field_locations: {
         Row: {
           area: string | null
@@ -94,33 +150,50 @@ export type Database = {
       }
       messages: {
         Row: {
+          audio_url: string | null
+          conversation_id: string | null
           created_at: string
           id: number
           is_read: boolean
           message: string
+          message_type: string
           receiver_id: string | null
           sender_id: string
           sender_name: string
         }
         Insert: {
+          audio_url?: string | null
+          conversation_id?: string | null
           created_at?: string
           id?: never
           is_read?: boolean
           message: string
+          message_type?: string
           receiver_id?: string | null
           sender_id: string
           sender_name?: string
         }
         Update: {
+          audio_url?: string | null
+          conversation_id?: string | null
           created_at?: string
           id?: never
           is_read?: boolean
           message?: string
+          message_type?: string
           receiver_id?: string | null
           sender_id?: string
           sender_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

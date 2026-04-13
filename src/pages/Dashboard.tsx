@@ -23,6 +23,7 @@ import { WeeklyReportPage } from "@/components/WeeklyReportPage";
 import { MonthlyReportPage } from "@/components/MonthlyReportPage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { TeamChat } from "@/components/TeamChat";
+import { ChatPage } from "@/components/chat/ChatPage";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -134,6 +135,8 @@ const Dashboard = () => {
                 <WeeklyReportPage />
               ) : subpath === "monthly-report" ? (
                 <MonthlyReportPage />
+              ) : subpath === "chat" ? (
+                <ChatPage />
               ) : (
                 <Outlet />
               )}
