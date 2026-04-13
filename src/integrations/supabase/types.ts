@@ -201,6 +201,33 @@ export type Database = {
           },
         ]
       }
+      users: {
+        Row: {
+          active: boolean
+          auth_id: string | null
+          created_at: string
+          id: number
+          name: string
+          role: string
+        }
+        Insert: {
+          active?: boolean
+          auth_id?: string | null
+          created_at?: string
+          id?: never
+          name?: string
+          role?: string
+        }
+        Update: {
+          active?: boolean
+          auth_id?: string | null
+          created_at?: string
+          id?: never
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
