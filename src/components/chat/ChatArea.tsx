@@ -282,13 +282,14 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       : attachmentType === "video" ? `🎥 ${file.name} (${formatFileSize(file.size)})`
       : `📄 ${file.name} (${formatFileSize(file.size)})`;
 
-    const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId, sender_id: userId,
+    const { data: { user: authUser2 } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId, sender_id: authUser2?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
       message: label, message_type: msgType,
       attachment_url: url, attachment_type: attachmentType,
     });
-    if (error) toast.error("فشل إرسال المرفق");
+    if (error) { console.error("Attachment msg error:", error); toast.error("فشل إرسال المرفق"); }
     setSending(false);
   };
 
