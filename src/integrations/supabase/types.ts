@@ -201,12 +201,58 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          active: boolean
+          auth_id: string | null
+          created_at: string
+          id: number
+          name: string
+          role: string
+        }
+        Insert: {
+          active?: boolean
+          auth_id?: string | null
+          created_at?: string
+          id?: never
+          name?: string
+          role?: string
+        }
+        Update: {
+          active?: boolean
+          auth_id?: string | null
+          created_at?: string
+          id?: never
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_user_id_by_auth_id: { Args: { p_auth_id: string }; Returns: number }
+      has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
