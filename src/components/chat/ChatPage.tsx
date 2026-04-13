@@ -52,10 +52,16 @@ export function ChatPage() {
             <MessageCircle className="h-5 w-5 text-primary" />
             <h2 className="font-cairo font-bold text-foreground">المحادثات</h2>
           </div>
-          <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => setNewDialogOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            جديدة
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => navigate(ROLE_HOME[userRole ?? "sales"] ?? "/dashboard/sales-rep")}>
+              <Home className="h-3.5 w-3.5" />
+              الرئيسية
+            </Button>
+            <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => setNewDialogOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              جديدة
+            </Button>
+          </div>
         </div>
         <ConversationList
           userId={user.id}
