@@ -25,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard/sales-rep" element={<SalesRepDashboard />} />
+            <Route path="/dashboard/sales-rep/chat" element={<SalesRepDashboard />} />
             <Route path="/dashboard/sales-rep/goals" element={<SalesRepGoals />} />
             <Route path="/dashboard/sales-rep/calendar" element={<SalesRepCalendar />} />
             <Route path="/dashboard/follow-up" element={<FollowUpDashboard />} />
@@ -32,8 +33,10 @@ const App = () => (
             <Route path="/dashboard/follow-up/targets" element={<FollowUpDashboard />} />
             <Route path="/dashboard/follow-up/assign" element={<FollowUpDashboard />} />
             <Route path="/dashboard/follow-up/offers" element={<FollowUpDashboard />} />
+            <Route path="/dashboard/follow-up/chat" element={<FollowUpDashboard />} />
             <Route path="/dashboard/execution" element={<ExecutionDashboard />} />
             <Route path="/dashboard/execution/report" element={<ExecutionDashboard />} />
+            <Route path="/dashboard/execution/chat" element={<ExecutionDashboard />} />
             <Route path="/dashboard/:role/*" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
