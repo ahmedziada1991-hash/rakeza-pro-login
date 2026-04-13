@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Sparkles, Phone, ArrowRight, Loader2, CalendarDays, Truck, ClipboardList } from "lucide-react";
+import { Bot, Sparkles, Phone, ArrowRight, Loader2, CalendarDays, Truck, ClipboardList, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 interface Client {
   id: number;
