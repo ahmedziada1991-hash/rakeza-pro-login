@@ -87,15 +87,12 @@ export function ConversationList({ userId, selectedId, onSelect }: Props) {
         // Get other members for display name
         const convMembers = (allMembers ?? []).filter((m: any) => m.conversation_id === conv.id);
         const otherMembers = convMembers.filter((m: any) => m.user_id !== userId);
+        const otherUserData = !conv.is_group && otherMembers.length > 0
+          ? userMap.get(otherMembers[0].user_id) as any
+          : null;
         const displayName = conv.is_group
           ? conv.name || "مجموعة"
-          : otherMembers.length > 0
-            ? userMap.get(otherMembers[0].user_id)?.name || "مستخدم"
-            : "أنت";
-
-        const otherUser = !conv.is_group && otherMembers.length > 0
-          ? userMap.get(otherMembers[0].user_id)
-          : null;
+          : otherUserData?.name || "مستخدم";
 
         return {
           id: conv.id,
@@ -104,7 +101,7 @@ export function ConversationList({ userId, selectedId, onSelect }: Props) {
           lastMessage: lastMsg?.message_type === "audio" ? "🎙️ رسالة صوتية" : lastMsg?.message ?? "",
           lastMessageTime: lastMsg?.created_at ?? conv.created_at,
           unreadCount,
-          role: otherUser?.role,
+          role: otherUserData?.role as string | undefined,
           memberCount: convMembers.length,
         };
       }));
