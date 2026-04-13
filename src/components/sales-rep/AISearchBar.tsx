@@ -43,11 +43,20 @@ export function AISearchBar({ role = "sales" }: AISearchBarProps) {
     const clientData = `${context}\n\nالسؤال: ${query}`;
 
     try {
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { action: "classify", role, clientData },
-      });
+      const res = await fetch(
+        "https://ssuwzsdpzohmfuhvuzmx.supabase.co/functions/v1/ai-assistant",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzdXd6c2Rwem9obWZ1aHZ1em14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTEzNjcsImV4cCI6MjA5MDg2NzM2N30.266UWBIopQo5w349uU3z_SPUJYtEgtxQUXtv95xVh9U",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzdXd6c2Rwem9obWZ1aHZ1em14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTEzNjcsImV4cCI6MjA5MDg2NzM2N30.266UWBIopQo5w349uU3z_SPUJYtEgtxQUXtv95xVh9U",
+          },
+          body: JSON.stringify({ action: "classify", role, clientData }),
+        }
+      );
 
-      if (error) throw error;
+      const data = await res.json();
 
       if (data?.error) {
         setAnswer(`⚠️ ${data.error}`);
