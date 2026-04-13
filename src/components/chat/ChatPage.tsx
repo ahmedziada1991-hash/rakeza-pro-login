@@ -24,7 +24,7 @@ export function ChatPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-5rem)] flex rounded-xl border border-border overflow-hidden bg-card" dir="rtl">
+    <div className="h-[calc(100vh-3.5rem)] flex border-t border-border overflow-hidden bg-card" dir="rtl">
       {/* Conversations List - hidden on mobile when chat is open */}
       <div className={`w-full md:w-80 lg:w-96 border-l border-border flex flex-col shrink-0 ${mobileShowChat ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b border-border flex items-center justify-between bg-muted/30">
