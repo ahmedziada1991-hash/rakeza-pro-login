@@ -150,6 +150,8 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachment_type: string | null
+          attachment_url: string | null
           audio_url: string | null
           conversation_id: string | null
           created_at: string
@@ -162,6 +164,8 @@ export type Database = {
           sender_name: string
         }
         Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           audio_url?: string | null
           conversation_id?: string | null
           created_at?: string
@@ -174,6 +178,8 @@ export type Database = {
           sender_name?: string
         }
         Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           audio_url?: string | null
           conversation_id?: string | null
           created_at?: string

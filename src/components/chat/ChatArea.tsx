@@ -5,7 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Send, ArrowRight, Mic, Square, Play, Pause, Users } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Send, ArrowRight, Mic, Square, Play, Pause, Users, Paperclip, Smile, Image, Film, FileText, Download, X } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ar } from "date-fns/locale";
 import { toast } from "sonner";
@@ -17,8 +18,7 @@ interface Props {
 }
 
 function formatMsgTime(dateStr: string) {
-  const d = new Date(dateStr);
-  return format(d, "hh:mm a");
+  return format(new Date(dateStr), "hh:mm a");
 }
 
 function formatDateHeader(dateStr: string) {
@@ -28,16 +28,40 @@ function formatDateHeader(dateStr: string) {
   return format(d, "EEEE d MMMM", { locale: ar });
 }
 
+function formatDuration(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+const EMOJI_LIST = [
+  "😊", "😂", "❤️", "👍", "🔥", "😍", "😢", "😎", "🙏", "💪",
+  "👏", "🎉", "😁", "🤣", "😘", "🥰", "😃", "😄", "😆", "😅",
+  "🤗", "🤩", "😇", "🥳", "😋", "😜", "🤔", "😴", "😤", "😡",
+  "👋", "✌️", "🤝", "💯", "⭐", "🌟", "💫", "✨", "🎊", "🎈",
+  "📞", "💬", "📝", "📌", "✅", "❌", "⚠️", "🔔", "📢", "🏗️",
+];
+
 export function ChatArea({ conversationId, userId, onBack }: Props) {
   const queryClient = useQueryClient();
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileAccept, setFileAccept] = useState<string>("");
 
   // Get conversation details
   const { data: convInfo } = useQuery({
@@ -59,7 +83,6 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     },
   });
 
-  // Get current user name
   const { data: currentUserName } = useQuery({
     queryKey: ["chat-my-name", userId],
     queryFn: async () => {
@@ -68,7 +91,6 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     },
   });
 
-  // Get messages
   const { data: messages, isLoading, refetch } = useQuery({
     queryKey: ["chat-messages", conversationId],
     queryFn: async () => {
@@ -78,7 +100,6 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
 
-      // Get sender names
       const senderIds = [...new Set((data ?? []).map((m: any) => m.sender_id))];
       const { data: users } = senderIds.length
         ? await (supabase as any).from("users").select("name, auth_id").in("auth_id", senderIds)
@@ -92,7 +113,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     },
   });
 
-  // Update last_seen_at when opening conversation
+  // Update last_seen_at
   useEffect(() => {
     if (!conversationId || !userId) return;
     (supabase as any)
@@ -105,60 +126,55 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       });
   }, [conversationId, userId, messages?.length]);
 
-  // Scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages?.length]);
 
-  // Realtime subscription
+  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel(`chat-room-${conversationId}`)
       .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
+        event: "INSERT", schema: "public", table: "messages",
         filter: `conversation_id=eq.${conversationId}`,
       }, () => {
         refetch();
-        // Play notification sound for messages from others
         try {
           const ctx = new AudioContext();
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 800;
-          gain.gain.value = 0.1;
-          osc.start();
-          osc.stop(ctx.currentTime + 0.1);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 800; gain.gain.value = 0.1;
+          osc.start(); osc.stop(ctx.currentTime + 0.1);
         } catch {}
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [conversationId, refetch]);
+
+  // Recording timer
+  useEffect(() => {
+    if (recording) {
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [recording]);
 
   const handleSend = async () => {
     const text = messageText.trim();
     if (!text || sending) return;
     setSending(true);
     setMessageText("");
-
     const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      sender_name: currentUserName ?? "مستخدم",
-      message: text,
-      message_type: "text",
+      conversation_id: conversationId, sender_id: userId,
+      sender_name: currentUserName ?? "مستخدم", message: text, message_type: "text",
     });
-
-    if (error) {
-      toast.error("فشل إرسال الرسالة");
-      setMessageText(text);
-    }
+    if (error) { toast.error("فشل إرسال الرسالة"); setMessageText(text); }
     setSending(false);
   };
 
@@ -191,39 +207,61 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
   const uploadAndSendAudio = async (blob: Blob) => {
     setSending(true);
     const fileName = `chat_${conversationId}_${Date.now()}.webm`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("call-recordings")
-      .upload(fileName, blob, { contentType: "audio/webm" });
-
-    if (uploadError) {
-      toast.error("فشل رفع التسجيل");
-      setSending(false);
-      return;
-    }
+    const { error: uploadError } = await supabase.storage
+      .from("call-recordings").upload(fileName, blob, { contentType: "audio/webm" });
+    if (uploadError) { toast.error("فشل رفع التسجيل"); setSending(false); return; }
 
     const { data: urlData } = supabase.storage.from("call-recordings").getPublicUrl(fileName);
-    const audioUrl = urlData?.publicUrl;
-
-    // Speech-to-text
-    let transcription = "";
-    try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        // Note: real-time transcription would need to happen during recording
-        // For now, just send as audio message
-      }
-    } catch {}
+    const duration = recordingTime;
 
     const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
+      conversation_id: conversationId, sender_id: userId,
       sender_name: currentUserName ?? "مستخدم",
-      message: transcription || "🎙️ رسالة صوتية",
-      audio_url: audioUrl,
-      message_type: "audio",
+      message: `🎙️ رسالة صوتية (${formatDuration(duration)})`,
+      audio_url: urlData?.publicUrl, message_type: "audio",
     });
-
     if (error) toast.error("فشل إرسال الرسالة الصوتية");
+    setSending(false);
+  };
+
+  // Attachments
+  const openFilePicker = (accept: string) => {
+    setFileAccept(accept);
+    setTimeout(() => fileInputRef.current?.click(), 50);
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setSending(true);
+    const ext = file.name.split(".").pop() ?? "bin";
+    const fileName = `${conversationId}_${Date.now()}.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from("chat-attachments").upload(fileName, file, { contentType: file.type });
+    if (upErr) { toast.error("فشل رفع الملف"); setSending(false); return; }
+
+    const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(fileName);
+    const url = urlData?.publicUrl;
+
+    let attachmentType = "file";
+    if (file.type.startsWith("image/")) attachmentType = "image";
+    else if (file.type.startsWith("video/")) attachmentType = "video";
+
+    const msgType = attachmentType === "image" ? "image" : attachmentType === "video" ? "video" : "file";
+    const label = attachmentType === "image" ? "🖼️ صورة"
+      : attachmentType === "video" ? `🎥 ${file.name} (${formatFileSize(file.size)})`
+      : `📄 ${file.name} (${formatFileSize(file.size)})`;
+
+    const { error } = await (supabase as any).from("messages").insert({
+      conversation_id: conversationId, sender_id: userId,
+      sender_name: currentUserName ?? "مستخدم",
+      message: label, message_type: msgType,
+      attachment_url: url, attachment_type: attachmentType,
+    });
+    if (error) toast.error("فشل إرسال المرفق");
     setSending(false);
   };
 
@@ -241,17 +279,85 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     }
   };
 
+  const addEmoji = (emoji: string) => {
+    setMessageText(prev => prev + emoji);
+  };
+
   // Group messages by date
   const groupedMessages = (messages ?? []).reduce((acc: any[], msg: any) => {
     const dateKey = new Date(msg.created_at).toDateString();
     const last = acc[acc.length - 1];
-    if (last && last.dateKey === dateKey) {
-      last.messages.push(msg);
-    } else {
-      acc.push({ dateKey, dateLabel: formatDateHeader(msg.created_at), messages: [msg] });
-    }
+    if (last && last.dateKey === dateKey) { last.messages.push(msg); }
+    else { acc.push({ dateKey, dateLabel: formatDateHeader(msg.created_at), messages: [msg] }); }
     return acc;
   }, []);
+
+  const renderMessageContent = (msg: any, isMine: boolean) => {
+    // Audio message
+    if (msg.message_type === "audio" && msg.audio_url) {
+      return (
+        <div className="flex items-center gap-2 min-w-[160px]">
+          <button
+            onClick={() => togglePlayAudio(msg.audio_url)}
+            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+              isMine ? "bg-primary-foreground/20" : "bg-primary/10"
+            }`}
+          >
+            {playingUrl === msg.audio_url ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+          <div className="flex-1">
+            <div className={`h-1 rounded-full ${isMine ? "bg-primary-foreground/30" : "bg-border"}`}>
+              <div className={`h-1 rounded-full w-1/2 ${isMine ? "bg-primary-foreground/60" : "bg-primary/40"}`} />
+            </div>
+          </div>
+          <span className={`text-[10px] font-cairo ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+            🎙️
+          </span>
+        </div>
+      );
+    }
+
+    // Image
+    if (msg.message_type === "image" && msg.attachment_url) {
+      return (
+        <img
+          src={msg.attachment_url}
+          alt="صورة"
+          className="rounded-lg max-w-full max-h-60 cursor-pointer"
+          onClick={() => window.open(msg.attachment_url, "_blank")}
+        />
+      );
+    }
+
+    // Video
+    if (msg.message_type === "video" && msg.attachment_url) {
+      return (
+        <div className="space-y-1">
+          <video src={msg.attachment_url} controls className="rounded-lg max-w-full max-h-60" />
+          <p className="text-xs font-cairo opacity-70">{msg.message}</p>
+        </div>
+      );
+    }
+
+    // File
+    if (msg.message_type === "file" && msg.attachment_url) {
+      return (
+        <a
+          href={msg.attachment_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex items-center gap-2 ${isMine ? "text-primary-foreground" : "text-foreground"}`}
+        >
+          <FileText className="h-5 w-5 shrink-0" />
+          <span className="text-sm font-cairo underline">{msg.message}</span>
+          <Download className="h-4 w-4 shrink-0" />
+        </a>
+      );
+    }
+
+    // Text
+    return <p className="text-sm font-cairo leading-relaxed whitespace-pre-wrap">{msg.message}</p>;
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -307,35 +413,11 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
                         : "bg-muted text-foreground rounded-br-md"
                     }`}>
                       {!isMine && convInfo?.is_group && (
-                        <p className={`text-[10px] font-cairo font-bold mb-0.5 ${isMine ? "text-primary-foreground/70" : "text-primary"}`}>
+                        <p className="text-[10px] font-cairo font-bold mb-0.5 text-primary">
                           {msg.senderName}
                         </p>
                       )}
-                      {msg.message_type === "audio" && msg.audio_url ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => togglePlayAudio(msg.audio_url)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              isMine ? "bg-primary-foreground/20" : "bg-primary/10"
-                            }`}
-                          >
-                            {playingUrl === msg.audio_url
-                              ? <Pause className="h-4 w-4" />
-                              : <Play className="h-4 w-4" />
-                            }
-                          </button>
-                          <div className="flex-1">
-                            <div className={`h-1 rounded-full ${isMine ? "bg-primary-foreground/30" : "bg-border"}`}>
-                              <div className={`h-1 rounded-full w-1/2 ${isMine ? "bg-primary-foreground/60" : "bg-primary/40"}`} />
-                            </div>
-                          </div>
-                          <span className={`text-[10px] font-cairo ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                            🎙️
-                          </span>
-                        </div>
-                      ) : (
-                        <p className="text-sm font-cairo leading-relaxed whitespace-pre-wrap">{msg.message}</p>
-                      )}
+                      {renderMessageContent(msg, isMine)}
                       <p className={`text-[9px] font-cairo mt-1 text-left ${
                         isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
                       }`}>
@@ -350,35 +432,109 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
         )}
       </div>
 
-      {/* Input */}
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={fileAccept}
+        className="hidden"
+        onChange={handleFileSelected}
+      />
+
+      {/* Input bar */}
       <div className="p-3 border-t border-border bg-card shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {recording ? (
             <>
-              <Button
-                variant="destructive"
-                size="icon"
-                className="shrink-0 rounded-full"
-                onClick={stopRecording}
-              >
+              <Button variant="destructive" size="icon" className="shrink-0 rounded-full" onClick={stopRecording}>
                 <Square className="h-4 w-4" />
               </Button>
-              <div className="flex-1 flex items-center gap-2">
+              <div className="flex-1 flex items-center gap-2 px-2">
                 <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
-                <span className="font-cairo text-sm text-destructive">جاري التسجيل...</span>
+                <span className="font-cairo text-sm text-destructive font-bold tabular-nums">
+                  {formatDuration(recordingTime)}
+                </span>
+                <span className="font-cairo text-xs text-muted-foreground">جاري التسجيل...</span>
               </div>
+              <Button variant="ghost" size="icon" className="shrink-0" onClick={() => {
+                if (mediaRecorderRef.current?.state === "recording") {
+                  mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+                  mediaRecorderRef.current = null;
+                }
+                audioChunksRef.current = [];
+                setRecording(false);
+              }}>
+                <X className="h-4 w-4 text-muted-foreground" />
+              </Button>
             </>
           ) : (
             <>
+              {/* Emoji */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-primary">
+                    <Smile className="h-5 w-5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-72 p-2">
+                  <div className="grid grid-cols-8 gap-1">
+                    {EMOJI_LIST.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => addEmoji(emoji)}
+                        className="text-xl hover:bg-muted rounded p-1 transition-colors"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Attachments */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-primary">
+                    <Paperclip className="h-5 w-5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-44 p-1.5">
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => openFilePicker("image/*")}
+                      className="flex items-center gap-2 w-full p-2 rounded-md hover:bg-muted transition-colors text-right"
+                    >
+                      <Image className="h-4 w-4 text-green-500" />
+                      <span className="font-cairo text-sm">صورة 🖼️</span>
+                    </button>
+                    <button
+                      onClick={() => openFilePicker("video/*")}
+                      className="flex items-center gap-2 w-full p-2 rounded-md hover:bg-muted transition-colors text-right"
+                    >
+                      <Film className="h-4 w-4 text-blue-500" />
+                      <span className="font-cairo text-sm">فيديو 🎥</span>
+                    </button>
+                    <button
+                      onClick={() => openFilePicker("*/*")}
+                      className="flex items-center gap-2 w-full p-2 rounded-md hover:bg-muted transition-colors text-right"
+                    >
+                      <FileText className="h-4 w-4 text-orange-500" />
+                      <span className="font-cairo text-sm">ملف 📄</span>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Mic */}
               <Button
-                variant="ghost"
-                size="icon"
+                variant="ghost" size="icon"
                 className="shrink-0 text-muted-foreground hover:text-primary"
-                onClick={startRecording}
-                disabled={sending}
+                onClick={startRecording} disabled={sending}
               >
                 <Mic className="h-5 w-5" />
               </Button>
+
+              {/* Text input */}
               <Input
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
@@ -387,11 +543,11 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
                 className="font-cairo flex-1"
                 disabled={sending}
               />
+
+              {/* Send */}
               <Button
-                size="icon"
-                className="shrink-0 rounded-full"
-                onClick={handleSend}
-                disabled={!messageText.trim() || sending}
+                size="icon" className="shrink-0 rounded-full"
+                onClick={handleSend} disabled={!messageText.trim() || sending}
               >
                 <Send className="h-4 w-4" />
               </Button>
