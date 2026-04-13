@@ -47,7 +47,9 @@ export function AISearchBar({ role = "sales" }: AISearchBarProps) {
         body: { action: "classify", role, clientData },
       });
 
-      if (data?.error) {
+      if (invokeError) {
+        setAnswer(`⚠️ ${invokeError.message || "خطأ في الاتصال"}`);
+      } else if (data?.error) {
         setAnswer(`⚠️ ${data.error}`);
       } else {
         setAnswer(data?.response || "لم يتم الحصول على رد");
