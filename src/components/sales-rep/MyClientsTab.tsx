@@ -430,6 +430,16 @@ export function MyClientsTab() {
         />
       )}
 
+      {/* AI Assistant Dialog */}
+      {aiClient && (
+        <AIAssistantDialog
+          open={aiDialogOpen}
+          onOpenChange={setAiDialogOpen}
+          client={aiClient}
+          role="sales"
+        />
+      )}
+
       {/* Pour Date Dialog */}
       <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
         <DialogContent className="max-w-sm">
