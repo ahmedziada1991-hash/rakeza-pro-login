@@ -240,13 +240,14 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { data: urlData } = supabase.storage.from("call-recordings").getPublicUrl(fileName);
     const duration = recordingTime;
 
-    const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId, sender_id: userId,
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId, sender_id: authUser?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
       message: `🎙️ رسالة صوتية (${formatDuration(duration)})`,
       audio_url: urlData?.publicUrl, message_type: "audio",
     });
-    if (error) toast.error("فشل إرسال الرسالة الصوتية");
+    if (error) { console.error("Audio msg error:", error); toast.error("فشل إرسال الرسالة الصوتية"); }
     setSending(false);
   };
 
