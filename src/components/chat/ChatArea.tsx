@@ -87,14 +87,6 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     },
   });
 
-  const { data: currentUserName } = useQuery({
-    queryKey: ["chat-my-name", userId],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("users").select("name").eq("auth_id", userId).single();
-      return data?.name ?? "أنا";
-    },
-  });
-
   const { data: messages, isLoading, refetch } = useQuery({
     queryKey: ["chat-messages", conversationId],
     queryFn: async () => {
@@ -192,7 +184,6 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { error } = await (supabase as any).from("messages").insert({
       conversation_id: conversationId,
       sender_id: senderId,
-      sender_name: currentUserName ?? "مستخدم",
       content: text,
       message_type: "text",
     });
@@ -243,7 +234,6 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const { error } = await (supabase as any).from("messages").insert({
       conversation_id: conversationId, sender_id: authUser?.id ?? userId,
-      sender_name: currentUserName ?? "مستخدم",
       content: `🎙️ رسالة صوتية (${formatDuration(duration)})`,
       audio_url: urlData?.publicUrl, message_type: "audio",
     });
@@ -285,7 +275,6 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { data: { user: authUser2 } } = await supabase.auth.getUser();
     const { error } = await (supabase as any).from("messages").insert({
       conversation_id: conversationId, sender_id: authUser2?.id ?? userId,
-      sender_name: currentUserName ?? "مستخدم",
       content: label, message_type: msgType,
       attachment_url: url, attachment_type: attachmentType,
     });

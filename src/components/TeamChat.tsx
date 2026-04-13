@@ -75,7 +75,17 @@ export function TeamChat() {
       }
       
       const { data } = await query.limit(100);
-      return (data ?? []) as ChatMessage[];
+      const senderIds = [...new Set((data ?? []).map((msg: any) => msg.sender_id).filter(Boolean))];
+      const { data: usersData } = senderIds.length
+        ? await supabase.from("users").select("name, auth_id").in("auth_id", senderIds)
+        : { data: [] };
+
+      const nameMap = new Map((usersData ?? []).map((member: any) => [member.auth_id, member.name]));
+
+      return (data ?? []).map((msg: any) => ({
+        ...msg,
+        sender_name: msg.sender_name || nameMap.get(msg.sender_id) || "مستخدم",
+      })) as ChatMessage[];
     },
     enabled: !!selectedChat && !!user?.id,
     refetchInterval: false,
@@ -170,7 +180,6 @@ export function TeamChat() {
       if (!text.trim() || !user?.id) return;
       const payload = {
         sender_id: user.id,
-        sender_name: currentUserName ?? "مستخدم",
         receiver_id: selectedChat?.type === "private" ? selectedChat.userId! : null,
         content: text.trim(),
         is_read: false,
