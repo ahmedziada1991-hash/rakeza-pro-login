@@ -6,7 +6,8 @@ import { ExecutionSidebar } from "@/components/ExecutionSidebar";
 import { ExecutionContent } from "@/components/ExecutionContent";
 import { ExecutionDailyReport } from "@/components/ExecutionDailyReport";
 import { NotificationBell } from "@/components/NotificationBell";
-import { TeamChat } from "@/components/TeamChat";
+import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
+import { ChatPage } from "@/components/chat/ChatPage";
 
 const ExecutionDashboard = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const ExecutionDashboard = () => {
   const { session, userRole, isLoading } = useAuth();
 
   const isReportPage = location.pathname.endsWith("/report");
+  const isChatPage = location.pathname.endsWith("/chat");
 
   useEffect(() => {
     if (isLoading) return;
@@ -38,7 +40,7 @@ const ExecutionDashboard = () => {
               <SidebarTrigger className="mr-1" />
             </div>
             <div className="flex items-center gap-2">
-              <TeamChat />
+              <ChatHeaderIcon />
               <NotificationBell />
               <span className="text-sm font-cairo text-muted-foreground">مرحباً، التنفيذ</span>
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -46,8 +48,8 @@ const ExecutionDashboard = () => {
               </div>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-auto">
-            {isReportPage ? <ExecutionDailyReport /> : <ExecutionContent />}
+          <main className={`flex-1 overflow-auto ${isChatPage ? "" : "p-4 md:p-6"}`}>
+            {isChatPage ? <ChatPage /> : isReportPage ? <ExecutionDailyReport /> : <ExecutionContent />}
           </main>
         </div>
       </div>

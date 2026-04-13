@@ -10,7 +10,8 @@ import { FollowUpTargetsAdmin } from "@/components/FollowUpTargetsAdmin";
 import { ClientAssignment } from "@/components/ClientAssignment";
 import { PriceOffersPage } from "@/components/PriceOffersPage";
 import { NotificationBell } from "@/components/NotificationBell";
-import { TeamChat } from "@/components/TeamChat";
+import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
+import { ChatPage } from "@/components/chat/ChatPage";
 
 const FollowUpDashboard = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const FollowUpDashboard = () => {
   const isGoalsPage = location.pathname.endsWith("/goals");
   const isTargetsPage = location.pathname.endsWith("/targets");
   const isOffersPage = location.pathname.endsWith("/offers");
+  const isChatPage = location.pathname.endsWith("/chat");
 
   useEffect(() => {
     if (isLoading) return;
@@ -50,7 +52,7 @@ const FollowUpDashboard = () => {
               <SidebarTrigger className="mr-1" />
             </div>
             <div className="flex items-center gap-2">
-              <TeamChat />
+              <ChatHeaderIcon />
               <NotificationBell />
               <span className="text-sm font-cairo text-muted-foreground">مرحباً يا {userName ?? "المتابع"}! 👋</span>
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -60,8 +62,10 @@ const FollowUpDashboard = () => {
               </div>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-auto">
-            {isOffersPage ? (
+          <main className={`flex-1 overflow-auto ${isChatPage ? "" : "p-4 md:p-6"}`}>
+            {isChatPage ? (
+              <ChatPage />
+            ) : isOffersPage ? (
               <PriceOffersPage
                 prefillName={new URLSearchParams(location.search).get("clientName") || undefined}
                 prefillPhone={new URLSearchParams(location.search).get("phone") || undefined}

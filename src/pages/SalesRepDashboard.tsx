@@ -7,7 +7,7 @@ import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AISearchBar } from "@/components/sales-rep/AISearchBar";
-import { TeamChat } from "@/components/TeamChat";
+import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 import { Users, MapPin, LogOut, Target, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ const SalesRepDashboard = () => {
       <header className="h-14 bg-card border-b border-border px-4 flex items-center justify-between sticky top-0 z-10">
         <h1 className="text-base font-cairo font-bold text-foreground">لوحة البائع</h1>
         <div className="flex items-center gap-2">
-          <TeamChat />
+          <ChatHeaderIcon />
           <NotificationBell />
           <Button variant="ghost" size="icon" onClick={signOut} className="text-muted-foreground">
             <LogOut className="h-4 w-4" />
