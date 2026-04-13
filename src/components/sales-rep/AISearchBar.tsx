@@ -3,12 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Bot, Send, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-
-const AI_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
 export function AISearchBar() {
-  const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
@@ -42,40 +38,17 @@ export function AISearchBar() {
     const context = await fetchContext();
     const prompt = `بناءً على البيانات التالية، أجب على السؤال:\n\n${context}\n\nالسؤال: ${query}`;
 
-    let full = "";
     try {
-      const resp = await fetch(AI_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
+      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+        body: { messages: [{ role: "user", content: prompt }] },
       });
-      if (!resp.ok || !resp.body) throw new Error();
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
+      if (error) throw error;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let idx: number;
-        while ((idx = buf.indexOf("\n")) !== -1) {
-          let line = buf.slice(0, idx);
-          buf = buf.slice(idx + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (json === "[DONE]") break;
-          try {
-            const p = JSON.parse(json);
-            const c = p.choices?.[0]?.delta?.content;
-            if (c) { full += c; setAnswer(full); }
-          } catch {}
-        }
+      if (data?.error) {
+        setAnswer(`⚠️ ${data.error}`);
+      } else {
+        setAnswer(data?.response || "لم يتم الحصول على رد");
       }
     } catch {
       setAnswer("⚠️ حدث خطأ أثناء الاتصال بالمساعد الذكي");
@@ -129,7 +102,6 @@ export function AISearchBar() {
           {answer && (
             <p className="font-cairo text-sm whitespace-pre-wrap leading-relaxed text-foreground">
               {answer}
-              {loading && <span className="animate-pulse">▊</span>}
             </p>
           )}
         </div>

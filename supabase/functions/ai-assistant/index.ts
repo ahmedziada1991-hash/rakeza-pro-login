@@ -27,11 +27,47 @@ serve(async (req) => {
   }
 
   try {
+    const { messages } = await req.json();
+    
+    // Build the full prompt from messages
+    const userMessages = messages.map((m: any) => m.content).join("\n");
+    const fullPrompt = `${SYSTEM_PROMPT}\n\n${userMessages}`;
+
+    // Try Gemini API directly first
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    
+    if (GEMINI_API_KEY) {
+      console.log("Using Gemini API directly");
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: fullPrompt }] }],
+          }),
+        }
+      );
+
+      if (geminiResponse.ok) {
+        const data = await geminiResponse.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "لم يتم الحصول على رد";
+        
+        return new Response(JSON.stringify({ response: text }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } else {
+        const errorText = await geminiResponse.text();
+        console.error("Gemini API error:", geminiResponse.status, errorText);
+      }
+    }
+
+    // Fallback: Lovable AI Gateway
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) throw new Error("No API key configured");
 
-    const { messages, type } = await req.json();
-
+    console.log("Using Lovable AI Gateway");
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -44,7 +80,6 @@ serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT },
           ...messages,
         ],
-        stream: true,
       }),
     });
 
@@ -61,17 +96,19 @@ serve(async (req) => {
       }
       const t = await response.text();
       console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "خطأ في الاتصال بالذكاء الاصطناعي" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      throw new Error("AI gateway error");
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content || "لم يتم الحصول على رد";
+    
+    return new Response(JSON.stringify({ response: text }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("ai-assistant error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "حدث خطأ في المساعد الذكي" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

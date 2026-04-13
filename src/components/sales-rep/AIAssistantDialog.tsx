@@ -19,49 +19,6 @@ interface AIAssistantDialogProps {
   client: Client;
 }
 
-const AI_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
-
-async function streamAI(
-  messages: { role: string; content: string }[],
-  onDelta: (t: string) => void,
-  onDone: () => void,
-) {
-  const resp = await fetch(AI_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ messages }),
-  });
-  if (!resp.ok || !resp.body) throw new Error("فشل الاتصال بالمساعد الذكي");
-
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let idx: number;
-    while ((idx = buf.indexOf("\n")) !== -1) {
-      let line = buf.slice(0, idx);
-      buf = buf.slice(idx + 1);
-      if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (!line.startsWith("data: ")) continue;
-      const json = line.slice(6).trim();
-      if (json === "[DONE]") { onDone(); return; }
-      try {
-        const p = JSON.parse(json);
-        const c = p.choices?.[0]?.delta?.content;
-        if (c) onDelta(c);
-      } catch {}
-    }
-  }
-  onDone();
-}
-
 export function AIAssistantDialog({ open, onOpenChange, client }: AIAssistantDialogProps) {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
@@ -116,15 +73,22 @@ ${logsText}`;
       prompt = `بناءً على بيانات هذا العميل، إيه الخطوة التالية المقترحة؟\n\n${clientInfo}`;
     }
 
-    let full = "";
     try {
-      await streamAI(
-        [{ role: "user", content: prompt }],
-        (delta) => { full += delta; setResponse(full); },
-        () => setLoading(false),
-      );
-    } catch {
+      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+        body: { messages: [{ role: "user", content: prompt }] },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        setResponse(`⚠️ ${data.error}`);
+      } else {
+        setResponse(data?.response || "لم يتم الحصول على رد");
+      }
+    } catch (e) {
+      console.error("AI error:", e);
       setResponse("⚠️ حدث خطأ أثناء الاتصال بالمساعد الذكي");
+    } finally {
       setLoading(false);
     }
   }
@@ -176,16 +140,15 @@ ${logsText}`;
         </div>
 
         <ScrollArea className="flex-1 min-h-[200px] max-h-[400px] border rounded-lg p-4 bg-muted/30" ref={scrollRef}>
-          {loading && !response && (
+          {loading && (
             <div className="flex items-center gap-2 text-muted-foreground font-cairo">
               <Loader2 className="h-4 w-4 animate-spin" />
               جاري التحليل...
             </div>
           )}
-          {response && (
+          {response && !loading && (
             <div className="font-cairo text-sm whitespace-pre-wrap leading-relaxed text-foreground">
               {response}
-              {loading && <span className="animate-pulse">▊</span>}
             </div>
           )}
           {!loading && !response && (
