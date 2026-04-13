@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, Clock, Plus, Contact, Search, Layers } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, Clock, Plus, Contact, Search, Layers, Bot } from "lucide-react";
 import { useClientPourHistory } from "@/hooks/useClientPourHistory";
 import { CallLogDialog } from "./CallLogDialog";
+import { AIAssistantDialog } from "./AIAssistantDialog";
 import { PourDateAlerts } from "./PourDateAlerts";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,8 @@ export function MyClientsTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [callLogDialogOpen, setCallLogDialogOpen] = useState(false);
   const [callLogClient, setCallLogClient] = useState<any>(null);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiClient, setAiClient] = useState<any>(null);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -402,6 +405,13 @@ export function MyClientsTab() {
                       <Pencil className="h-3.5 w-3.5" />
                       تعديل
                     </Button>
+
+                    {/* AI Assistant */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-primary border-primary/30 hover:bg-primary/10"
+                      onClick={() => { setAiClient(client); setAiDialogOpen(true); }}>
+                      <Bot className="h-3.5 w-3.5" />
+                      مساعد AI 🤖
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -417,6 +427,16 @@ export function MyClientsTab() {
           onOpenChange={setCallLogDialogOpen}
           clientId={callLogClient.id}
           clientName={callLogClient.name}
+        />
+      )}
+
+      {/* AI Assistant Dialog */}
+      {aiClient && (
+        <AIAssistantDialog
+          open={aiDialogOpen}
+          onOpenChange={setAiDialogOpen}
+          client={aiClient}
+          role="sales"
         />
       )}
 
