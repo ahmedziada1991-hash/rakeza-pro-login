@@ -6,6 +6,7 @@ import { TodayTargets } from "@/components/sales-rep/TodayTargets";
 import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
+import { AISearchBar } from "@/components/sales-rep/AISearchBar";
 import { TeamChat } from "@/components/TeamChat";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 import { Users, MapPin, LogOut, Target, CalendarDays } from "lucide-react";
@@ -42,6 +43,9 @@ const SalesRepDashboard = () => {
       </header>
 
       <main className="p-4 max-w-2xl mx-auto space-y-6 pb-8">
+        {/* AI Search Bar */}
+        <AISearchBar />
+
         {/* Section 1: Today's Targets */}
         <TodayTargets />
 

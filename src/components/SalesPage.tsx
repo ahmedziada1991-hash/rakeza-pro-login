@@ -16,7 +16,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Phone, MessageCircle, ArrowLeftRight, Search, Users, ContactRound } from "lucide-react";
+import { Plus, Phone, MessageCircle, ArrowLeftRight, Search, Users, ContactRound, Bot } from "lucide-react";
+import { AIAssistantDialog } from "@/components/sales-rep/AIAssistantDialog";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -63,6 +64,7 @@ export function SalesPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ClientForm>(EMPTY_FORM);
+  const [aiClient, setAiClient] = useState<Client | null>(null);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["sales-clients"],
@@ -314,6 +316,15 @@ export function SalesPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="font-cairo text-xs gap-1 border-purple-300 text-purple-600 hover:bg-purple-50"
+                      onClick={() => setAiClient(client)}
+                    >
+                      <Bot className="h-3.5 w-3.5" />
+                      مساعد AI
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="font-cairo text-xs gap-1 border-yellow-300 text-yellow-700 hover:bg-yellow-50"
                       onClick={() => transferMutation.mutate({ id: client.id, pour_status: "pending" })}
                     >
@@ -416,6 +427,15 @@ export function SalesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Assistant Dialog */}
+      {aiClient && (
+        <AIAssistantDialog
+          open={!!aiClient}
+          onOpenChange={(o) => { if (!o) setAiClient(null); }}
+          client={aiClient}
+        />
+      )}
     </div>
   );
 }
