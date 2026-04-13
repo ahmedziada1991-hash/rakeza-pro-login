@@ -287,6 +287,15 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     setMessageText(prev => prev + emoji);
   };
 
+  // Check if message is read by all other members
+  const isMessageRead = (msgCreatedAt: string) => {
+    if (!convInfo?.otherMembersLastSeen?.length) return false;
+    const msgTime = new Date(msgCreatedAt).getTime();
+    return convInfo.otherMembersLastSeen.every(
+      (ls: string | null) => ls && new Date(ls).getTime() > msgTime
+    );
+  };
+
   // Group messages by date
   const groupedMessages = (messages ?? []).reduce((acc: any[], msg: any) => {
     const dateKey = new Date(msg.created_at).toDateString();
