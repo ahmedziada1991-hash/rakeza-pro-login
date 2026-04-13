@@ -14,7 +14,7 @@ interface ChatMessage {
   sender_id: string;
   sender_name: string;
   receiver_id: string | null;
-  message: string;
+  content: string;
   is_read: boolean;
   created_at: string;
 }
@@ -172,7 +172,7 @@ export function TeamChat() {
         sender_id: user.id,
         sender_name: currentUserName ?? "مستخدم",
         receiver_id: selectedChat?.type === "private" ? selectedChat.userId! : null,
-        message: text.trim(),
+        content: text.trim(),
         is_read: false,
       };
       const { error } = await supabase.from("messages").insert([payload]);
@@ -201,7 +201,7 @@ export function TeamChat() {
       sender_id: user!.id,
       sender_name: currentUserName ?? "مستخدم",
       receiver_id: selectedChat?.type === "private" ? selectedChat!.userId! : null,
-      message: text,
+      content: text,
       is_read: false,
       created_at: new Date().toISOString(),
     };
@@ -322,7 +322,7 @@ export function TeamChat() {
                               {msg.sender_name}
                             </p>
                           )}
-                          <p className="text-sm font-cairo leading-relaxed">{msg.message}</p>
+                          <p className="text-sm font-cairo leading-relaxed">{msg.content}</p>
                           <p className={`text-[9px] mt-1 ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                             {formatTime(msg.created_at)}
                           </p>

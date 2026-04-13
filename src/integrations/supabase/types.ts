@@ -153,11 +153,11 @@ export type Database = {
           attachment_type: string | null
           attachment_url: string | null
           audio_url: string | null
+          content: string
           conversation_id: string | null
           created_at: string
           id: number
           is_read: boolean
-          message: string
           message_type: string
           receiver_id: string | null
           sender_id: string
@@ -167,11 +167,11 @@ export type Database = {
           attachment_type?: string | null
           attachment_url?: string | null
           audio_url?: string | null
+          content: string
           conversation_id?: string | null
           created_at?: string
           id?: never
           is_read?: boolean
-          message: string
           message_type?: string
           receiver_id?: string | null
           sender_id: string
@@ -181,11 +181,11 @@ export type Database = {
           attachment_type?: string | null
           attachment_url?: string | null
           audio_url?: string | null
+          content?: string
           conversation_id?: string | null
           created_at?: string
           id?: never
           is_read?: boolean
-          message?: string
           message_type?: string
           receiver_id?: string | null
           sender_id?: string

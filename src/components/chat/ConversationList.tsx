@@ -98,7 +98,7 @@ export function ConversationList({ userId, selectedId, onSelect }: Props) {
           id: conv.id,
           name: displayName,
           isGroup: conv.is_group,
-          lastMessage: lastMsg?.message_type === "audio" ? "🎙️ رسالة صوتية" : lastMsg?.message ?? "",
+          lastMessage: lastMsg?.message_type === "audio" ? "🎙️ رسالة صوتية" : lastMsg?.content ?? "",
           lastMessageTime: lastMsg?.created_at ?? conv.created_at,
           unreadCount,
           role: otherUserData?.role as string | undefined,

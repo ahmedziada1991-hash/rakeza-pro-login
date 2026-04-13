@@ -1,0 +1,1 @@
+ALTER TABLE public.messages RENAME COLUMN message TO content;
