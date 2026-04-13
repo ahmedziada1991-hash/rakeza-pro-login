@@ -38,13 +38,24 @@ export function NewConversationDialog({ open, onOpenChange, userId, onCreated }:
   const [creating, setCreating] = useState(false);
 
   const { data: users, isLoading } = useQuery({
-    queryKey: ["chat-all-users"],
+    queryKey: ["chat-all-users", userId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      // Get current auth user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const currentAuthId = authUser?.id;
+      
+      const { data, error } = await (supabase as any)
         .from("users")
         .select("id, name, role, auth_id")
         .order("name");
-      return (data ?? []).filter((u: any) => u.auth_id && u.auth_id !== userId);
+      
+      if (error) {
+        console.error("Error fetching users:", error);
+        return [];
+      }
+      
+      // Show all users that have auth_id, excluding the current user
+      return (data ?? []).filter((u: any) => u.auth_id && u.auth_id !== currentAuthId);
     },
     enabled: open,
   });
