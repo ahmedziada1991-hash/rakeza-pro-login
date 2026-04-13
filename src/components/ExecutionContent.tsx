@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "@/hooks/use-toast";
 import {
   Phone, MessageCircle, Play, CheckCircle2, Banknote,
-  ClipboardList, Clock, Loader2, StickyNote, Building2, User, Users, CalendarIcon, Layers
+  ClipboardList, Clock, Loader2, StickyNote, Building2, User, Users, CalendarIcon, Layers, Bot
 } from "lucide-react";
 import { useClientPourHistory } from "@/hooks/useClientPourHistory";
+import { AIAssistantDialog } from "@/components/sales-rep/AIAssistantDialog";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,8 @@ function fmt(n: number) {
 export function ExecutionContent() {
   const queryClient = useQueryClient();
   const [payDialog, setPayDialog] = useState<any>(null);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiClient, setAiClient] = useState<any>(null);
   const [payForm, setPayForm] = useState({ amount: "", method: "cash", notes: "" });
   const [noteDialog, setNoteDialog] = useState<any>(null);
   const [noteText, setNoteText] = useState("");
@@ -449,12 +452,34 @@ export function ExecutionContent() {
                     >
                       <StickyNote className="h-3 w-3" /> ملاحظات
                     </Button>
+
+                    {/* AI Assistant */}
+                    {client && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-cairo text-xs gap-1 text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={() => { setAiClient(client); setAiDialogOpen(true); }}
+                      >
+                        <Bot className="h-3 w-3" /> مساعد AI 🤖
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             );
           })}
         </div>
+      )}
+
+      {/* AI Assistant Dialog */}
+      {aiClient && (
+        <AIAssistantDialog
+          open={aiDialogOpen}
+          onOpenChange={setAiDialogOpen}
+          client={aiClient}
+          role="execution"
+        />
       )}
 
       {/* Payment Dialog */}
