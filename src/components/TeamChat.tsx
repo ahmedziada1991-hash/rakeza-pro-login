@@ -66,7 +66,7 @@ export function TeamChat() {
   const { data: messages } = useQuery({
     queryKey: ["chat-messages", selectedChat?.type, selectedChat?.userId],
     queryFn: async () => {
-      let query = supabase.from("messages").select("*").order("created_at", { ascending: true });
+      let query = supabase.from("messages_view" as any).select("*").order("created_at", { ascending: true });
       
       if (selectedChat?.type === "group") {
         query = query.is("receiver_id", null);
@@ -86,7 +86,7 @@ export function TeamChat() {
     queryKey: ["chat-unread-count", user?.id],
     queryFn: async () => {
       const { count } = await supabase
-        .from("messages")
+        .from("messages_view" as any)
         .select("*", { count: "exact", head: true })
         .eq("is_read", false)
         .neq("sender_id", user!.id)
