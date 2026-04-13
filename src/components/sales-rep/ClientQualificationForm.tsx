@@ -254,4 +254,3 @@ export function ClientQualificationForm({ onChange, initialData }: Props) {
 }
 
 export { calculateScore, getStatusFromScore, INITIAL_DATA as INITIAL_QUALIFICATION_DATA };
-export type { QualificationData };
