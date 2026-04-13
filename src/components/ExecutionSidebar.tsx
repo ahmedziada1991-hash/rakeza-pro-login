@@ -1,4 +1,4 @@
-import { LayoutDashboard, LogOut, ClipboardList, FileText } from "lucide-react";
+import { LayoutDashboard, LogOut, ClipboardList, FileText, MessageCircle } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { title: "صبات اليوم", url: "/dashboard/execution", icon: ClipboardList, end: true },
   { title: "التقرير اليومي", url: "/dashboard/execution/report", icon: FileText },
+  { title: "الشات", url: "/dashboard/execution/chat", icon: MessageCircle },
 ];
 
 export function ExecutionSidebar() {

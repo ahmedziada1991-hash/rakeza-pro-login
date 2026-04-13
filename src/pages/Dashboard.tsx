@@ -22,8 +22,8 @@ import { DailyReportPage } from "@/components/DailyReportPage";
 import { WeeklyReportPage } from "@/components/WeeklyReportPage";
 import { MonthlyReportPage } from "@/components/MonthlyReportPage";
 import { NotificationBell } from "@/components/NotificationBell";
-import { TeamChat } from "@/components/TeamChat";
 import { ChatPage } from "@/components/chat/ChatPage";
+import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -96,7 +96,7 @@ const Dashboard = () => {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <TeamChat />
+                <ChatHeaderIcon />
                 <NotificationBell />
                 <span className="text-sm font-cairo text-muted-foreground">مرحباً يا {currentUserName}! 👋🎉</span>
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -104,7 +104,7 @@ const Dashboard = () => {
                 </div>
               </div>
             </header>
-            <main className="flex-1 p-4 md:p-6 overflow-auto">
+            <main className={`flex-1 overflow-auto ${subpath === "chat" ? "" : "p-4 md:p-6"}`}>
               {!subpath ? (
                 <AdminDashboardContent />
               ) : subpath === "sales" ? (

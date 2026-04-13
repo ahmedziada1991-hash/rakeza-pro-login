@@ -70,7 +70,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       const { data: conv } = await (supabase as any)
         .from("conversations").select("*").eq("id", conversationId).single();
       const { data: members } = await (supabase as any)
-        .from("conversation_members").select("user_id").eq("conversation_id", conversationId);
+        .from("conversation_members").select("user_id, last_seen_at").eq("conversation_id", conversationId);
       const memberIds = (members ?? []).map((m: any) => m.user_id);
       const { data: users } = memberIds.length
         ? await (supabase as any).from("users").select("name, auth_id, role").in("auth_id", memberIds)
@@ -79,7 +79,11 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       const displayName = conv?.is_group
         ? conv.name || "مجموعة"
         : otherUsers[0]?.name || "محادثة";
-      return { ...conv, displayName, memberCount: memberIds.length, members: users ?? [] };
+      // Track other members' last_seen_at for read receipts
+      const otherMembersLastSeen = (members ?? [])
+        .filter((m: any) => m.user_id !== userId)
+        .map((m: any) => m.last_seen_at);
+      return { ...conv, displayName, memberCount: memberIds.length, members: users ?? [], otherMembersLastSeen };
     },
   });
 
@@ -141,6 +145,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
         filter: `conversation_id=eq.${conversationId}`,
       }, () => {
         refetch();
+        queryClient.invalidateQueries({ queryKey: ["chat-conv-info", conversationId] });
         try {
           const ctx = new AudioContext();
           const osc = ctx.createOscillator();
@@ -283,6 +288,15 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     setMessageText(prev => prev + emoji);
   };
 
+  // Check if message is read by all other members
+  const isMessageRead = (msgCreatedAt: string) => {
+    if (!convInfo?.otherMembersLastSeen?.length) return false;
+    const msgTime = new Date(msgCreatedAt).getTime();
+    return convInfo.otherMembersLastSeen.every(
+      (ls: string | null) => ls && new Date(ls).getTime() > msgTime
+    );
+  };
+
   // Group messages by date
   const groupedMessages = (messages ?? []).reduce((acc: any[], msg: any) => {
     const dateKey = new Date(msg.created_at).toDateString();
@@ -418,11 +432,22 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
                         </p>
                       )}
                       {renderMessageContent(msg, isMine)}
-                      <p className={`text-[9px] font-cairo mt-1 text-left ${
-                        isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
-                      }`}>
-                        {formatMsgTime(msg.created_at)}
-                      </p>
+                      <div className={`flex items-center gap-1 mt-1 ${isMine ? "justify-start" : "justify-end"}`}>
+                        <span className={`text-[9px] font-cairo ${
+                          isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
+                        }`}>
+                          {formatMsgTime(msg.created_at)}
+                        </span>
+                        {isMine && (
+                          <span className={`text-[10px] ${
+                            isMessageRead(msg.created_at)
+                              ? "text-blue-300"
+                              : isMine ? "text-primary-foreground/50" : "text-muted-foreground/50"
+                          }`}>
+                            {isMessageRead(msg.created_at) ? "✓✓" : "✓"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
