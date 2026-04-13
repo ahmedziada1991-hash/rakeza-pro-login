@@ -172,7 +172,7 @@ export function TeamChat() {
         sender_id: user.id,
         sender_name: currentUserName ?? "مستخدم",
         receiver_id: selectedChat?.type === "private" ? selectedChat.userId! : null,
-        message: text.trim(),
+        content: text.trim(),
         is_read: false,
       };
       const { error } = await supabase.from("messages").insert([payload]);
@@ -201,7 +201,7 @@ export function TeamChat() {
       sender_id: user!.id,
       sender_name: currentUserName ?? "مستخدم",
       receiver_id: selectedChat?.type === "private" ? selectedChat!.userId! : null,
-      message: text,
+      content: text,
       is_read: false,
       created_at: new Date().toISOString(),
     };
