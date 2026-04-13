@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Sparkles, Phone, ArrowRight, Loader2, CalendarDays, Truck, ClipboardList } from "lucide-react";
+import { Bot, Sparkles, Phone, ArrowRight, Loader2, CalendarDays, Truck, ClipboardList, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 interface Client {
   id: number;
@@ -41,15 +43,18 @@ const ROLE_ACTIONS: Record<RoleType, { key: string; label: string; icon: any }[]
 };
 
 export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }: AIAssistantDialogProps) {
+  const { user } = useAuth();
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
       setResponse("");
       setActiveAction(null);
+      setSaved(false);
     }
   }, [open]);
 
@@ -73,6 +78,7 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
     setLoading(true);
     setResponse("");
     setActiveAction(action);
+    setSaved(false);
 
     const logs = await getCallLogs();
     const logsText = logs.length
@@ -114,7 +120,27 @@ ${logsText}`;
       if (data?.error) {
         setResponse(`⚠️ ${data.error}`);
       } else {
-        setResponse(data?.response || "لم يتم الحصول على رد");
+        const aiResponse = data?.response || "لم يتم الحصول على رد";
+        setResponse(aiResponse);
+
+        // Auto-save to database
+        if (user?.id && aiResponse && !data?.error) {
+          const { error: saveErr } = await (supabase as any)
+            .from("ai_analysis_logs")
+            .insert({
+              user_id: user.id,
+              client_id: client.id,
+              action,
+              role,
+              response: aiResponse,
+              client_data: clientData,
+            });
+          if (!saveErr) {
+            setSaved(true);
+          } else {
+            console.error("Failed to save AI log:", saveErr);
+          }
+        }
       }
     } catch (e: any) {
       console.error("AI error:", e);
@@ -163,8 +189,16 @@ ${logsText}`;
             </div>
           )}
           {response && !loading && (
-            <div className="font-cairo text-sm whitespace-pre-wrap leading-relaxed text-foreground">
-              {response}
+            <div>
+              <div className="font-cairo text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+                {response}
+              </div>
+              {saved && (
+                <div className="flex items-center gap-1 mt-3 text-chart-2 font-cairo text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  تم حفظ التحليل تلقائياً
+                </div>
+              )}
             </div>
           )}
           {!loading && !response && (
