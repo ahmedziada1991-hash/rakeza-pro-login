@@ -43,21 +43,34 @@ export function AISearchBar({ role = "sales" }: AISearchBarProps) {
     const clientData = `${context}\n\nالسؤال: ${query}`;
 
     try {
+      const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || "https://auaepppahuflhqlpqdft.supabase.co";
+      const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         await supabase.auth.refreshSession();
       }
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const accessToken = currentSession?.access_token || CLOUD_KEY;
 
-      const { data, error: invokeError } = await supabase.functions.invoke('ai-assistant', {
-        body: { action: "classify", role, clientData },
+      const res = await fetch(`${CLOUD_URL}/functions/v1/ai-assistant`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": CLOUD_KEY,
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ action: "classify", role, clientData }),
       });
+      
+      const data = await res.json();
 
-      if (invokeError) {
-        setAnswer(`⚠️ ${invokeError.message || "خطأ في الاتصال"}`);
+      if (!res.ok) {
+        setAnswer(`⚠️ ${data?.error || "خطأ في الاتصال"}`);
       } else if (data?.error) {
         setAnswer(`⚠️ ${data.error}`);
       } else {
-        setAnswer(data?.response || "لم يتم الحصول على رد");
+        setAnswer(data?.response || data?.result || "لم يتم الحصول على رد");
       }
     } catch {
       setAnswer("⚠️ حدث خطأ أثناء الاتصال بالمساعد الذكي");
