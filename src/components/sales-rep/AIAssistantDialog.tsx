@@ -96,15 +96,30 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
 ${logsText}`;
 
     try {
-      // Refresh session to avoid 401
+      // Use Lovable Cloud project URL (not the old project in client.ts)
+      const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || "https://auaepppahuflhqlpqdft.supabase.co";
+      const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      // Get fresh session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         await supabase.auth.refreshSession();
       }
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const accessToken = currentSession?.access_token || CLOUD_KEY;
 
-      const { data, error: invokeError } = await supabase.functions.invoke('ai-assistant', {
-        body: { action, role, clientData },
+      const res = await fetch(`${CLOUD_URL}/functions/v1/ai-assistant`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": CLOUD_KEY,
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ action, role, clientData }),
       });
+      
+      const data = await res.json();
+      const invokeError = res.ok ? null : { message: data?.error || `HTTP ${res.status}` };
       console.log('Full AI response:', JSON.stringify(data));
       console.log('AI invoke error:', invokeError);
 
