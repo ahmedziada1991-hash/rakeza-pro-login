@@ -431,11 +431,22 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
                         </p>
                       )}
                       {renderMessageContent(msg, isMine)}
-                      <p className={`text-[9px] font-cairo mt-1 text-left ${
-                        isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
-                      }`}>
-                        {formatMsgTime(msg.created_at)}
-                      </p>
+                      <div className={`flex items-center gap-1 mt-1 ${isMine ? "justify-start" : "justify-end"}`}>
+                        <span className={`text-[9px] font-cairo ${
+                          isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
+                        }`}>
+                          {formatMsgTime(msg.created_at)}
+                        </span>
+                        {isMine && (
+                          <span className={`text-[10px] ${
+                            isMessageRead(msg.created_at)
+                              ? "text-blue-300"
+                              : isMine ? "text-primary-foreground/50" : "text-muted-foreground/50"
+                          }`}>
+                            {isMessageRead(msg.created_at) ? "✓✓" : "✓"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
