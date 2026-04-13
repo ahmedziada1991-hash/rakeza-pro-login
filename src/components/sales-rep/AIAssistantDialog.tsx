@@ -105,7 +105,8 @@ ${logsText}`;
       const { data, error: invokeError } = await supabase.functions.invoke('ai-assistant', {
         body: { action, role, clientData },
       });
-      console.log('AI Response:', JSON.stringify(data));
+      console.log('Full AI response:', JSON.stringify(data));
+      console.log('AI invoke error:', invokeError);
 
       if (invokeError) {
         console.error("AI error:", invokeError);
@@ -116,7 +117,19 @@ ${logsText}`;
       if (data?.error) {
         setResponse(`⚠️ ${data.error}`);
       } else {
-        const aiResponse = data?.response || data?.result || data?.candidates?.[0]?.content?.parts?.[0]?.text || (typeof data === 'object' ? JSON.stringify(data) : null) || "لم يتم الحصول على رد";
+        let aiResponse: string = "لم يتم الحصول على رد";
+        if (typeof data === 'string') {
+          try {
+            const parsed = JSON.parse(data);
+            aiResponse = parsed?.response || parsed?.result || parsed?.text || parsed?.content || data;
+          } catch {
+            aiResponse = data;
+          }
+        } else if (data) {
+          aiResponse = data.response || data.result || data.text || data.content
+            || data?.candidates?.[0]?.content?.parts?.[0]?.text
+            || (typeof data === 'object' ? JSON.stringify(data) : "لم يتم الحصول على رد");
+        }
         setResponse(aiResponse);
 
         // Auto-save to database
