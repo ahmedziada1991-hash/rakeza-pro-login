@@ -175,11 +175,32 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     if (!text || sending) return;
     setSending(true);
     setMessageText("");
-    const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId, sender_id: userId,
-      sender_name: currentUserName ?? "مستخدم", message: text, message_type: "text",
+    
+    // Refresh session to ensure valid JWT
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      console.error("Session refresh failed:", refreshError);
+      toast.error("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى");
+      setMessageText(text);
+      setSending(false);
+      return;
+    }
+    
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const senderId = authUser?.id ?? userId;
+    
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      sender_name: currentUserName ?? "مستخدم",
+      message: text,
+      message_type: "text",
     });
-    if (error) { toast.error("فشل إرسال الرسالة"); setMessageText(text); }
+    if (error) {
+      console.error("Message send error:", error);
+      toast.error("فشل إرسال الرسالة: " + error.message);
+      setMessageText(text);
+    }
     setSending(false);
   };
 
@@ -219,13 +240,14 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { data: urlData } = supabase.storage.from("call-recordings").getPublicUrl(fileName);
     const duration = recordingTime;
 
-    const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId, sender_id: userId,
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId, sender_id: authUser?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
       message: `🎙️ رسالة صوتية (${formatDuration(duration)})`,
       audio_url: urlData?.publicUrl, message_type: "audio",
     });
-    if (error) toast.error("فشل إرسال الرسالة الصوتية");
+    if (error) { console.error("Audio msg error:", error); toast.error("فشل إرسال الرسالة الصوتية"); }
     setSending(false);
   };
 
@@ -260,13 +282,14 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       : attachmentType === "video" ? `🎥 ${file.name} (${formatFileSize(file.size)})`
       : `📄 ${file.name} (${formatFileSize(file.size)})`;
 
-    const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId, sender_id: userId,
+    const { data: { user: authUser2 } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId, sender_id: authUser2?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
       message: label, message_type: msgType,
       attachment_url: url, attachment_type: attachmentType,
     });
-    if (error) toast.error("فشل إرسال المرفق");
+    if (error) { console.error("Attachment msg error:", error); toast.error("فشل إرسال المرفق"); }
     setSending(false);
   };
 
