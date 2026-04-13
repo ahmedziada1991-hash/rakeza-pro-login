@@ -1,0 +1,1 @@
+ALTER VIEW public.messages_view SET (security_invoker = on);

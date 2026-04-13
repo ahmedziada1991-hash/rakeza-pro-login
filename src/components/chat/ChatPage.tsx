@@ -1,16 +1,36 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { ConversationList } from "./ConversationList";
 import { ChatArea } from "./ChatArea";
 import { NewConversationDialog } from "./NewConversationDialog";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Plus, ArrowRight } from "lucide-react";
+import { MessageCircle, Plus, Home } from "lucide-react";
 
 export function ChatPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [mobileShowChat, setMobileShowChat] = useState(false);
+
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role-for-home", user?.id],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("users").select("role").eq("auth_id", user!.id).single();
+      return data?.role ?? "sales";
+    },
+    enabled: !!user?.id,
+  });
+
+  const ROLE_HOME: Record<string, string> = {
+    admin: "/dashboard/admin",
+    sales: "/dashboard/sales-rep",
+    followup: "/dashboard/follow-up",
+    execution: "/dashboard/execution",
+  };
 
   if (!user) return null;
 
@@ -32,10 +52,16 @@ export function ChatPage() {
             <MessageCircle className="h-5 w-5 text-primary" />
             <h2 className="font-cairo font-bold text-foreground">المحادثات</h2>
           </div>
-          <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => setNewDialogOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            جديدة
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => navigate(ROLE_HOME[userRole ?? "sales"] ?? "/dashboard/sales-rep")}>
+              <Home className="h-3.5 w-3.5" />
+              الرئيسية
+            </Button>
+            <Button size="sm" variant="outline" className="font-cairo gap-1" onClick={() => setNewDialogOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              جديدة
+            </Button>
+          </div>
         </div>
         <ConversationList
           userId={user.id}

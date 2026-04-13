@@ -63,8 +63,8 @@ export function ConversationList({ userId, selectedId, onSelect }: Props) {
       // Get last message for each conversation
       const results = await Promise.all((convs ?? []).map(async (conv: any) => {
         const { data: lastMsgs } = await (supabase as any)
-          .from("messages")
-          .select("message, created_at, sender_id, message_type")
+          .from("messages_view")
+          .select("content, created_at, sender_id, message_type")
           .eq("conversation_id", conv.id)
           .order("created_at", { ascending: false })
           .limit(1);
@@ -76,7 +76,7 @@ export function ConversationList({ userId, selectedId, onSelect }: Props) {
         let unreadCount = 0;
         if (lastSeen) {
           const { count } = await (supabase as any)
-            .from("messages")
+            .from("messages_view")
             .select("id", { count: "exact", head: true })
             .eq("conversation_id", conv.id)
             .gt("created_at", lastSeen)

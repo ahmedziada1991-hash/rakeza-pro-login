@@ -99,7 +99,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     queryKey: ["chat-messages", conversationId],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from("messages")
+        .from("messages_view")
         .select("*")
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });

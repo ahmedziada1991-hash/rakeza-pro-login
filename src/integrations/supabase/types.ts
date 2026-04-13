@@ -248,7 +248,62 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      messages_view: {
+        Row: {
+          attachment_type: string | null
+          attachment_url: string | null
+          audio_url: string | null
+          content: string | null
+          conversation_id: string | null
+          created_at: string | null
+          id: number | null
+          is_read: boolean | null
+          message: string | null
+          message_type: string | null
+          receiver_id: string | null
+          sender_id: string | null
+          sender_name: string | null
+        }
+        Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
+          audio_url?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: number | null
+          is_read?: boolean | null
+          message?: string | null
+          message_type?: string | null
+          receiver_id?: string | null
+          sender_id?: string | null
+          sender_name?: string | null
+        }
+        Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
+          audio_url?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: number | null
+          is_read?: boolean | null
+          message?: string | null
+          message_type?: string | null
+          receiver_id?: string | null
+          sender_id?: string | null
+          sender_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_id_by_auth_id: { Args: { p_auth_id: string }; Returns: number }
