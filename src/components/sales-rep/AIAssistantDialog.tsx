@@ -27,17 +27,16 @@ const ROLE_ACTIONS: Record<RoleType, { key: string; label: string; icon: any }[]
   sales: [
     { key: "classify", label: "تصنيف تلقائي", icon: Sparkles },
     { key: "script", label: "سكريبت مكالمة", icon: Phone },
-    { key: "next", label: "الخطوة التالية", icon: ArrowRight },
+    { key: "next_step", label: "الخطوة التالية", icon: ArrowRight },
   ],
   followup: [
-    { key: "last_contact", label: "آخر تواصل", icon: CalendarDays },
-    { key: "pour_suggestion", label: "اقتراح موعد صبة", icon: Truck },
-    { key: "followup_method", label: "طريقة المتابعة", icon: ArrowRight },
+    { key: "followup_plan", label: "خطة متابعة", icon: CalendarDays },
+    { key: "next_step", label: "موعد الصبة المقترح", icon: Truck },
+    { key: "classify", label: "تصنيف العميل", icon: Sparkles },
   ],
   execution: [
-    { key: "pour_details", label: "تفاصيل الصبة", icon: ClipboardList },
-    { key: "quantity_station", label: "الكمية والمحطة", icon: Truck },
-    { key: "exec_notes", label: "ملاحظات التنفيذ", icon: Sparkles },
+    { key: "execution_notes", label: "ملاحظات التنفيذ", icon: ClipboardList },
+    { key: "next_step", label: "تفاصيل الصبة", icon: Truck },
   ],
 };
 
@@ -45,14 +44,12 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
       setResponse("");
       setActiveAction(null);
-      setErrorDetail(null);
     }
   }, [open]);
 
@@ -72,52 +69,17 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
     return data ?? [];
   }
 
-  function buildPrompt(action: string, clientInfo: string): string {
-    // Sales prompts
-    if (action === "classify") {
-      return `بناءً على بيانات العميل التالية، صنّف العميل (ساخن/دافئ/بارد) واشرح السبب:\n\n${clientInfo}`;
-    }
-    if (action === "script") {
-      return `اكتب سكريبت مكالمة مبيعات مخصص لهذا العميل بالعربي:\n\n${clientInfo}\n\nالسكريبت يتضمن: مقدمة، أسئلة، عرض، ردود على اعتراضات، وختام.`;
-    }
-    if (action === "next") {
-      return `بناءً على بيانات هذا العميل، إيه الخطوة التالية المقترحة؟\n\n${clientInfo}`;
-    }
-    // Followup prompts
-    if (action === "last_contact") {
-      return `بناءً على بيانات العميل وسجل المكالمات، متى كان آخر تواصل مع هذا العميل؟ وما هي نتيجة آخر تواصل؟ وهل مر وقت طويل بدون تواصل؟\n\n${clientInfo}`;
-    }
-    if (action === "pour_suggestion") {
-      return `بناءً على بيانات العميل التالية، اقترح موعد مناسب للصبة القادمة مع الأسباب. خد في الاعتبار المواعيد السابقة وحالة العميل:\n\n${clientInfo}`;
-    }
-    if (action === "followup_method") {
-      return `بناءً على بيانات هذا العميل، إيه أفضل طريقة للمتابعة معاه دلوقتي؟ (مكالمة/واتساب/زيارة ميدانية) واشرح ليه:\n\n${clientInfo}`;
-    }
-    // Execution prompts
-    if (action === "pour_details") {
-      return `بناءً على بيانات العميل التالية، لخّص تفاصيل الصبة المطلوبة وأي ملاحظات مهمة للتنفيذ:\n\n${clientInfo}`;
-    }
-    if (action === "quantity_station") {
-      return `بناءً على بيانات العميل، حلل الكمية المطلوبة واقترح أنسب محطة للتوريد مع الأسباب:\n\n${clientInfo}`;
-    }
-    if (action === "exec_notes") {
-      return `بناءً على بيانات العميل وتاريخ الصبات، اكتب ملاحظات تنفيذ مهمة يجب مراعاتها:\n\n${clientInfo}`;
-    }
-    return `حلل بيانات هذا العميل:\n\n${clientInfo}`;
-  }
-
   async function runAction(action: string) {
     setLoading(true);
     setResponse("");
     setActiveAction(action);
-    setErrorDetail(null);
 
     const logs = await getCallLogs();
     const logsText = logs.length
       ? logs.map((l) => `- ${l.call_type}: ${l.notes || "بدون ملاحظات"} (${l.result}) - ${l.call_date}`).join("\n")
       : "لا يوجد سجل مكالمات";
 
-    const clientInfo = `اسم العميل: ${client.name}
+    const clientData = `اسم العميل: ${client.name}
 التصنيف الحالي: ${client.status}
 الملاحظات: ${client.notes || "لا يوجد"}
 الهاتف: ${client.phone || "غير محدد"}
@@ -127,29 +89,24 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
 سجل المكالمات:
 ${logsText}`;
 
-    const prompt = buildPrompt(action, clientInfo);
-
     try {
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { messages: [{ role: "user", content: prompt }] },
+        body: { action, role, clientData },
       });
 
       if (error) {
         console.error("AI invoke error:", error);
-        setErrorDetail(error.message || JSON.stringify(error));
         setResponse(`⚠️ خطأ في الاتصال: ${error.message || "خطأ غير معروف"}`);
         return;
       }
 
       if (data?.error) {
-        setErrorDetail(data.error);
         setResponse(`⚠️ ${data.error}`);
       } else {
         setResponse(data?.response || "لم يتم الحصول على رد");
       }
     } catch (e: any) {
       console.error("AI error:", e);
-      setErrorDetail(e.message || String(e));
       setResponse(`⚠️ حدث خطأ: ${e.message || "خطأ غير معروف"}`);
     } finally {
       setLoading(false);

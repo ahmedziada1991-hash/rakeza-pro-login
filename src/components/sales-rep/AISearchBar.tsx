@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Bot, Send, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-export function AISearchBar() {
+interface AISearchBarProps {
+  role?: string;
+}
+
+export function AISearchBar({ role = "sales" }: AISearchBarProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
@@ -36,11 +40,11 @@ export function AISearchBar() {
     setAnswer("");
 
     const context = await fetchContext();
-    const prompt = `بناءً على البيانات التالية، أجب على السؤال:\n\n${context}\n\nالسؤال: ${query}`;
+    const clientData = `${context}\n\nالسؤال: ${query}`;
 
     try {
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { messages: [{ role: "user", content: prompt }] },
+        body: { action: "classify", role, clientData },
       });
 
       if (error) throw error;
