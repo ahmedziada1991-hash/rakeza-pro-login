@@ -107,11 +107,17 @@ export function FieldTab() {
         .insert({
           name: clientName.trim(),
           phone: clientPhone.trim(),
-          area: area.trim() || null,
+          area: qualData.area || area.trim() || null,
           notes: notes.trim() || null,
-          status: classification === "hot" || classification === "warm" ? "followup" : "active",
-          expected_pour_date: pourDate ? pourDate.toISOString() : null,
+          status: classification,
+          expected_pour_date: qualData.expectedPourDate ? qualData.expectedPourDate.toISOString() : (pourDate ? pourDate.toISOString() : null),
           assigned_sales_id: user!.id,
+          project_type: qualData.projectType || null,
+          payment_type: qualData.paymentType || null,
+          has_current_project: qualData.hasCurrentProject,
+          estimated_quantity: qualData.knowsQuantity === "yes" ? qualData.estimatedQuantity : null,
+          has_other_supplier: qualData.hasOtherSupplier,
+          qualification_score: qualScore,
         })
         .select("id")
         .single();
@@ -161,6 +167,9 @@ export function FieldTab() {
       setClassification("cold");
       setPourDate(undefined);
       setSavedLocation(null);
+      recorder.resetRecording();
+      setQualData(INITIAL_QUALIFICATION_DATA);
+      setQualScore(0);
       recorder.resetRecording();
       toast({ title: "تم تسجيل الزيارة بنجاح ✅" });
     },
