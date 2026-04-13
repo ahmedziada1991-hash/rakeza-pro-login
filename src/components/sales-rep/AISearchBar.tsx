@@ -43,6 +43,11 @@ export function AISearchBar({ role = "sales" }: AISearchBarProps) {
     const clientData = `${context}\n\nالسؤال: ${query}`;
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await supabase.auth.refreshSession();
+      }
+
       const { data, error: invokeError } = await supabase.functions.invoke('ai-assistant', {
         body: { action: "classify", role, clientData },
       });
