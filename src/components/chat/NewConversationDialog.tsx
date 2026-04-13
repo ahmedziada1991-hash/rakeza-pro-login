@@ -75,13 +75,22 @@ export function NewConversationDialog({ open, onOpenChange, userId, onCreated }:
 
     setCreating(true);
     try {
+      // Get fresh auth user to ensure RLS passes
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        toast.error("يجب تسجيل الدخول أولاً");
+        setCreating(false);
+        return;
+      }
+      const currentUserId = authUser.id;
+
       // Check if 1:1 conversation already exists
       if (!isGroup) {
         const otherId = selectedIds[0];
         const { data: myConvs } = await (supabase as any)
           .from("conversation_members")
           .select("conversation_id")
-          .eq("user_id", userId);
+          .eq("user_id", currentUserId);
 
         if (myConvs?.length) {
           const myConvIds = myConvs.map((c: any) => c.conversation_id);
@@ -92,7 +101,6 @@ export function NewConversationDialog({ open, onOpenChange, userId, onCreated }:
             .in("conversation_id", myConvIds);
 
           if (otherConvs?.length) {
-            // Check if any are 1:1 (not group)
             for (const oc of otherConvs) {
               const { data: conv } = await (supabase as any)
                 .from("conversations")
@@ -117,7 +125,7 @@ export function NewConversationDialog({ open, onOpenChange, userId, onCreated }:
         .insert({
           is_group: isGroup,
           name: isGroup ? groupName.trim() : null,
-          created_by: userId,
+          created_by: currentUserId,
         })
         .select("id")
         .single();
@@ -125,7 +133,7 @@ export function NewConversationDialog({ open, onOpenChange, userId, onCreated }:
       if (convErr) throw convErr;
 
       // Add members (creator + selected)
-      const members = [userId, ...selectedIds].map((uid) => ({
+      const members = [currentUserId, ...selectedIds].map((uid) => ({
         conversation_id: conv.id,
         user_id: uid,
       }));
