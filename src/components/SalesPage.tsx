@@ -365,11 +365,11 @@ export function SalesPage() {
 
       {/* Add client dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-cairo">إضافة عميل جديد</DialogTitle>
             <DialogDescription className="font-cairo text-muted-foreground">
-              أدخل بيانات العميل الجديد
+              أدخل بيانات العميل وأجب على أسئلة التصنيف
             </DialogDescription>
           </DialogHeader>
 
@@ -407,8 +407,21 @@ export function SalesPage() {
               </div>
             </div>
 
+            {/* Qualification Questions */}
+            <div className="border-t pt-4">
+              <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
+              <ClientQualificationForm
+                onChange={(qData, status, score) => {
+                  setQualData(qData);
+                  setSuggestedStatus(status);
+                  setQualScore(score);
+                  setForm((f) => ({ ...f, status }));
+                }}
+              />
+            </div>
+
             <div className="space-y-1.5">
-              <Label className="font-cairo">التصنيف</Label>
+              <Label className="font-cairo">التصنيف (يمكنك تغييره يدوياً)</Label>
               <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
                 <SelectTrigger className="font-cairo">
                   <SelectValue />
