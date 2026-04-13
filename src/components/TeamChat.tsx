@@ -14,7 +14,7 @@ interface ChatMessage {
   sender_id: string;
   sender_name: string;
   receiver_id: string | null;
-  message: string;
+  content: string;
   is_read: boolean;
   created_at: string;
 }
