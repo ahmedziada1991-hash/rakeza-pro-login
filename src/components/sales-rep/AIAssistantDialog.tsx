@@ -101,9 +101,9 @@ ${logsText}`;
       });
       console.log('AI Response:', JSON.stringify(data));
 
-      if (!res.ok) {
-        console.error("AI error:", data);
-        setResponse(`⚠️ خطأ: ${data?.error || res.statusText}`);
+      if (invokeError) {
+        console.error("AI error:", invokeError);
+        setResponse(`⚠️ خطأ: ${invokeError.message || "خطأ في الاتصال"}`);
         return;
       }
 
