@@ -120,7 +120,27 @@ ${logsText}`;
       if (data?.error) {
         setResponse(`⚠️ ${data.error}`);
       } else {
-        setResponse(data?.response || "لم يتم الحصول على رد");
+        const aiResponse = data?.response || "لم يتم الحصول على رد";
+        setResponse(aiResponse);
+
+        // Auto-save to database
+        if (user?.id && aiResponse && !data?.error) {
+          const { error: saveErr } = await (supabase as any)
+            .from("ai_analysis_logs")
+            .insert({
+              user_id: user.id,
+              client_id: client.id,
+              action,
+              role,
+              response: aiResponse,
+              client_data: clientData,
+            });
+          if (!saveErr) {
+            setSaved(true);
+          } else {
+            console.error("Failed to save AI log:", saveErr);
+          }
+        }
       }
     } catch (e: any) {
       console.error("AI error:", e);
