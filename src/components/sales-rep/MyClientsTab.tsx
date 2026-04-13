@@ -588,29 +588,11 @@ export function MyClientsTab() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="font-cairo">المنطقة</Label>
-              <Input value={addArea} onChange={(e) => setAddArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
-            </div>
-            <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
               {addRecorder.transcribedText && (
                 <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">🎙️ نص مكتوب: {addRecorder.transcribedText}</p>
               )}
-            </div>
-            <div className="space-y-2">
-              <Label className="font-cairo">موعد الصبة التقريبي</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !addPourDate && "text-muted-foreground")}>
-                    <CalendarDays className="h-4 w-4 ml-2" />
-                    {addPourDate ? format(addPourDate, "yyyy-MM-dd") : "اختر التاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={addPourDate} onSelect={setAddPourDate} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
             </div>
             <Button
               variant="outline"
