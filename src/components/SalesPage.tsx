@@ -18,6 +18,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Plus, Phone, MessageCircle, ArrowLeftRight, Search, Users, ContactRound, Bot } from "lucide-react";
 import { AIAssistantDialog } from "@/components/sales-rep/AIAssistantDialog";
+import { ClientQualificationForm, QualificationData, INITIAL_QUALIFICATION_DATA } from "@/components/sales-rep/ClientQualificationForm";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -65,6 +66,9 @@ export function SalesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ClientForm>(EMPTY_FORM);
   const [aiClient, setAiClient] = useState<Client | null>(null);
+  const [qualData, setQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
+  const [suggestedStatus, setSuggestedStatus] = useState("cold");
+  const [qualScore, setQualScore] = useState(0);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["sales-clients"],
@@ -114,6 +118,9 @@ export function SalesPage() {
   function closeDialog() {
     setDialogOpen(false);
     setForm(EMPTY_FORM);
+    setQualData(INITIAL_QUALIFICATION_DATA);
+    setSuggestedStatus("cold");
+    setQualScore(0);
   }
 
   function handleSave() {
@@ -124,9 +131,17 @@ export function SalesPage() {
     addMutation.mutate({
       name: form.name.trim(),
       phone: form.phone || null,
-      status: form.status,
+      status: form.status || suggestedStatus,
       notes: form.notes || null,
       assigned_sales_id: user?.id || null,
+      expected_pour_date: qualData.expectedPourDate ? qualData.expectedPourDate.toISOString() : null,
+      project_type: qualData.projectType || null,
+      area: qualData.area || null,
+      payment_type: qualData.paymentType || null,
+      has_current_project: qualData.hasCurrentProject,
+      estimated_quantity: qualData.knowsQuantity === "yes" ? qualData.estimatedQuantity : null,
+      has_other_supplier: qualData.hasOtherSupplier,
+      qualification_score: qualScore,
     });
   }
 
