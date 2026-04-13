@@ -68,6 +68,8 @@ export function MyClientsTab() {
   const [addArea, setAddArea] = useState("");
   const [addPourDate, setAddPourDate] = useState<Date>();
   const addRecorder = useAudioRecorder();
+  const [addQualData, setAddQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
+  const [addQualScore, setAddQualScore] = useState(0);
 
   // Call log counts per client
   const { data: callCounts = {} } = useQuery({
@@ -182,9 +184,15 @@ export function MyClientsTab() {
           phone: addPhone.trim(),
           status: addClassification,
           notes: addNotes.trim() || null,
-          area: addArea.trim() || null,
-          expected_pour_date: addPourDate ? addPourDate.toISOString() : null,
+          area: addQualData.area || addArea.trim() || null,
+          expected_pour_date: addQualData.expectedPourDate ? addQualData.expectedPourDate.toISOString() : (addPourDate ? addPourDate.toISOString() : null),
           assigned_sales_id: user!.id,
+          project_type: addQualData.projectType || null,
+          payment_type: addQualData.paymentType || null,
+          has_current_project: addQualData.hasCurrentProject,
+          estimated_quantity: addQualData.knowsQuantity === "yes" ? addQualData.estimatedQuantity : null,
+          has_other_supplier: addQualData.hasOtherSupplier,
+          qualification_score: addQualScore,
         })
         .select("id")
         .single();
@@ -228,6 +236,8 @@ export function MyClientsTab() {
       setAddArea("");
       setAddPourDate(undefined);
       addRecorder.resetRecording();
+      setAddQualData(INITIAL_QUALIFICATION_DATA);
+      setAddQualScore(0);
       toast({ title: "تم إضافة العميل بنجاح ✅" });
 
       // Auto-open call log for the new client
