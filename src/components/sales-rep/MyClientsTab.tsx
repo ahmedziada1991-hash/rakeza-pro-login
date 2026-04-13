@@ -563,8 +563,21 @@ export function MyClientsTab() {
                 </Button>
               </div>
             </div>
+
+            {/* Qualification Questions */}
+            <div className="border-t pt-4">
+              <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
+              <ClientQualificationForm
+                onChange={(qData, status, score) => {
+                  setAddQualData(qData);
+                  setAddClassification(status);
+                  setAddQualScore(score);
+                }}
+              />
+            </div>
+
             <div className="space-y-2">
-              <Label className="font-cairo">التصنيف</Label>
+              <Label className="font-cairo">التصنيف (يمكنك تغييره يدوياً)</Label>
               <Select value={addClassification} onValueChange={setAddClassification}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
