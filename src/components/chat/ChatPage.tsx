@@ -11,9 +11,26 @@ import { MessageCircle, Plus, Home } from "lucide-react";
 
 export function ChatPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [mobileShowChat, setMobileShowChat] = useState(false);
+
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role-for-home", user?.id],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("users").select("role").eq("auth_id", user!.id).single();
+      return data?.role ?? "sales";
+    },
+    enabled: !!user?.id,
+  });
+
+  const ROLE_HOME: Record<string, string> = {
+    admin: "/dashboard/admin",
+    sales: "/dashboard/sales-rep",
+    followup: "/dashboard/follow-up",
+    execution: "/dashboard/execution",
+  };
 
   if (!user) return null;
 
