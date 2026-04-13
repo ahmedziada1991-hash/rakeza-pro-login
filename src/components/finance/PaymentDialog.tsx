@@ -270,8 +270,14 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
       queryClient.invalidateQueries({ queryKey: ["client-statement-pours"] });
       queryClient.invalidateQueries({ queryKey: ["client-statement-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["client-statement-totals"] });
+      queryClient.invalidateQueries({ queryKey: ["client-statement-pour-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["station-statement"] });
+      queryClient.invalidateQueries({ queryKey: ["station-cement-sales"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["cement-purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["cement-sales-station"] });
+      queryClient.invalidateQueries({ queryKey: ["client-orders"] });
       toast({ title: "تم تسجيل الدفعة بنجاح ✅" });
       onOpenChange(false);
       resetForm();
@@ -305,6 +311,18 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
     }
     if (payForm.payment_method === "check" && !payForm.check_number) {
       toast({ title: "أدخل رقم الشيك", variant: "destructive" }); return;
+    }
+    // Validate payment doesn't exceed remaining for client payments with selected order
+    if (!isStation && payForm.pour_order_id) {
+      const selectedOrder = (clientOrders ?? []).find((o) => String(o.id) === payForm.pour_order_id);
+      if (selectedOrder) {
+        const remaining = Number(selectedOrder.amount_remaining) || 0;
+        const amount = Number(payForm.amount) || 0;
+        if (amount > remaining) {
+          toast({ title: "المبلغ أكبر من المتبقي", description: `المتبقي على هذا الطلب: ${fmt(remaining)}`, variant: "destructive" });
+          return;
+        }
+      }
     }
     paymentMutation.mutate();
   }

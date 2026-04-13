@@ -74,7 +74,7 @@ export function ProfitsTab() {
     const { data } = await supabase
       .from("station_accounts" as any)
       .select("amount, quantity_tons, price_per_ton, cement_price_per_ton, created_at")
-      .eq("transaction_type", "cement")
+      .in("transaction_type", ["cement", "cement_sale"])
       .gte("created_at", start)
       .lte("created_at", end + "T23:59:59");
     return (data ?? []) as any[];
