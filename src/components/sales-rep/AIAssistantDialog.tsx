@@ -110,6 +110,7 @@ ${logsText}`;
       );
 
       const data = await res.json();
+      console.log('AI Response:', JSON.stringify(data));
 
       if (!res.ok) {
         console.error("AI error:", data);
@@ -120,7 +121,7 @@ ${logsText}`;
       if (data?.error) {
         setResponse(`⚠️ ${data.error}`);
       } else {
-        const aiResponse = data?.response || "لم يتم الحصول على رد";
+        const aiResponse = data?.response || data?.result || data?.candidates?.[0]?.content?.parts?.[0]?.text || (typeof data === 'object' ? JSON.stringify(data) : null) || "لم يتم الحصول على رد";
         setResponse(aiResponse);
 
         // Auto-save to database
