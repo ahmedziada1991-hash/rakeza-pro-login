@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_analysis_logs: {
+        Row: {
+          action: string
+          client_data: string | null
+          client_id: number | null
+          created_at: string
+          id: string
+          response: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          client_data?: string | null
+          client_id?: number | null
+          created_at?: string
+          id?: string
+          response: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          client_data?: string | null
+          client_id?: number | null
+          created_at?: string
+          id?: string
+          response?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       call_logs: {
         Row: {
           audio_url: string | null
