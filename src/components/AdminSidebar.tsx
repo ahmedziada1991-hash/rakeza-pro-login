@@ -9,6 +9,7 @@ import {
   LogOut,
   CalendarDays,
   ClipboardList,
+  MessageCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,7 @@ const navItems = [
   { title: "تقرير اليوم", url: "/dashboard/admin/daily-report", icon: ClipboardList },
   { title: "التقرير الأسبوعي", url: "/dashboard/admin/weekly-report", icon: TrendingUp },
   { title: "التقرير الشهري", url: "/dashboard/admin/monthly-report", icon: TrendingUp },
+  { title: "الشات", url: "/dashboard/admin/chat", icon: MessageCircle },
   { title: "الإعدادات", url: "/dashboard/admin/settings", icon: Settings },
 ];
 
