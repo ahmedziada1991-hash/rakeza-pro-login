@@ -54,6 +54,7 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
     if (!open) {
       setResponse("");
       setActiveAction(null);
+      setSaved(false);
     }
   }, [open]);
 
