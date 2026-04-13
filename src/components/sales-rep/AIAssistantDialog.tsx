@@ -43,9 +43,11 @@ const ROLE_ACTIONS: Record<RoleType, { key: string; label: string; icon: any }[]
 };
 
 export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }: AIAssistantDialogProps) {
+  const { user } = useAuth();
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
