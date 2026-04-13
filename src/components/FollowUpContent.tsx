@@ -18,9 +18,10 @@ import { toast } from "@/hooks/use-toast";
 import {
   Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft,
   Search, ChevronDown, ChevronUp, AlertTriangle, Clock, Bell,
-  Users, Flame, Snowflake, TrendingUp, CheckCircle2, Layers
+  Users, Flame, Snowflake, TrendingUp, CheckCircle2, Layers, Bot
 } from "lucide-react";
 import { useClientPourHistory } from "@/hooks/useClientPourHistory";
+import { AIAssistantDialog } from "@/components/sales-rep/AIAssistantDialog";
 import { format, isToday } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,8 @@ export function FollowUpContent() {
   const [pourFilter, setPourFilter] = useState("all"); // all, has_pours, no_pours, high_volume
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [callLogViewId, setCallLogViewId] = useState<string | null>(null);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiClient, setAiClient] = useState<any>(null);
 
   // Call dialog state
   const [callDialogOpen, setCallDialogOpen] = useState(false);
@@ -467,6 +470,17 @@ export function FollowUpContent() {
                         >
                           <ArrowRightLeft className="h-3.5 w-3.5" />
                           تحويل للتنفيذ
+                        </Button>
+
+                        {/* AI Assistant */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="font-cairo gap-1 text-primary border-primary/30 hover:bg-primary/10"
+                          onClick={() => { setAiClient(client); setAiDialogOpen(true); }}
+                        >
+                          <Bot className="h-3.5 w-3.5" />
+                          مساعد AI 🤖
                         </Button>
 
                         {/* Quote - navigate to offers page with client data */}
