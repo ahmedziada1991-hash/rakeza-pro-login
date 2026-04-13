@@ -189,8 +189,16 @@ ${logsText}`;
             </div>
           )}
           {response && !loading && (
-            <div className="font-cairo text-sm whitespace-pre-wrap leading-relaxed text-foreground">
-              {response}
+            <div>
+              <div className="font-cairo text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+                {response}
+              </div>
+              {saved && (
+                <div className="flex items-center gap-1 mt-3 text-chart-2 font-cairo text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  تم حفظ التحليل تلقائياً
+                </div>
+              )}
             </div>
           )}
           {!loading && !response && (
