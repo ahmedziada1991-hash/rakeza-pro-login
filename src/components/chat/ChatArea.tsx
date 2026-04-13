@@ -145,6 +145,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
         filter: `conversation_id=eq.${conversationId}`,
       }, () => {
         refetch();
+        queryClient.invalidateQueries({ queryKey: ["chat-conv-info", conversationId] });
         try {
           const ctx = new AudioContext();
           const osc = ctx.createOscillator();
