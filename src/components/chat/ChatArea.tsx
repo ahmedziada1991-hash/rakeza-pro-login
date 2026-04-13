@@ -175,11 +175,32 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     if (!text || sending) return;
     setSending(true);
     setMessageText("");
-    const { error } = await (supabase as any).from("messages").insert({
-      conversation_id: conversationId, sender_id: userId,
-      sender_name: currentUserName ?? "مستخدم", message: text, message_type: "text",
+    
+    // Refresh session to ensure valid JWT
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      console.error("Session refresh failed:", refreshError);
+      toast.error("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى");
+      setMessageText(text);
+      setSending(false);
+      return;
+    }
+    
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const senderId = authUser?.id ?? userId;
+    
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      sender_name: currentUserName ?? "مستخدم",
+      message: text,
+      message_type: "text",
     });
-    if (error) { toast.error("فشل إرسال الرسالة"); setMessageText(text); }
+    if (error) {
+      console.error("Message send error:", error);
+      toast.error("فشل إرسال الرسالة: " + error.message);
+      setMessageText(text);
+    }
     setSending(false);
   };
 
