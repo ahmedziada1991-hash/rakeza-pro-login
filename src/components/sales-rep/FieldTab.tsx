@@ -380,8 +380,21 @@ export function FieldTab() {
                 <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">🎙️ نص مكتوب: {recorder.transcribedText}</p>
               )}
             </div>
+
+            {/* Qualification Questions */}
+            <div className="border-t pt-4">
+              <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
+              <ClientQualificationForm
+                onChange={(qData, status, score) => {
+                  setQualData(qData);
+                  setClassification(status);
+                  setQualScore(score);
+                }}
+              />
+            </div>
+
             <div className="space-y-2">
-              <Label className="font-cairo">تصنيف العميل</Label>
+              <Label className="font-cairo">تصنيف العميل (يمكنك تغييره يدوياً)</Label>
               <Select value={classification} onValueChange={setClassification}>
                 <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -390,20 +403,6 @@ export function FieldTab() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="font-cairo">موعد الصبة التقريبي</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full font-cairo justify-start", !pourDate && "text-muted-foreground")}>
-                    <CalendarDays className="h-4 w-4 ml-2" />
-                    {pourDate ? format(pourDate, "yyyy-MM-dd") : "اختر التاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={pourDate} onSelect={setPourDate} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
             </div>
             <Button
               variant="outline"
