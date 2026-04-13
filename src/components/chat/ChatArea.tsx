@@ -70,7 +70,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       const { data: conv } = await (supabase as any)
         .from("conversations").select("*").eq("id", conversationId).single();
       const { data: members } = await (supabase as any)
-        .from("conversation_members").select("user_id").eq("conversation_id", conversationId);
+        .from("conversation_members").select("user_id, last_seen_at").eq("conversation_id", conversationId);
       const memberIds = (members ?? []).map((m: any) => m.user_id);
       const { data: users } = memberIds.length
         ? await (supabase as any).from("users").select("name, auth_id, role").in("auth_id", memberIds)
@@ -79,7 +79,11 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       const displayName = conv?.is_group
         ? conv.name || "مجموعة"
         : otherUsers[0]?.name || "محادثة";
-      return { ...conv, displayName, memberCount: memberIds.length, members: users ?? [] };
+      // Track other members' last_seen_at for read receipts
+      const otherMembersLastSeen = (members ?? [])
+        .filter((m: any) => m.user_id !== userId)
+        .map((m: any) => m.last_seen_at);
+      return { ...conv, displayName, memberCount: memberIds.length, members: users ?? [], otherMembersLastSeen };
     },
   });
 
