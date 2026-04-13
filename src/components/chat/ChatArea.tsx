@@ -193,7 +193,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       conversation_id: conversationId,
       sender_id: senderId,
       sender_name: currentUserName ?? "مستخدم",
-      message: text,
+      content: text,
       message_type: "text",
     });
     if (error) {
@@ -244,7 +244,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId, sender_id: authUser?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
-      message: `🎙️ رسالة صوتية (${formatDuration(duration)})`,
+      content: `🎙️ رسالة صوتية (${formatDuration(duration)})`,
       audio_url: urlData?.publicUrl, message_type: "audio",
     });
     if (error) { console.error("Audio msg error:", error); toast.error("فشل إرسال الرسالة الصوتية"); }
@@ -286,7 +286,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId, sender_id: authUser2?.id ?? userId,
       sender_name: currentUserName ?? "مستخدم",
-      message: label, message_type: msgType,
+      content: label, message_type: msgType,
       attachment_url: url, attachment_type: attachmentType,
     });
     if (error) { console.error("Attachment msg error:", error); toast.error("فشل إرسال المرفق"); }
@@ -371,7 +371,7 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
       return (
         <div className="space-y-1">
           <video src={msg.attachment_url} controls className="rounded-lg max-w-full max-h-60" />
-          <p className="text-xs font-cairo opacity-70">{msg.message}</p>
+          <p className="text-xs font-cairo opacity-70">{msg.content}</p>
         </div>
       );
     }
@@ -386,14 +386,14 @@ export function ChatArea({ conversationId, userId, onBack }: Props) {
           className={`flex items-center gap-2 ${isMine ? "text-primary-foreground" : "text-foreground"}`}
         >
           <FileText className="h-5 w-5 shrink-0" />
-          <span className="text-sm font-cairo underline">{msg.message}</span>
+          <span className="text-sm font-cairo underline">{msg.content}</span>
           <Download className="h-4 w-4 shrink-0" />
         </a>
       );
     }
 
     // Text
-    return <p className="text-sm font-cairo leading-relaxed whitespace-pre-wrap">{msg.message}</p>;
+    return <p className="text-sm font-cairo leading-relaxed whitespace-pre-wrap">{msg.content}</p>;
   };
 
   return (

@@ -322,7 +322,7 @@ export function TeamChat() {
                               {msg.sender_name}
                             </p>
                           )}
-                          <p className="text-sm font-cairo leading-relaxed">{msg.message}</p>
+                          <p className="text-sm font-cairo leading-relaxed">{msg.content}</p>
                           <p className={`text-[9px] mt-1 ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                             {formatTime(msg.created_at)}
                           </p>
