@@ -78,6 +78,7 @@ export function AIAssistantDialog({ open, onOpenChange, client, role = "sales" }
     setLoading(true);
     setResponse("");
     setActiveAction(action);
+    setSaved(false);
 
     const logs = await getCallLogs();
     const logsText = logs.length
