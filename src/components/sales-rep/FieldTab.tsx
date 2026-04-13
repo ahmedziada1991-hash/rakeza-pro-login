@@ -43,6 +43,8 @@ export function FieldTab() {
   const [notes, setNotes] = useState("");
   const [classification, setClassification] = useState("cold");
   const [pourDate, setPourDate] = useState<Date>();
+  const [qualData, setQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
+  const [qualScore, setQualScore] = useState(0);
   const [callLogDialogOpen, setCallLogDialogOpen] = useState(false);
   const [callLogClient, setCallLogClient] = useState<any>(null);
 
