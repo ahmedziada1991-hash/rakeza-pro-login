@@ -304,6 +304,18 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
 
   const setField = (k: string, v: string) => setPayForm((f) => ({ ...f, [k]: v }));
 
+  // Sanitize numeric input: force positive (Math.abs) and reject non-numeric/negative signs
+  const setAmountField = (k: "amount" | "cash_amount" | "deduction_amount", v: string) => {
+    if (v === "") {
+      setPayForm((f) => ({ ...f, [k]: "" }));
+      return;
+    }
+    const n = Number(v);
+    if (Number.isNaN(n)) return;
+    const positive = Math.abs(n);
+    setPayForm((f) => ({ ...f, [k]: String(positive) }));
+  };
+
   function handleSubmit() {
     if (isStation) {
       if (!payForm.station_id) { toast({ title: "اختر المحطة", variant: "destructive" }); return; }
