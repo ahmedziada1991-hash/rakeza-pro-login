@@ -270,7 +270,6 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       }
     },
     onSuccess: async () => {
-      // Invalidate ALL finance-related queries and force immediate refetch of active ones
       const keys = [
         "finance-payments", "finance-client-summary", "finance-clients-tab",
         "finance-stations-tab", "finance-profits", "finance-cement-profit",
@@ -280,16 +279,20 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         "supplier-statement", "notifications", "cement-purchases",
         "cement-sales-station", "cement-stock-all", "cement-sales-linkage",
         "suppliers-list", "clients-names-profits", "stations-names-profits",
-        "client-orders",
+        "client-orders", "station-accounts",
       ];
-      await Promise.all(
-        keys.map((k) =>
-          queryClient.invalidateQueries({ queryKey: [k], refetchType: "active" })
-        )
-      );
+      // Mark stale immediately
+      keys.forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+      // Close dialog first so target tab queries become "active"
       toast({ title: "تم تسجيل الدفعة بنجاح ✅" });
       onOpenChange(false);
       resetForm();
+      // Force refetch of all matching queries (active + inactive) right after
+      await Promise.all(
+        keys.map((k) =>
+          queryClient.refetchQueries({ queryKey: [k], type: "all" })
+        )
+      );
     },
     onError: (err: any) => {
       console.error("[PaymentDialog] Payment mutation error:", err);
