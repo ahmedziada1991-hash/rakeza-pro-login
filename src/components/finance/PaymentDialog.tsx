@@ -123,8 +123,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         const isConcreteDeduction = isCement && payForm.payment_method === "concrete_deduction";
 
         if (isMixed) {
-          const cashAmt = Number(payForm.cash_amount) || 0;
-          const deductAmt = Number(payForm.deduction_amount) || 0;
+          const cashAmt = Math.abs(Number(payForm.cash_amount) || 0);
+          const deductAmt = Math.abs(Number(payForm.deduction_amount) || 0);
 
           // Cash record
           if (cashAmt > 0) {
