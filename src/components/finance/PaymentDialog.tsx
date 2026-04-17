@@ -288,7 +288,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
       resetForm();
     },
     onError: (err: any) => {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+      console.error("[PaymentDialog] Payment mutation error:", err);
+      toast({ title: "خطأ", description: err?.message || "فشل تسجيل الدفعة", variant: "destructive" });
     },
   });
 
