@@ -122,42 +122,50 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         const isMixed = isCement && payForm.payment_method === "mixed";
         const isConcreteDeduction = isCement && payForm.payment_method === "concrete_deduction";
 
+        const insertStationAccount = async (payload: any) => {
+          console.log("[PaymentDialog] Inserting into station_accounts:", payload);
+          const { data, error } = await supabase
+            .from("station_accounts" as any)
+            .insert(payload)
+            .select();
+          if (error) {
+            console.error("[PaymentDialog] station_accounts insert error:", error, "payload:", payload);
+            throw error;
+          }
+          console.log("[PaymentDialog] station_accounts inserted:", data);
+          return data;
+        };
+
         if (isMixed) {
           const cashAmt = Math.abs(Number(payForm.cash_amount) || 0);
           const deductAmt = Math.abs(Number(payForm.deduction_amount) || 0);
 
-          // Cash record
           if (cashAmt > 0) {
-            const { error } = await supabase.from("station_accounts" as any).insert({
+            await insertStationAccount({
               station_id: stationId,
               transaction_type: "cement_payment",
               amount: cashAmt,
               payment_method: "cash",
               notes: payForm.notes || null,
             });
-            if (error) throw error;
           }
 
-          // Concrete deduction record
           if (deductAmt > 0) {
-            const { error } = await supabase.from("station_accounts" as any).insert({
+            await insertStationAccount({
               station_id: stationId,
               transaction_type: "cement_payment",
               amount: deductAmt,
               payment_method: "concrete_deduction",
               notes: payForm.notes ? `${payForm.notes} (خصم من خرسانة)` : "خصم من خرسانة",
             });
-            if (error) throw error;
 
-            // Deduct from concrete debt
-            const { error: deductError } = await supabase.from("station_accounts" as any).insert({
+            await insertStationAccount({
               station_id: stationId,
               transaction_type: "payment",
               amount: deductAmt,
               payment_method: "concrete_deduction",
               notes: "خصم تلقائي مقابل تحصيل أسمنت",
             });
-            if (deductError) throw deductError;
           }
         } else {
           const stationPayload: any = {
@@ -173,19 +181,16 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             stationPayload.check_date_cleared = checkDateCleared ? format(checkDateCleared, "yyyy-MM-dd") : null;
           }
 
-          const { error } = await supabase.from("station_accounts" as any).insert(stationPayload);
-          if (error) throw error;
+          await insertStationAccount(stationPayload);
 
-          // If concrete deduction for cement, also deduct from concrete debt
           if (isConcreteDeduction) {
-            const { error: deductError } = await supabase.from("station_accounts" as any).insert({
+            await insertStationAccount({
               station_id: stationId,
               transaction_type: "payment",
               amount,
               payment_method: "concrete_deduction",
               notes: "خصم تلقائي مقابل تحصيل أسمنت",
             });
-            if (deductError) throw deductError;
           }
         }
 
