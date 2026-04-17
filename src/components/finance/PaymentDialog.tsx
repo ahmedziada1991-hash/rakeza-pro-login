@@ -110,7 +110,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
 
   const paymentMutation = useMutation({
     mutationFn: async () => {
-      const amount = Number(payForm.amount);
+      const amount = Math.abs(Number(payForm.amount) || 0);
       const isCheck = payForm.payment_method === "check";
 
       if (isStation) {
