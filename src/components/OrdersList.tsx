@@ -52,16 +52,19 @@ export function OrdersList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pour_orders")
-        .select("id, client_id, concrete_type, quantity_m3, total_agreed_amount, amount_paid, amount_remaining, status, station_name, scheduled_date, created_at")
+        .select("*, clients(name, phone)")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.error("[OrdersList] pour_orders fetch error:", error);
+        throw error;
+      }
       if (!data?.length) return [];
 
-      const clientIds = [...new Set(data.map((o) => o.client_id))];
-      const { data: clients } = await supabase.from("clients").select("id, name").in("id", clientIds);
-      const clientMap = new Map((clients ?? []).map((c) => [c.id, c.name]));
-
-      return data.map((o) => ({ ...o, client_name: clientMap.get(o.client_id) ?? "—" }));
+      return data.map((o: any) => ({
+        ...o,
+        client_name: o.clients?.name ?? "—",
+        client_phone: o.clients?.phone ?? null,
+      }));
     },
   });
 
