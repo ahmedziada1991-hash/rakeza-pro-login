@@ -82,7 +82,11 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   const { data: clients } = useQuery({
     queryKey: ["clients-select"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name").eq("status", "active").order("name");
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, phone")
+        .order("name");
+      if (error) console.error("[PaymentDialog] clients fetch error:", error);
       return data ?? [];
     },
   });
