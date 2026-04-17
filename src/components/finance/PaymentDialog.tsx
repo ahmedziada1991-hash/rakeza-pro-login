@@ -440,7 +440,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             {payForm.payment_method !== "mixed" && (
               <div className="space-y-1.5">
                 <Label className="font-cairo">المبلغ (ج.م) *</Label>
-                <Input type="number" value={payForm.amount} onChange={(e) => setField("amount", e.target.value)} className="font-cairo" min={0} />
+                <Input type="number" value={payForm.amount} onChange={(e) => setAmountField("amount", e.target.value)} className="font-cairo" min={0} step="any" inputMode="decimal" />
               </div>
             )}
             <div className={cn("space-y-1.5", payForm.payment_method === "mixed" && "col-span-2")}>
