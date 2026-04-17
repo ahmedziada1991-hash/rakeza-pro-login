@@ -260,33 +260,24 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         }
       }
     },
-    onSuccess: () => {
-      // Invalidate ALL finance-related queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["finance-payments"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-client-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-clients-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-cement-profit"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["orders-list"] });
-      queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-pours"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-payments"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-totals"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-pour-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["station-statement"] });
-      queryClient.invalidateQueries({ queryKey: ["station-cement-sales"] });
-      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-purchases"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-sales-station"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-stock-all"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-sales-linkage"] });
-      queryClient.invalidateQueries({ queryKey: ["suppliers-list"] });
-      queryClient.invalidateQueries({ queryKey: ["clients-names-profits"] });
-      queryClient.invalidateQueries({ queryKey: ["stations-names-profits"] });
-      queryClient.invalidateQueries({ queryKey: ["client-orders"] });
+    onSuccess: async () => {
+      // Invalidate ALL finance-related queries and force immediate refetch of active ones
+      const keys = [
+        "finance-payments", "finance-client-summary", "finance-clients-tab",
+        "finance-stations-tab", "finance-profits", "finance-cement-profit",
+        "finance-suppliers-tab", "orders-list", "execution-orders",
+        "client-statement-pours", "client-statement-payments", "client-statement-totals",
+        "client-statement-pour-accounts", "station-statement", "station-cement-sales",
+        "supplier-statement", "notifications", "cement-purchases",
+        "cement-sales-station", "cement-stock-all", "cement-sales-linkage",
+        "suppliers-list", "clients-names-profits", "stations-names-profits",
+        "client-orders",
+      ];
+      await Promise.all(
+        keys.map((k) =>
+          queryClient.invalidateQueries({ queryKey: [k], refetchType: "active" })
+        )
+      );
       toast({ title: "تم تسجيل الدفعة بنجاح ✅" });
       onOpenChange(false);
       resetForm();
