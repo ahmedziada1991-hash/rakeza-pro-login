@@ -110,7 +110,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
 
   const paymentMutation = useMutation({
     mutationFn: async () => {
-      const amount = Number(payForm.amount);
+      const amount = Math.abs(Number(payForm.amount) || 0);
       const isCheck = payForm.payment_method === "check";
 
       if (isStation) {
@@ -123,8 +123,8 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         const isConcreteDeduction = isCement && payForm.payment_method === "concrete_deduction";
 
         if (isMixed) {
-          const cashAmt = Number(payForm.cash_amount) || 0;
-          const deductAmt = Number(payForm.deduction_amount) || 0;
+          const cashAmt = Math.abs(Number(payForm.cash_amount) || 0);
+          const deductAmt = Math.abs(Number(payForm.deduction_amount) || 0);
 
           // Cash record
           if (cashAmt > 0) {
@@ -260,33 +260,24 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
         }
       }
     },
-    onSuccess: () => {
-      // Invalidate ALL finance-related queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["finance-payments"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-client-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-clients-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-profits"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-cement-profit"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-suppliers-tab"] });
-      queryClient.invalidateQueries({ queryKey: ["orders-list"] });
-      queryClient.invalidateQueries({ queryKey: ["execution-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-pours"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-payments"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-totals"] });
-      queryClient.invalidateQueries({ queryKey: ["client-statement-pour-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["station-statement"] });
-      queryClient.invalidateQueries({ queryKey: ["station-cement-sales"] });
-      queryClient.invalidateQueries({ queryKey: ["supplier-statement"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-purchases"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-sales-station"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-stock-all"] });
-      queryClient.invalidateQueries({ queryKey: ["cement-sales-linkage"] });
-      queryClient.invalidateQueries({ queryKey: ["suppliers-list"] });
-      queryClient.invalidateQueries({ queryKey: ["clients-names-profits"] });
-      queryClient.invalidateQueries({ queryKey: ["stations-names-profits"] });
-      queryClient.invalidateQueries({ queryKey: ["client-orders"] });
+    onSuccess: async () => {
+      // Invalidate ALL finance-related queries and force immediate refetch of active ones
+      const keys = [
+        "finance-payments", "finance-client-summary", "finance-clients-tab",
+        "finance-stations-tab", "finance-profits", "finance-cement-profit",
+        "finance-suppliers-tab", "orders-list", "execution-orders",
+        "client-statement-pours", "client-statement-payments", "client-statement-totals",
+        "client-statement-pour-accounts", "station-statement", "station-cement-sales",
+        "supplier-statement", "notifications", "cement-purchases",
+        "cement-sales-station", "cement-stock-all", "cement-sales-linkage",
+        "suppliers-list", "clients-names-profits", "stations-names-profits",
+        "client-orders",
+      ];
+      await Promise.all(
+        keys.map((k) =>
+          queryClient.invalidateQueries({ queryKey: [k], refetchType: "active" })
+        )
+      );
       toast({ title: "تم تسجيل الدفعة بنجاح ✅" });
       onOpenChange(false);
       resetForm();
@@ -303,6 +294,18 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
   }
 
   const setField = (k: string, v: string) => setPayForm((f) => ({ ...f, [k]: v }));
+
+  // Sanitize numeric input: force positive (Math.abs) and reject non-numeric/negative signs
+  const setAmountField = (k: "amount" | "cash_amount" | "deduction_amount", v: string) => {
+    if (v === "") {
+      setPayForm((f) => ({ ...f, [k]: "" }));
+      return;
+    }
+    const n = Number(v);
+    if (Number.isNaN(n)) return;
+    const positive = Math.abs(n);
+    setPayForm((f) => ({ ...f, [k]: String(positive) }));
+  };
 
   function handleSubmit() {
     if (isStation) {
@@ -428,7 +431,7 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             {payForm.payment_method !== "mixed" && (
               <div className="space-y-1.5">
                 <Label className="font-cairo">المبلغ (ج.م) *</Label>
-                <Input type="number" value={payForm.amount} onChange={(e) => setField("amount", e.target.value)} className="font-cairo" min={0} />
+                <Input type="number" value={payForm.amount} onChange={(e) => setAmountField("amount", e.target.value)} className="font-cairo" min={0} step="any" inputMode="decimal" />
               </div>
             )}
             <div className={cn("space-y-1.5", payForm.payment_method === "mixed" && "col-span-2")}>
@@ -449,11 +452,11 @@ export function PaymentDialog({ open, onOpenChange }: Props) {
             <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
               <div className="space-y-1.5">
                 <Label className="font-cairo text-xs">مبلغ كاش (ج.م)</Label>
-                <Input type="number" value={payForm.cash_amount} onChange={(e) => setField("cash_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} placeholder="0" />
+                <Input type="number" value={payForm.cash_amount} onChange={(e) => setAmountField("cash_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} step="any" inputMode="decimal" placeholder="0" />
               </div>
               <div className="space-y-1.5">
                 <Label className="font-cairo text-xs">خصم من خرسانة (ج.م)</Label>
-                <Input type="number" value={payForm.deduction_amount} onChange={(e) => setField("deduction_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} placeholder="0" />
+                <Input type="number" value={payForm.deduction_amount} onChange={(e) => setAmountField("deduction_amount", e.target.value)} className="font-cairo h-8 text-sm" min={0} step="any" inputMode="decimal" placeholder="0" />
               </div>
               <p className="col-span-2 text-xs text-muted-foreground font-cairo">
                 الإجمالي: {fmt((Number(payForm.cash_amount) || 0) + (Number(payForm.deduction_amount) || 0))}
