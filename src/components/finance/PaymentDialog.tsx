@@ -49,8 +49,14 @@ const PAYMENT_TYPES = [
 ];
 
 const STATION_TRANSACTION_TYPES = [
-  { value: "payment", label: "دفع خرسانة" },
-  { value: "cement_payment", label: "تحصيل أسمنت" },
+  { value: "concrete_purchase", label: "شراء خرسانة (دين على ركيزة)" },
+  { value: "cement_deduct", label: "بيع أسمنت — خصم من دين ركيزة" },
+  { value: "cement_credit", label: "بيع أسمنت — رصيد للمحطة" },
+  { value: "cement_cash_paid", label: "بيع أسمنت — دفع كاش" },
+  { value: "rakeza_cash_payment", label: "ركيزة دفعت كاش للمحطة" },
+  // Legacy kept for backwards compat in dropdown labels
+  { value: "payment", label: "دفع خرسانة (قديم)" },
+  { value: "cement_payment", label: "تحصيل أسمنت (قديم)" },
 ];
 
 interface Props {

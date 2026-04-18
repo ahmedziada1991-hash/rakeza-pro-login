@@ -49,11 +49,20 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  totalCost: number;
-  totalPaid: number;
-  cementBalance: number;
-  finalBalance: number;
+  totalCost: number;        // الدين على ركيزة (concrete_purchase + legacy concrete)
+  totalPaid: number;        // الخصومات (cement_sale/deduct/credit + rakeza_cash_payment + legacy)
+  cementBalance: number;    // أسمنت تفصيلي (للعرض فقط)
+  finalBalance: number;     // = totalCost - totalPaid
 }
+
+// Transaction type sets per the new accounting rules
+const DEBT_TYPES = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
+const DEDUCT_TYPES = new Set([
+  "cement_sale", "cement_deduct", "cement_credit", "rakeza_cash_payment",
+  // Legacy aliases kept so old records still settle correctly
+  "payment", "دفعة", "cement_payment", "cement_deduction", "cement", "أسمنت",
+]);
+const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement", "أسمنت"]);
 
 export function StationsTab() {
   const { userRole } = useAuth();
@@ -75,7 +84,7 @@ export function StationsTab() {
 
       const { data: txns } = await supabase
         .from("station_accounts" as any)
-        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton")
+        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton, pour_order_id")
         .order("created_at", { ascending: false });
 
       const map = new Map<number, StationSummary>();
@@ -86,35 +95,35 @@ export function StationsTab() {
         });
       });
 
+      // Deduplicate concrete pours by pour_order_id per station
+      const seenPour = new Map<number, Set<number>>();
       (txns ?? []).forEach((t: any) => {
         const acc = map.get(t.station_id);
         if (!acc) return;
         const amt = Number(t.amount) || 0;
         const type = t.transaction_type;
-        // Debt: concrete + cement_sale
-        if (type === "concrete") {
+        if (DEBT_TYPES.has(type)) {
+          if (t.pour_order_id) {
+            if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
+            const set = seenPour.get(t.station_id)!;
+            if (set.has(t.pour_order_id)) return;
+            set.add(t.pour_order_id);
+          }
           acc.totalPours++;
           acc.totalCost += amt;
-        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
-          acc.cementBalance += amt;
-        }
-        // Paid: payment + cement_payment (+ legacy cement_deduction)
-        else if (
-          type === "payment" ||
-          type === "دفعة" ||
-          type === "cement_payment" ||
-          type === "cement_deduction"
-        ) {
+        } else if (DEDUCT_TYPES.has(type)) {
           acc.totalPaid += amt;
+          if (CEMENT_DETAIL_TYPES.has(type)) acc.cementBalance += amt;
         }
       });
 
       map.forEach((acc) => {
-        // Balance = Debt (concrete + cement_sale) - Paid
-        acc.finalBalance = acc.totalCost + acc.cementBalance - acc.totalPaid;
+        acc.finalBalance = acc.totalCost - acc.totalPaid;
       });
 
-      return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
+      return [...map.values()]
+        .filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0)
+        .sort((a, b) => b.finalBalance - a.finalBalance);
     },
   });
 
@@ -209,8 +218,8 @@ export function StationsTab() {
   };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
-  // Deduplicate pours
-  const poursAll = (statement ?? []).filter((t: any) => t.transaction_type === "concrete");
+  // Deduplicate pours (treat both legacy "concrete" and new "concrete_purchase" as pours)
+  const poursAll = (statement ?? []).filter((t: any) => DEBT_TYPES.has(t.transaction_type));
   const seen = new Set<number>();
   const pours = poursAll.filter((t: any) => {
     if (!t.pour_order_id) return true;
@@ -218,32 +227,28 @@ export function StationsTab() {
     seen.add(t.pour_order_id);
     return true;
   });
-  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_payment" || t.transaction_type === "cement_deduction");
-  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
+  const payments = (statement ?? []).filter((t: any) => DEDUCT_TYPES.has(t.transaction_type) && !CEMENT_DETAIL_TYPES.has(t.transaction_type));
+  const cementSales = (statement ?? []).filter((t: any) => CEMENT_DETAIL_TYPES.has(t.transaction_type));
 
-  // Recalculate totals from statement data
+  // Recalculate totals from statement data using the new accounting rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
     let totalCost = 0, totalPaid = 0, cementBalance = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
-      if (t.transaction_type === "concrete") {
+      const type = t.transaction_type;
+      if (DEBT_TYPES.has(type)) {
         if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
         totalCost += amt;
-      } else if (
-        t.transaction_type === "payment" ||
-        t.transaction_type === "دفعة" ||
-        t.transaction_type === "cement_payment" ||
-        t.transaction_type === "cement_deduction"
-      ) {
+      } else if (DEDUCT_TYPES.has(type)) {
         totalPaid += amt;
-      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
-        cementBalance += amt;
+        if (CEMENT_DETAIL_TYPES.has(type)) cementBalance += amt;
       }
     });
-    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost + cementBalance - totalPaid };
+    // New formula: balance = debt - all deductions
+    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost - totalPaid };
   })();
 
   const buildStationPDFData = (station: StationSummary): StationStatementPDFData => {
@@ -345,13 +350,13 @@ export function StationsTab() {
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">أسمنت على المحطة</p>
+                <p className="text-xs font-cairo text-muted-foreground">أسمنت (ضمن الخصومات)</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">مدفوع (كاش + خصم)</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي الخصومات</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
               </CardContent>
             </Card>
@@ -360,7 +365,7 @@ export function StationsTab() {
                 <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: totals.finalBalance > 0 ? "#DC2626" : "#16A34A" }}>
                   {fmt(totals.finalBalance)}
-                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "المحطة مدينة" : totals.finalBalance < 0 ? "ركيزة مدينة" : "متساوي"}</span>
+                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "ركيزة مدينة للمحطة" : totals.finalBalance < 0 ? "المحطة مدينة لركيزة" : "متساوي"}</span>
                 </p>
               </CardContent>
             </Card>
