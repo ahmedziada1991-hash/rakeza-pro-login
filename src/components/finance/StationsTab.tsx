@@ -99,7 +99,7 @@ export function StationsTab() {
         map.set(s.id, {
           id: s.id, name: s.name,
           totalPours: 0,
-          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaPaid: 0,
+          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaDeducted: 0,
           finalBalance: 0,
           totalCost: 0, totalPaid: 0, cementBalance: 0,
         });
@@ -123,24 +123,29 @@ export function StationsTab() {
           acc.concreteOnRakeza += amt;
         } else if (CEMENT_ON_STATION.has(type)) {
           acc.cementOnStation += amt;
-        } else if (STATION_PAID.has(type)) {
+        } else if (STATION_PAID_TYPES.has(type)) {
           acc.stationPaid += amt;
-        } else if (RAKEZA_PAID.has(type)) {
-          acc.rakezaPaid += amt;
+        } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
+          acc.rakezaDeducted += amt;
         }
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = acc.concreteOnRakeza - acc.cementOnStation + acc.stationPaid - acc.rakezaPaid;
+        // Station debt to Rakeza = cement_sale - (cash_paid + credit)
+        const stationDebt = acc.cementOnStation - acc.stationPaid;
+        // Rakeza debt to Station = concrete_purchase + cement_deduct
+        const rakezaDebt = acc.concreteOnRakeza + acc.rakezaDeducted;
+        // Positive => station owes Rakeza; Negative => Rakeza owes station
+        acc.finalBalance = stationDebt - rakezaDebt;
         // Legacy fields for PDF/statement compatibility
         acc.totalCost = acc.concreteOnRakeza;
-        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaPaid;
+        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaDeducted;
         acc.cementBalance = acc.cementOnStation + acc.stationPaid;
       });
 
       return [...map.values()]
-        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaPaid > 0)
-        .sort((a, b) => b.finalBalance - a.finalBalance);
+        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaDeducted > 0)
+        .sort((a, b) => Math.abs(b.finalBalance) - Math.abs(a.finalBalance));
     },
   });
 
