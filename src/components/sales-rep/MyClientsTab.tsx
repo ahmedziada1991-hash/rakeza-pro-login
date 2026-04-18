@@ -63,6 +63,7 @@ export function MyClientsTab() {
   const [editClassification, setEditClassification] = useState("cold");
   const [editNotes, setEditNotes] = useState("");
   const [editArea, setEditArea] = useState("");
+  const [editPrice, setEditPrice] = useState<string>("");
   const [editPourDate, setEditPourDate] = useState<Date | undefined>();
   // Add form state
   const [addName, setAddName] = useState("");
@@ -70,10 +71,13 @@ export function MyClientsTab() {
   const [addClassification, setAddClassification] = useState("cold");
   const [addNotes, setAddNotes] = useState("");
   const [addArea, setAddArea] = useState("");
+  const [addPrice, setAddPrice] = useState<string>("");
   const [addPourDate, setAddPourDate] = useState<Date>();
   const addRecorder = useAudioRecorder();
   const [addQualData, setAddQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
   const [addQualScore, setAddQualScore] = useState(0);
+  // Delete confirm
+  const [deleteClient, setDeleteClient] = useState<any>(null);
 
   // Call log counts per client
   const { data: callCounts = {} } = useQuery({
