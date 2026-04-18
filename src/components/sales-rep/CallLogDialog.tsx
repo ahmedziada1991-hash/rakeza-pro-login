@@ -72,6 +72,8 @@ export function CallLogDialog({ open, onOpenChange, clientId, clientName }: Call
   const [callType, setCallType] = useState("call");
   const [callResult, setCallResult] = useState("");
   const [callNotes, setCallNotes] = useState("");
+  const [nextFollowupDate, setNextFollowupDate] = useState("");
+  const [nextFollowupType, setNextFollowupType] = useState("");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const recorder = useAudioRecorder();
 
@@ -109,19 +111,42 @@ export function CallLogDialog({ open, onOpenChange, clientId, clientName }: Call
         result: callResult,
         notes: notes || null,
         audio_url: audioUrl,
+        next_followup_date: nextFollowupDate ? new Date(nextFollowupDate).toISOString() : null,
+        next_followup_type: nextFollowupType || null,
       });
       if (error) throw error;
+
+      // Create follow-up notification if scheduled
+      if (nextFollowupDate && nextFollowupType) {
+        const typeLabel = FOLLOWUP_TYPE_LABELS[nextFollowupType] || "متابعة";
+        const { error: notifErr } = await (supabase as any).from("notifications").insert({
+          user_id: user!.id,
+          type: "followup_reminder",
+          title: `تذكير: ${typeLabel} مع ${clientName}`,
+          body: `موعدك مع ${clientName} اليوم - سجل النتيجة`,
+          scheduled_for: new Date(nextFollowupDate).toISOString(),
+          client_id: typeof clientId === "string" ? Number(clientId) : clientId,
+          is_read: false,
+          metadata: { followup_type: nextFollowupType, client_name: clientName },
+        });
+        if (notifErr) console.error("Notification insert error:", notifErr);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-call-history", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["followup-reminders-today"] });
       setShowNewCall(false);
       setCallResult("");
       setCallNotes("");
       setCallType("call");
+      setNextFollowupDate("");
+      setNextFollowupType("");
       recorder.resetRecording();
       toast({ title: "تم تسجيل المكالمة بنجاح ✅" });
     },
     onError: (err: Error) => {
+      console.error("Save call error:", err);
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
     },
   });
