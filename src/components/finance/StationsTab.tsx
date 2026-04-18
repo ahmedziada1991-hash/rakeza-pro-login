@@ -49,19 +49,26 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  totalCost: number;        // الدين على ركيزة (concrete_purchase + legacy concrete)
-  totalPaid: number;        // الخصومات (cement_sale/deduct/credit + rakeza_cash_payment + legacy)
-  cementBalance: number;    // أسمنت تفصيلي (للعرض فقط)
-  finalBalance: number;     // = totalCost - totalPaid
+  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase)
+  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale)
+  stationPaid: number;          // 3) المحطة دفعت (cement_deduct/credit/cash_paid)
+  rakezaPaid: number;           // 4) ركيزة دفعت (rakeza_cash_payment)
+  finalBalance: number;         // 5) = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid
+  // Legacy aggregates for backwards-compatible PDF/table fields
+  totalCost: number;
+  totalPaid: number;
+  cementBalance: number;
 }
 
-// Transaction type sets per the new accounting rules
-const DEBT_TYPES = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
-const DEDUCT_TYPES = new Set([
-  "cement_sale", "cement_deduct", "cement_credit", "rakeza_cash_payment",
-  // Legacy aliases kept so old records still settle correctly
-  "payment", "دفعة", "cement_payment", "cement_deduction", "cement", "أسمنت",
-]);
+// Transaction type buckets per the new accounting rules
+const CONCRETE_ON_RAKEZA = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
+const CEMENT_ON_STATION = new Set(["cement_sale"]);
+const STATION_PAID = new Set(["cement_deduct", "cement_credit", "cement_cash_paid", "cement_payment", "cement_deduction", "cement", "أسمنت"]);
+const RAKEZA_PAID = new Set(["rakeza_cash_payment", "payment", "دفعة"]);
+
+// Legacy aliases used elsewhere in the file
+const DEBT_TYPES = CONCRETE_ON_RAKEZA;
+const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID, ...RAKEZA_PAID]);
 const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement", "أسمنت"]);
 
 export function StationsTab() {
