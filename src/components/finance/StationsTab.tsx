@@ -116,9 +116,29 @@ export function StationsTab() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedStation, setSelectedStation] = useState<StationSummary | null>(null);
-  const [editRecord, setEditRecord] = useState<any>(null);
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
-  const [deleteCementSaleId, setDeleteCementSaleId] = useState<number | null>(null);
+
+  // Unified add/edit dialog
+  type TxnForm = {
+    id: number | null;
+    transaction_type: string;
+    quantity: string;
+    unit_price: string;
+    amount: string;
+    txn_date: string; // yyyy-mm-dd
+    notes: string;
+  };
+  const emptyTxn: TxnForm = {
+    id: null,
+    transaction_type: "cement_sale",
+    quantity: "",
+    unit_price: "",
+    amount: "",
+    txn_date: new Date().toISOString().slice(0, 10),
+    notes: "",
+  };
+  const [txnDialogOpen, setTxnDialogOpen] = useState(false);
+  const [txnForm, setTxnForm] = useState<TxnForm>(emptyTxn);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-stations-tab"],
