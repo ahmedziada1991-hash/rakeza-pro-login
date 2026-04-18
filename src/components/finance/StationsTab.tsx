@@ -255,7 +255,7 @@ export function StationsTab() {
   // Recalculate totals from statement data using the new accounting rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaPaid = 0;
+    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaDeducted = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
@@ -266,17 +266,19 @@ export function StationsTab() {
         concreteOnRakeza += amt;
       } else if (CEMENT_ON_STATION.has(type)) {
         cementOnStation += amt;
-      } else if (STATION_PAID.has(type)) {
+      } else if (STATION_PAID_TYPES.has(type)) {
         stationPaid += amt;
-      } else if (RAKEZA_PAID.has(type)) {
-        rakezaPaid += amt;
+      } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
+        rakezaDeducted += amt;
       }
     });
-    const finalBalance = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid;
+    const stationDebt = cementOnStation - stationPaid;
+    const rakezaDebt = concreteOnRakeza + rakezaDeducted;
+    const finalBalance = stationDebt - rakezaDebt;
     return {
-      concreteOnRakeza, cementOnStation, stationPaid, rakezaPaid, finalBalance,
+      concreteOnRakeza, cementOnStation, stationPaid, rakezaDeducted, finalBalance,
       totalCost: concreteOnRakeza,
-      totalPaid: cementOnStation + stationPaid + rakezaPaid,
+      totalPaid: cementOnStation + stationPaid + rakezaDeducted,
       cementBalance: cementOnStation + stationPaid,
     };
   })();
