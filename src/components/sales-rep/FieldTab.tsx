@@ -402,8 +402,10 @@ export function FieldTab() {
                 <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">🎙️ نص مكتوب: {recorder.transcribedText}</p>
               )}
             </div>
-
-            {/* Qualification Questions */}
+            <div className="space-y-2">
+              <Label className="font-cairo">السعر التقريبي المتفق عليه (ج/م³)</Label>
+              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="مثال: 2500" className="font-cairo" />
+            </div>
             <div className="border-t pt-4">
               <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
               <ClientQualificationForm
