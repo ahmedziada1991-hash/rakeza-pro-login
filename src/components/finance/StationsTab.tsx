@@ -49,11 +49,20 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  totalCost: number;
-  totalPaid: number;
-  cementBalance: number;
-  finalBalance: number;
+  totalCost: number;        // الدين على ركيزة (concrete_purchase + legacy concrete)
+  totalPaid: number;        // الخصومات (cement_sale/deduct/credit + rakeza_cash_payment + legacy)
+  cementBalance: number;    // أسمنت تفصيلي (للعرض فقط)
+  finalBalance: number;     // = totalCost - totalPaid
 }
+
+// Transaction type sets per the new accounting rules
+const DEBT_TYPES = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
+const DEDUCT_TYPES = new Set([
+  "cement_sale", "cement_deduct", "cement_credit", "rakeza_cash_payment",
+  // Legacy aliases kept so old records still settle correctly
+  "payment", "دفعة", "cement_payment", "cement_deduction", "cement", "أسمنت",
+]);
+const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement", "أسمنت"]);
 
 export function StationsTab() {
   const { userRole } = useAuth();
@@ -75,7 +84,7 @@ export function StationsTab() {
 
       const { data: txns } = await supabase
         .from("station_accounts" as any)
-        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton")
+        .select("station_id, transaction_type, amount, quantity_m3, cement_tons, cement_price_per_ton, pour_order_id")
         .order("created_at", { ascending: false });
 
       const map = new Map<number, StationSummary>();
@@ -86,35 +95,35 @@ export function StationsTab() {
         });
       });
 
+      // Deduplicate concrete pours by pour_order_id per station
+      const seenPour = new Map<number, Set<number>>();
       (txns ?? []).forEach((t: any) => {
         const acc = map.get(t.station_id);
         if (!acc) return;
         const amt = Number(t.amount) || 0;
         const type = t.transaction_type;
-        // Debt: concrete + cement_sale
-        if (type === "concrete") {
+        if (DEBT_TYPES.has(type)) {
+          if (t.pour_order_id) {
+            if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
+            const set = seenPour.get(t.station_id)!;
+            if (set.has(t.pour_order_id)) return;
+            set.add(t.pour_order_id);
+          }
           acc.totalPours++;
           acc.totalCost += amt;
-        } else if (type === "cement" || type === "أسمنت" || type === "cement_sale") {
-          acc.cementBalance += amt;
-        }
-        // Paid: payment + cement_payment (+ legacy cement_deduction)
-        else if (
-          type === "payment" ||
-          type === "دفعة" ||
-          type === "cement_payment" ||
-          type === "cement_deduction"
-        ) {
+        } else if (DEDUCT_TYPES.has(type)) {
           acc.totalPaid += amt;
+          if (CEMENT_DETAIL_TYPES.has(type)) acc.cementBalance += amt;
         }
       });
 
       map.forEach((acc) => {
-        // Balance = Debt (concrete + cement_sale) - Paid
-        acc.finalBalance = acc.totalCost + acc.cementBalance - acc.totalPaid;
+        acc.finalBalance = acc.totalCost - acc.totalPaid;
       });
 
-      return [...map.values()].filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0).sort((a, b) => b.finalBalance - a.finalBalance);
+      return [...map.values()]
+        .filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0)
+        .sort((a, b) => b.finalBalance - a.finalBalance);
     },
   });
 
