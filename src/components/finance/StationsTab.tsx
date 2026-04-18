@@ -235,29 +235,68 @@ export function StationsTab() {
     queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
   };
 
-  const handleEditRecord = async () => {
-    if (!editRecord) return;
-    const updateData: any = {
-      amount: Number(editRecord.amount),
-      notes: editRecord.notes || null,
-      payment_method: editRecord.payment_method || null,
+  const openAddTxn = () => {
+    setTxnForm({ ...emptyTxn, txn_date: new Date().toISOString().slice(0, 10) });
+    setTxnDialogOpen(true);
+  };
+
+  const openEditTxn = (row: any) => {
+    // Map the row back to the unified form
+    const t = row.transaction_type;
+    const qty = row.quantity_m3 ?? row.cement_tons ?? "";
+    const unit = row.price_per_m3 ?? row.cement_price_per_ton ?? "";
+    setTxnForm({
+      id: row.id,
+      transaction_type: t === "concrete" ? "concrete_purchase" : t,
+      quantity: qty != null ? String(qty) : "",
+      unit_price: unit != null ? String(unit) : "",
+      amount: String(row.amount ?? ""),
+      txn_date: row.created_at ? new Date(row.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      notes: row.notes ?? "",
+    });
+    setTxnDialogOpen(true);
+  };
+
+  const handleSaveTxn = async () => {
+    if (!selectedStation) return;
+    const amt = Number(txnForm.amount) || 0;
+    if (amt <= 0) { toast.error("أدخل المبلغ الإجمالي"); return; }
+    const opt = TXN_FORM_OPTIONS.find((o) => o.value === txnForm.transaction_type);
+    if (!opt) { toast.error("اختر نوع العملية"); return; }
+
+    const payload: any = {
+      station_id: selectedStation.id,
+      transaction_type: txnForm.transaction_type,
+      amount: amt,
+      notes: txnForm.notes || null,
+      created_at: txnForm.txn_date ? new Date(txnForm.txn_date).toISOString() : new Date().toISOString(),
+      // reset both qty fields then set the relevant ones
+      quantity_m3: null,
+      price_per_m3: null,
+      cement_tons: null,
+      cement_price_per_ton: null,
     };
-    if (editRecord.transaction_type === "concrete") {
-      updateData.quantity_m3 = editRecord.quantity_m3 ? Number(editRecord.quantity_m3) : null;
-      updateData.price_per_m3 = editRecord.price_per_m3 ? Number(editRecord.price_per_m3) : null;
+    const qty = txnForm.quantity ? Number(txnForm.quantity) : null;
+    const unit = txnForm.unit_price ? Number(txnForm.unit_price) : null;
+    if (opt.hasQty === "concrete") {
+      payload.quantity_m3 = qty;
+      payload.price_per_m3 = unit;
+    } else if (opt.hasQty === "cement") {
+      payload.cement_tons = qty;
+      payload.cement_price_per_ton = unit;
     }
-    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") {
-      updateData.cement_tons = editRecord.cement_tons ? Number(editRecord.cement_tons) : null;
-      updateData.cement_price_per_ton = editRecord.cement_price_per_ton ? Number(editRecord.cement_price_per_ton) : null;
-    }
-    const { error } = await supabase.from("station_accounts" as any).update(updateData).eq("id", editRecord.id);
+
+    const { error } = txnForm.id
+      ? await supabase.from("station_accounts" as any).update(payload).eq("id", txnForm.id)
+      : await supabase.from("station_accounts" as any).insert(payload);
+
     if (error) {
-      toast.error("فشل التحديث");
-    } else {
-      toast.success("تم التحديث بنجاح");
-      invalidateStation();
+      toast.error(txnForm.id ? "فشل التعديل" : "فشل الإضافة");
+      return;
     }
-    setEditRecord(null);
+    toast.success(txnForm.id ? "تم التعديل بنجاح ✅" : "تمت الإضافة بنجاح ✅");
+    setTxnDialogOpen(false);
+    invalidateStation();
   };
 
   const handleDeleteRecord = async () => {
@@ -272,26 +311,6 @@ export function StationsTab() {
     setDeleteRecordId(null);
   };
 
-  const handleDeleteCementSale = async () => {
-    if (!deleteCementSaleId) return;
-    // Get the sale record first to find related station_accounts
-    const { data: sale } = await supabase.from("cement_sales" as any).select("*").eq("id", deleteCementSaleId).single();
-    if (sale) {
-      // Delete related station_accounts by matching created_at and station_id
-      await supabase.from("station_accounts" as any).delete()
-        .eq("station_id", sale.station_id)
-        .eq("created_at", sale.created_at);
-    }
-    // Delete the cement_sales record
-    const { error } = await supabase.from("cement_sales" as any).delete().eq("id", deleteCementSaleId);
-    if (error) {
-      toast.error("فشل الحذف");
-    } else {
-      toast.success("تم الحذف بنجاح");
-      invalidateStation();
-    }
-    setDeleteCementSaleId(null);
-  };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   // Deduplicate pours (treat both legacy "concrete" and new "concrete_purchase" as pours)
