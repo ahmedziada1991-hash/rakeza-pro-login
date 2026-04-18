@@ -466,6 +466,13 @@ export function MyClientsTab() {
                       <Bot className="h-3.5 w-3.5" />
                       مساعد AI 🤖
                     </Button>
+
+                    {/* Delete */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => setDeleteClient(client)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                      حذف
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
