@@ -42,6 +42,7 @@ export function FieldTab() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [notes, setNotes] = useState("");
   const [classification, setClassification] = useState("cold");
+  const [price, setPrice] = useState<string>("");
   const [pourDate, setPourDate] = useState<Date>();
   const [qualData, setQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
   const [qualScore, setQualScore] = useState(0);
@@ -118,6 +119,7 @@ export function FieldTab() {
           estimated_quantity: qualData.knowsQuantity === "yes" ? qualData.estimatedQuantity : null,
           has_other_supplier: qualData.hasOtherSupplier,
           qualification_score: qualScore,
+          price: price.trim() ? Number(price) : null,
         })
         .select("id")
         .single();
@@ -165,6 +167,7 @@ export function FieldTab() {
       setArea("");
       setNotes("");
       setClassification("cold");
+      setPrice("");
       setPourDate(undefined);
       setSavedLocation(null);
       recorder.resetRecording();
