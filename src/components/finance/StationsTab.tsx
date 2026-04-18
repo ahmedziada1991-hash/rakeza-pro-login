@@ -49,11 +49,11 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase)
-  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale)
-  stationPaid: number;          // 3) المحطة دفعت (cement_deduct/credit/cash_paid)
-  rakezaPaid: number;           // 4) ركيزة دفعت (rakeza_cash_payment)
-  finalBalance: number;         // 5) = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid
+  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase) — Rakeza debt
+  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale) — Station debt
+  stationPaid: number;          // 3) المحطة دفعت (cement_cash_paid + cement_credit) — reduces station debt
+  rakezaDeducted: number;       // 4) خصم من مديونية ركيزة (cement_deduct) — increases Rakeza debt
+  finalBalance: number;         // 5) = (cementOnStation - stationPaid) - (concreteOnRakeza + rakezaDeducted)
   // Legacy aggregates for backwards-compatible PDF/table fields
   totalCost: number;
   totalPaid: number;
@@ -63,13 +63,13 @@ interface StationSummary {
 // Transaction type buckets per the new accounting rules
 const CONCRETE_ON_RAKEZA = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
 const CEMENT_ON_STATION = new Set(["cement_sale"]);
-const STATION_PAID = new Set(["cement_deduct", "cement_credit", "cement_cash_paid", "cement_payment", "cement_deduction", "cement", "أسمنت"]);
-const RAKEZA_PAID = new Set(["rakeza_cash_payment", "payment", "دفعة"]);
+const STATION_PAID_TYPES = new Set(["cement_cash_paid", "cement_credit"]);
+const RAKEZA_DEDUCT_TYPES = new Set(["cement_deduct"]);
 
 // Legacy aliases used elsewhere in the file
 const DEBT_TYPES = CONCRETE_ON_RAKEZA;
-const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID, ...RAKEZA_PAID]);
-const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement", "أسمنت"]);
+const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID_TYPES, ...RAKEZA_DEDUCT_TYPES, "cement_payment", "cement_deduction", "cement", "أسمنت", "rakeza_cash_payment", "payment", "دفعة"]);
+const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement_cash_paid", "cement", "أسمنت"]);
 
 export function StationsTab() {
   const { userRole } = useAuth();
@@ -99,7 +99,7 @@ export function StationsTab() {
         map.set(s.id, {
           id: s.id, name: s.name,
           totalPours: 0,
-          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaPaid: 0,
+          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaDeducted: 0,
           finalBalance: 0,
           totalCost: 0, totalPaid: 0, cementBalance: 0,
         });
@@ -123,24 +123,29 @@ export function StationsTab() {
           acc.concreteOnRakeza += amt;
         } else if (CEMENT_ON_STATION.has(type)) {
           acc.cementOnStation += amt;
-        } else if (STATION_PAID.has(type)) {
+        } else if (STATION_PAID_TYPES.has(type)) {
           acc.stationPaid += amt;
-        } else if (RAKEZA_PAID.has(type)) {
-          acc.rakezaPaid += amt;
+        } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
+          acc.rakezaDeducted += amt;
         }
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = acc.concreteOnRakeza - acc.cementOnStation + acc.stationPaid - acc.rakezaPaid;
+        // Station debt to Rakeza = cement_sale - (cash_paid + credit)
+        const stationDebt = acc.cementOnStation - acc.stationPaid;
+        // Rakeza debt to Station = concrete_purchase + cement_deduct
+        const rakezaDebt = acc.concreteOnRakeza + acc.rakezaDeducted;
+        // Positive => station owes Rakeza; Negative => Rakeza owes station
+        acc.finalBalance = stationDebt - rakezaDebt;
         // Legacy fields for PDF/statement compatibility
         acc.totalCost = acc.concreteOnRakeza;
-        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaPaid;
+        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaDeducted;
         acc.cementBalance = acc.cementOnStation + acc.stationPaid;
       });
 
       return [...map.values()]
-        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaPaid > 0)
-        .sort((a, b) => b.finalBalance - a.finalBalance);
+        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaDeducted > 0)
+        .sort((a, b) => Math.abs(b.finalBalance) - Math.abs(a.finalBalance));
     },
   });
 
@@ -250,7 +255,7 @@ export function StationsTab() {
   // Recalculate totals from statement data using the new accounting rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaPaid = 0;
+    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaDeducted = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
@@ -261,17 +266,19 @@ export function StationsTab() {
         concreteOnRakeza += amt;
       } else if (CEMENT_ON_STATION.has(type)) {
         cementOnStation += amt;
-      } else if (STATION_PAID.has(type)) {
+      } else if (STATION_PAID_TYPES.has(type)) {
         stationPaid += amt;
-      } else if (RAKEZA_PAID.has(type)) {
-        rakezaPaid += amt;
+      } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
+        rakezaDeducted += amt;
       }
     });
-    const finalBalance = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid;
+    const stationDebt = cementOnStation - stationPaid;
+    const rakezaDebt = concreteOnRakeza + rakezaDeducted;
+    const finalBalance = stationDebt - rakezaDebt;
     return {
-      concreteOnRakeza, cementOnStation, stationPaid, rakezaPaid, finalBalance,
+      concreteOnRakeza, cementOnStation, stationPaid, rakezaDeducted, finalBalance,
       totalCost: concreteOnRakeza,
-      totalPaid: cementOnStation + stationPaid + rakezaPaid,
+      totalPaid: cementOnStation + stationPaid + rakezaDeducted,
       cementBalance: cementOnStation + stationPaid,
     };
   })();
@@ -658,8 +665,8 @@ export function StationsTab() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {filtered.map((a) => {
-            const isRakezaDebt = a.finalBalance > 0;
-            const isStationDebt = a.finalBalance < 0;
+            const isStationDebt = a.finalBalance > 0;   // station owes Rakeza (green ✅)
+            const isRakezaDebt = a.finalBalance < 0;    // Rakeza owes station (red ❌)
             return (
               <Card
                 key={a.id}
@@ -677,14 +684,14 @@ export function StationsTab() {
                     </div>
                     <Badge
                       className={`font-cairo text-[10px] ${
-                        isRakezaDebt
-                          ? "bg-destructive/15 text-destructive hover:bg-destructive/15"
-                          : isStationDebt
+                        isStationDebt
                           ? "bg-chart-2/15 text-chart-2 hover:bg-chart-2/15"
+                          : isRakezaDebt
+                          ? "bg-destructive/15 text-destructive hover:bg-destructive/15"
                           : "bg-muted text-muted-foreground hover:bg-muted"
                       }`}
                     >
-                      {isRakezaDebt ? "على ركيزة" : isStationDebt ? "على المحطة" : "متساوي"}
+                      {isStationDebt ? "✅ على المحطة" : isRakezaDebt ? "❌ على ركيزة" : "متساوي"}
                     </Badge>
                   </div>
 
@@ -705,29 +712,32 @@ export function StationsTab() {
                           <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.stationPaid)}</p>
                         </div>
                         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">ركيزة دفعت</p>
-                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.rakezaPaid)}</p>
+                          <p className="text-[11px] font-cairo text-muted-foreground">خصم من مديونية ركيزة</p>
+                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.rakezaDeducted)}</p>
                         </div>
                       </div>
 
                       {/* Final balance */}
                       <div
                         className={`rounded-md p-2.5 border-2 ${
-                          isRakezaDebt
-                            ? "border-destructive/40 bg-destructive/10"
-                            : isStationDebt
+                          isStationDebt
                             ? "border-chart-2/40 bg-chart-2/10"
+                            : isRakezaDebt
+                            ? "border-destructive/40 bg-destructive/10"
                             : "border-muted bg-muted/30"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-xs font-cairo font-semibold text-muted-foreground">الرصيد النهائي</p>
                           <p
-                            className={`font-cairo font-bold text-base ${
-                              isRakezaDebt ? "text-destructive" : isStationDebt ? "text-chart-2" : "text-muted-foreground"
+                            className={`font-cairo font-bold text-base text-left ${
+                              isStationDebt ? "text-chart-2" : isRakezaDebt ? "text-destructive" : "text-muted-foreground"
                             }`}
                           >
                             {fmt(Math.abs(a.finalBalance))}
+                            <span className="block text-[10px] font-normal">
+                              {isStationDebt ? "المحطة مدينة لركيزة" : isRakezaDebt ? "ركيزة مدينة للمحطة" : "متساوي"}
+                            </span>
                           </p>
                         </div>
                       </div>
