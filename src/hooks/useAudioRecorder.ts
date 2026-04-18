@@ -41,7 +41,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.lang = "ar-SA";
+        recognition.lang = "ar-EG";
         recognition.continuous = true;
         recognition.interimResults = false;
 
