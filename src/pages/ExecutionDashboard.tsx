@@ -8,8 +8,10 @@ import { ExecutionDailyReport } from "@/components/ExecutionDailyReport";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
 import { ChatPage } from "@/components/chat/ChatPage";
+import { useDailyReminders } from "@/hooks/useDailyReminders";
 
 const ExecutionDashboard = () => {
+  useDailyReminders();
   const navigate = useNavigate();
   const location = useLocation();
   const { session, userRole, isLoading } = useAuth();
