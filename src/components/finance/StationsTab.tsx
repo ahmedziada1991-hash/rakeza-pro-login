@@ -746,23 +746,15 @@ export function StationsTab() {
 
                   {isAdmin && (
                     <>
-                      {/* 4 buckets grid */}
+                      {/* 2 buckets: credit / debit */}
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">خرسانة على ركيزة</p>
-                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.concreteOnRakeza)}</p>
-                        </div>
                         <div className="rounded-md border border-chart-2/30 bg-chart-2/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">أسمنت على المحطة</p>
-                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.cementOnStation)}</p>
-                        </div>
-                        <div className="rounded-md border border-chart-2/30 bg-chart-2/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">المحطة دفعت</p>
-                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.stationPaid)}</p>
+                          <p className="text-[11px] font-cairo text-muted-foreground">على المحطة لركيزة (دائن)</p>
+                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.totalCredit)}</p>
                         </div>
                         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">خصم من مديونية ركيزة</p>
-                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.rakezaDeducted)}</p>
+                          <p className="text-[11px] font-cairo text-muted-foreground">على ركيزة للمحطة (مدين)</p>
+                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.totalDebit)}</p>
                         </div>
                       </div>
 
