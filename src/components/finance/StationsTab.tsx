@@ -49,11 +49,11 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase)
-  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale)
-  stationPaid: number;          // 3) المحطة دفعت (cement_deduct/credit/cash_paid)
-  rakezaPaid: number;           // 4) ركيزة دفعت (rakeza_cash_payment)
-  finalBalance: number;         // 5) = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid
+  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase) — Rakeza debt
+  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale) — Station debt
+  stationPaid: number;          // 3) المحطة دفعت (cement_cash_paid + cement_credit) — reduces station debt
+  rakezaDeducted: number;       // 4) خصم من مديونية ركيزة (cement_deduct) — increases Rakeza debt
+  finalBalance: number;         // 5) = (cementOnStation - stationPaid) - (concreteOnRakeza + rakezaDeducted)
   // Legacy aggregates for backwards-compatible PDF/table fields
   totalCost: number;
   totalPaid: number;
@@ -63,13 +63,13 @@ interface StationSummary {
 // Transaction type buckets per the new accounting rules
 const CONCRETE_ON_RAKEZA = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
 const CEMENT_ON_STATION = new Set(["cement_sale"]);
-const STATION_PAID = new Set(["cement_deduct", "cement_credit", "cement_cash_paid", "cement_payment", "cement_deduction", "cement", "أسمنت"]);
-const RAKEZA_PAID = new Set(["rakeza_cash_payment", "payment", "دفعة"]);
+const STATION_PAID_TYPES = new Set(["cement_cash_paid", "cement_credit"]);
+const RAKEZA_DEDUCT_TYPES = new Set(["cement_deduct"]);
 
 // Legacy aliases used elsewhere in the file
 const DEBT_TYPES = CONCRETE_ON_RAKEZA;
-const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID, ...RAKEZA_PAID]);
-const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement", "أسمنت"]);
+const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID_TYPES, ...RAKEZA_DEDUCT_TYPES, "cement_payment", "cement_deduction", "cement", "أسمنت", "rakeza_cash_payment", "payment", "دفعة"]);
+const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement_cash_paid", "cement", "أسمنت"]);
 
 export function StationsTab() {
   const { userRole } = useAuth();
