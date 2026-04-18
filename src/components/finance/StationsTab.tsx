@@ -277,35 +277,59 @@ export function StationsTab() {
   const payments = (statement ?? []).filter((t: any) => DEDUCT_TYPES.has(t.transaction_type) && !CEMENT_DETAIL_TYPES.has(t.transaction_type));
   const cementSales = (statement ?? []).filter((t: any) => CEMENT_DETAIL_TYPES.has(t.transaction_type));
 
-  // Recalculate totals from statement data using the new accounting rule
+  // Recalculate totals from statement data using the new debit/credit rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaDeducted = 0;
+    let totalCredit = 0, totalDebit = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
       const type = t.transaction_type;
-      if (CONCRETE_ON_RAKEZA.has(type)) {
-        if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
-        if (t.pour_order_id) seenPour.add(t.pour_order_id);
-        concreteOnRakeza += amt;
-      } else if (CEMENT_ON_STATION.has(type)) {
-        cementOnStation += amt;
-      } else if (STATION_PAID_TYPES.has(type)) {
-        stationPaid += amt;
-      } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
-        rakezaDeducted += amt;
+      const dir = txnDirection(type);
+      if (!dir) return;
+      // Dedup pours by pour_order_id
+      if (DEBT_TYPES.has(type) && t.pour_order_id) {
+        if (seenPour.has(t.pour_order_id)) return;
+        seenPour.add(t.pour_order_id);
       }
+      if (dir === "credit") totalCredit += amt;
+      else totalDebit += amt;
     });
-    const stationDebt = cementOnStation - stationPaid;
-    const rakezaDebt = concreteOnRakeza + rakezaDeducted;
-    const finalBalance = stationDebt - rakezaDebt;
+    const finalBalance = totalCredit - totalDebit;
     return {
-      concreteOnRakeza, cementOnStation, stationPaid, rakezaDeducted, finalBalance,
-      totalCost: concreteOnRakeza,
-      totalPaid: cementOnStation + stationPaid + rakezaDeducted,
-      cementBalance: cementOnStation + stationPaid,
+      totalCredit, totalDebit, finalBalance,
+      totalCost: totalDebit,
+      totalPaid: totalCredit,
+      cementBalance: totalCredit,
     };
+  })();
+
+  // Build a unified ledger (date-sorted, cumulative balance) for the statement view
+  const ledger = (() => {
+    if (!statement) return [] as Array<any>;
+    const seenPour = new Set<number>();
+    const rows = (statement as any[])
+      .filter((t: any) => {
+        const dir = txnDirection(t.transaction_type);
+        if (!dir) return false;
+        if (DEBT_TYPES.has(t.transaction_type) && t.pour_order_id) {
+          if (seenPour.has(t.pour_order_id)) return false;
+          seenPour.add(t.pour_order_id);
+        }
+        return true;
+      })
+      .map((t: any) => ({
+        ...t,
+        _dir: txnDirection(t.transaction_type)!,
+        _amount: Number(t.amount) || 0,
+      }))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    let running = 0;
+    return rows.map((r) => {
+      running += r._dir === "credit" ? r._amount : -r._amount;
+      return { ...r, _running: running };
+    });
   })();
 
   const buildStationPDFData = (station: StationSummary): StationStatementPDFData => {
