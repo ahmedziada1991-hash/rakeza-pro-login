@@ -420,37 +420,76 @@ export function StationsTab() {
         {/* Gold stripe */}
         <div style={{ background: "#F5A623", height: 4 }} />
 
-        {/* Summary cards */}
+        {/* Summary cards (debit / credit / balance) */}
         <div style={{ background: "#F8F9FA" }} className="px-5 py-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">خرسانة على ركيزة</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#DC2626" }}>{fmt(totals.totalCost)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">على المحطة لركيزة (إجمالي دائن)</p>
+                <p className="font-cairo font-bold text-lg text-chart-2">{fmt(totals.totalPaid)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">أسمنت (ضمن الخصومات)</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">إجمالي الخصومات</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">على ركيزة للمحطة (إجمالي مدين)</p>
+                <p className="font-cairo font-bold text-lg text-destructive">{fmt(totals.totalCost)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: totals.finalBalance > 0 ? "#DC2626" : "#16A34A" }}>
-                  {fmt(totals.finalBalance)}
-                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "ركيزة مدينة للمحطة" : totals.finalBalance < 0 ? "المحطة مدينة لركيزة" : "متساوي"}</span>
+                <p className={`font-cairo font-bold text-lg ${totals.finalBalance > 0 ? "text-chart-2" : totals.finalBalance < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                  {fmt(Math.abs(totals.finalBalance))}
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    {totals.finalBalance > 0 ? "✅ المحطة مدينة لركيزة" : totals.finalBalance < 0 ? "❌ ركيزة مدينة للمحطة" : "متساوي"}
+                  </span>
                 </p>
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Unified ledger (debit/credit + running balance) */}
+        <div className="px-5 py-4">
+          <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>كشف الحساب التفصيلي (مدين/دائن)</h3>
+          {loadingStatement ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : !ledger.length ? (
+            <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد عمليات</p>
+          ) : (
+            <div className="overflow-auto rounded-lg border">
+              <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#1B3A6B" }}>
+                    {["التاريخ", "نوع العملية", "مدين", "دائن", "الرصيد التراكمي"].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.map((r: any, i: number) => (
+                    <tr key={`${r.id}-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
+                      <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString("ar-EG") : "—"}</td>
+                      <td className="font-cairo px-3 py-2.5 text-xs">
+                        <Badge variant="outline" className="text-[10px] font-cairo">
+                          {TXN_LABELS_AR[r.transaction_type] ?? r.transaction_type}
+                        </Badge>
+                      </td>
+                      <td className="font-cairo px-3 py-2.5 text-xs font-bold text-destructive">
+                        {r._dir === "debit" ? fmt(r._amount) : "—"}
+                      </td>
+                      <td className="font-cairo px-3 py-2.5 text-xs font-bold text-chart-2">
+                        {r._dir === "credit" ? fmt(r._amount) : "—"}
+                      </td>
+                      <td className={`font-cairo px-3 py-2.5 text-xs font-bold ${r._running > 0 ? "text-chart-2" : r._running < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                        {fmt(Math.abs(r._running))} {r._running > 0 ? "(دائن)" : r._running < 0 ? "(مدين)" : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Pours table */}
