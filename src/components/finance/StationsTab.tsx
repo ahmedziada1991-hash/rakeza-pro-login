@@ -98,7 +98,10 @@ export function StationsTab() {
       (stations ?? []).forEach((s: any) => {
         map.set(s.id, {
           id: s.id, name: s.name,
-          totalPours: 0, totalCost: 0, totalPaid: 0, cementBalance: 0, finalBalance: 0,
+          totalPours: 0,
+          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaPaid: 0,
+          finalBalance: 0,
+          totalCost: 0, totalPaid: 0, cementBalance: 0,
         });
       });
 
@@ -109,7 +112,7 @@ export function StationsTab() {
         if (!acc) return;
         const amt = Number(t.amount) || 0;
         const type = t.transaction_type;
-        if (DEBT_TYPES.has(type)) {
+        if (CONCRETE_ON_RAKEZA.has(type)) {
           if (t.pour_order_id) {
             if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
             const set = seenPour.get(t.station_id)!;
@@ -117,19 +120,26 @@ export function StationsTab() {
             set.add(t.pour_order_id);
           }
           acc.totalPours++;
-          acc.totalCost += amt;
-        } else if (DEDUCT_TYPES.has(type)) {
-          acc.totalPaid += amt;
-          if (CEMENT_DETAIL_TYPES.has(type)) acc.cementBalance += amt;
+          acc.concreteOnRakeza += amt;
+        } else if (CEMENT_ON_STATION.has(type)) {
+          acc.cementOnStation += amt;
+        } else if (STATION_PAID.has(type)) {
+          acc.stationPaid += amt;
+        } else if (RAKEZA_PAID.has(type)) {
+          acc.rakezaPaid += amt;
         }
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = acc.totalCost - acc.totalPaid;
+        acc.finalBalance = acc.concreteOnRakeza - acc.cementOnStation + acc.stationPaid - acc.rakezaPaid;
+        // Legacy fields for PDF/statement compatibility
+        acc.totalCost = acc.concreteOnRakeza;
+        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaPaid;
+        acc.cementBalance = acc.cementOnStation + acc.stationPaid;
       });
 
       return [...map.values()]
-        .filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0)
+        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaPaid > 0)
         .sort((a, b) => b.finalBalance - a.finalBalance);
     },
   });
