@@ -7,12 +7,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Mic, MicOff, Play, Pause, Plus, Clock } from "lucide-react";
+import { Mic, MicOff, Play, Pause, Plus, Clock, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+
+const FOLLOWUP_TYPES = [
+  { value: "phone_followup", label: "متابعة تليفونية" },
+  { value: "field_visit", label: "زيارة ميدانية" },
+  { value: "expected_pour", label: "موعد صبة متوقع" },
+];
+
+const FOLLOWUP_TYPE_LABELS: Record<string, string> = {
+  phone_followup: "متابعة تليفونية",
+  field_visit: "زيارة ميدانية",
+  expected_pour: "موعد صبة متوقع",
+};
 
 const CALL_TYPES = [
   { value: "call", label: "مكالمة" },
