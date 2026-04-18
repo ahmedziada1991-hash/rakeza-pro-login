@@ -497,7 +497,75 @@ export function StationsTab() {
           </div>
         </div>
 
-        {/* Unified ledger (debit/credit + running balance) */}
+        {/* Unified ledger (debit/credit + running balance + notes + actions) */}
+        <div className="px-5 py-4">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 className="font-cairo font-bold" style={{ color: "#1B3A6B", fontSize: 16 }}>كشف الحساب التفصيلي</h3>
+            {isAdmin && (
+              <Button onClick={openAddTxn} size="sm" className="font-cairo gap-1 text-white" style={{ background: "#1B3A6B" }}>
+                <Plus className="h-4 w-4" />
+                إضافة عملية
+              </Button>
+            )}
+          </div>
+          {loadingStatement ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : !ledger.length ? (
+            <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد عمليات</p>
+          ) : (
+            <div className="overflow-auto rounded-lg border">
+              <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#1B3A6B" }}>
+                    {["التاريخ", "نوع العملية", "الكمية", "مدين", "دائن", "الملاحظات", "الرصيد التراكمي", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.map((r: any, i: number) => {
+                    const qty = r.quantity_m3 ?? r.cement_tons;
+                    const qtyUnit = r.quantity_m3 != null ? "م³" : r.cement_tons != null ? "طن" : "";
+                    return (
+                      <tr key={`${r.id}-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
+                        <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString("ar-EG") : "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs">
+                          <Badge variant="outline" className="text-[10px] font-cairo whitespace-nowrap">
+                            {TXN_LABELS_AR[r.transaction_type] ?? r.transaction_type}
+                          </Badge>
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">
+                          {qty != null ? `${qty} ${qtyUnit}` : "—"}
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs font-bold text-destructive">
+                          {r._dir === "debit" ? fmt(r._amount) : "—"}
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs font-bold text-chart-2">
+                          {r._dir === "credit" ? fmt(r._amount) : "—"}
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[180px]" title={r.notes ?? ""}>
+                          {r.notes || "—"}
+                        </td>
+                        <td className={`font-cairo px-3 py-2.5 text-xs font-bold whitespace-nowrap ${r._running > 0 ? "text-chart-2" : r._running < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                          {fmt(Math.abs(r._running))} {r._running > 0 ? "(دائن)" : r._running < 0 ? "(مدين)" : ""}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-2 py-2.5 print:hidden">
+                            <div className="flex gap-1">
+                              <button onClick={() => openEditTxn(r)} className="text-muted-foreground hover:text-primary" title="تعديل"><Pencil className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setDeleteRecordId(r.id)} className="text-destructive hover:text-destructive/80" title="حذف"><Trash2 className="h-3.5 w-3.5" /></button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <div className="px-5 py-4">
           <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>كشف الحساب التفصيلي (مدين/دائن)</h3>
           {loadingStatement ? (
