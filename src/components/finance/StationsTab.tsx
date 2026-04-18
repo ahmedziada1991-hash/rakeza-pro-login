@@ -129,7 +129,7 @@ export function StationsTab() {
         map.set(s.id, {
           id: s.id, name: s.name,
           totalPours: 0,
-          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaDeducted: 0,
+          totalCredit: 0, totalDebit: 0,
           finalBalance: 0,
           totalCost: 0, totalPaid: 0, cementBalance: 0,
         });
@@ -142,39 +142,34 @@ export function StationsTab() {
         if (!acc) return;
         const amt = Number(t.amount) || 0;
         const type = t.transaction_type;
-        if (CONCRETE_ON_RAKEZA.has(type)) {
-          if (t.pour_order_id) {
-            if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
-            const set = seenPour.get(t.station_id)!;
-            if (set.has(t.pour_order_id)) return;
-            set.add(t.pour_order_id);
-          }
-          acc.totalPours++;
-          acc.concreteOnRakeza += amt;
-        } else if (CEMENT_ON_STATION.has(type)) {
-          acc.cementOnStation += amt;
-        } else if (STATION_PAID_TYPES.has(type)) {
-          acc.stationPaid += amt;
-        } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
-          acc.rakezaDeducted += amt;
+        const dir = txnDirection(type);
+        if (!dir) return;
+
+        // Dedup pours by pour_order_id
+        if (DEBT_TYPES.has(type) && t.pour_order_id) {
+          if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
+          const set = seenPour.get(t.station_id)!;
+          if (set.has(t.pour_order_id)) return;
+          set.add(t.pour_order_id);
         }
+        if (DEBT_TYPES.has(type)) acc.totalPours++;
+
+        if (dir === "credit") acc.totalCredit += amt;
+        else acc.totalDebit += amt;
       });
 
       map.forEach((acc) => {
-        // Station debt to Rakeza = cement_sale - (cash_paid + credit)
-        const stationDebt = acc.cementOnStation - acc.stationPaid;
-        // Rakeza debt to Station = concrete_purchase + cement_deduct
-        const rakezaDebt = acc.concreteOnRakeza + acc.rakezaDeducted;
-        // Positive => station owes Rakeza; Negative => Rakeza owes station
-        acc.finalBalance = stationDebt - rakezaDebt;
-        // Legacy fields for PDF/statement compatibility
-        acc.totalCost = acc.concreteOnRakeza;
-        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaDeducted;
-        acc.cementBalance = acc.cementOnStation + acc.stationPaid;
+        // Single rule: balance = credits − debits
+        // Positive => station owes Rakeza (green); Negative => Rakeza owes station (red)
+        acc.finalBalance = acc.totalCredit - acc.totalDebit;
+        // Legacy fields for PDF compatibility
+        acc.totalCost = acc.totalDebit;
+        acc.totalPaid = acc.totalCredit;
+        acc.cementBalance = acc.totalCredit;
       });
 
       return [...map.values()]
-        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaDeducted > 0)
+        .filter(a => a.totalCredit > 0 || a.totalDebit > 0)
         .sort((a, b) => Math.abs(b.finalBalance) - Math.abs(a.finalBalance));
     },
   });
