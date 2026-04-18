@@ -49,26 +49,56 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase) — Rakeza debt
-  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale) — Station debt
-  stationPaid: number;          // 3) المحطة دفعت (cement_cash_paid + cement_credit) — reduces station debt
-  rakezaDeducted: number;       // 4) خصم من مديونية ركيزة (cement_deduct) — increases Rakeza debt
-  finalBalance: number;         // 5) = (cementOnStation - stationPaid) - (concreteOnRakeza + rakezaDeducted)
+  totalCredit: number;   // على المحطة لركيزة (يزيد دين المحطة)
+  totalDebit: number;    // على ركيزة للمحطة (يزيد دين ركيزة)
+  finalBalance: number;  // = totalCredit - totalDebit
   // Legacy aggregates for backwards-compatible PDF/table fields
   totalCost: number;
   totalPaid: number;
   cementBalance: number;
 }
 
-// Transaction type buckets per the new accounting rules
-const CONCRETE_ON_RAKEZA = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
-const CEMENT_ON_STATION = new Set(["cement_sale"]);
-const STATION_PAID_TYPES = new Set(["cement_cash_paid", "cement_credit"]);
-const RAKEZA_DEDUCT_TYPES = new Set(["cement_deduct"]);
+// Debit/Credit model:
+//  CREDIT (+) = على المحطة لركيزة → station owes Rakeza more (or Rakeza paid down its debt)
+//  DEBIT  (−) = على ركيزة للمحطة → Rakeza owes station more (or station paid down its debt)
+const CREDIT_TYPES = new Set([
+  "cement_sale",          // بيع أسمنت  → المحطة عليها
+  "cement_deduct",        // خصم مديونية ركيزة → بيقلل دين ركيزة = credit
+  "rakeza_cash_payment",  // ركيزة دفعت كاش للمحطة → بيقلل دين ركيزة = credit
+  "payment", "دفعة",       // legacy payment entries
+]);
+const DEBIT_TYPES = new Set([
+  "concrete_purchase", "concrete", // شراء خرسانة → على ركيزة
+  "cement_cash_paid",              // المحطة دفعت كاش للأسمنت → بيقلل دين المحطة = debit
+  "cement_credit",                 // بيع أسمنت برصيد للمحطة → بيقلل دين المحطة = debit
+]);
 
-// Legacy aliases used elsewhere in the file
-const DEBT_TYPES = CONCRETE_ON_RAKEZA;
-const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID_TYPES, ...RAKEZA_DEDUCT_TYPES, "cement_payment", "cement_deduction", "cement", "أسمنت", "rakeza_cash_payment", "payment", "دفعة"]);
+// Arabic labels for transaction types (used in unified ledger)
+const TXN_LABELS_AR: Record<string, string> = {
+  cement_sale: "بيع أسمنت",
+  concrete_purchase: "شراء خرسانة",
+  concrete: "شراء خرسانة",
+  cement_deduct: "خصم مديونية",
+  cement_cash_paid: "دفع كاش للأسمنت",
+  cement_credit: "بيع أسمنت برصيد",
+  rakeza_cash_payment: "ركيزة دفعت للمحطة",
+  payment: "دفعة",
+  دفعة: "دفعة",
+  cement: "أسمنت",
+  cement_payment: "دفعة أسمنت",
+  cement_deduction: "خصم أسمنت",
+};
+
+// Direction helper
+function txnDirection(type: string): "credit" | "debit" | null {
+  if (CREDIT_TYPES.has(type)) return "credit";
+  if (DEBIT_TYPES.has(type)) return "debit";
+  return null;
+}
+
+// Legacy aliases used elsewhere in the file (for the per-section tables)
+const DEBT_TYPES = new Set(["concrete_purchase", "concrete"]);
+const DEDUCT_TYPES = new Set(["payment", "دفعة", "rakeza_cash_payment"]);
 const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement_cash_paid", "cement", "أسمنت"]);
 
 export function StationsTab() {
@@ -99,7 +129,7 @@ export function StationsTab() {
         map.set(s.id, {
           id: s.id, name: s.name,
           totalPours: 0,
-          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaDeducted: 0,
+          totalCredit: 0, totalDebit: 0,
           finalBalance: 0,
           totalCost: 0, totalPaid: 0, cementBalance: 0,
         });
@@ -112,39 +142,34 @@ export function StationsTab() {
         if (!acc) return;
         const amt = Number(t.amount) || 0;
         const type = t.transaction_type;
-        if (CONCRETE_ON_RAKEZA.has(type)) {
-          if (t.pour_order_id) {
-            if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
-            const set = seenPour.get(t.station_id)!;
-            if (set.has(t.pour_order_id)) return;
-            set.add(t.pour_order_id);
-          }
-          acc.totalPours++;
-          acc.concreteOnRakeza += amt;
-        } else if (CEMENT_ON_STATION.has(type)) {
-          acc.cementOnStation += amt;
-        } else if (STATION_PAID_TYPES.has(type)) {
-          acc.stationPaid += amt;
-        } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
-          acc.rakezaDeducted += amt;
+        const dir = txnDirection(type);
+        if (!dir) return;
+
+        // Dedup pours by pour_order_id
+        if (DEBT_TYPES.has(type) && t.pour_order_id) {
+          if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
+          const set = seenPour.get(t.station_id)!;
+          if (set.has(t.pour_order_id)) return;
+          set.add(t.pour_order_id);
         }
+        if (DEBT_TYPES.has(type)) acc.totalPours++;
+
+        if (dir === "credit") acc.totalCredit += amt;
+        else acc.totalDebit += amt;
       });
 
       map.forEach((acc) => {
-        // Station debt to Rakeza = cement_sale - (cash_paid + credit)
-        const stationDebt = acc.cementOnStation - acc.stationPaid;
-        // Rakeza debt to Station = concrete_purchase + cement_deduct
-        const rakezaDebt = acc.concreteOnRakeza + acc.rakezaDeducted;
-        // Positive => station owes Rakeza; Negative => Rakeza owes station
-        acc.finalBalance = stationDebt - rakezaDebt;
-        // Legacy fields for PDF/statement compatibility
-        acc.totalCost = acc.concreteOnRakeza;
-        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaDeducted;
-        acc.cementBalance = acc.cementOnStation + acc.stationPaid;
+        // Single rule: balance = credits − debits
+        // Positive => station owes Rakeza (green); Negative => Rakeza owes station (red)
+        acc.finalBalance = acc.totalCredit - acc.totalDebit;
+        // Legacy fields for PDF compatibility
+        acc.totalCost = acc.totalDebit;
+        acc.totalPaid = acc.totalCredit;
+        acc.cementBalance = acc.totalCredit;
       });
 
       return [...map.values()]
-        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaDeducted > 0)
+        .filter(a => a.totalCredit > 0 || a.totalDebit > 0)
         .sort((a, b) => Math.abs(b.finalBalance) - Math.abs(a.finalBalance));
     },
   });
@@ -252,35 +277,59 @@ export function StationsTab() {
   const payments = (statement ?? []).filter((t: any) => DEDUCT_TYPES.has(t.transaction_type) && !CEMENT_DETAIL_TYPES.has(t.transaction_type));
   const cementSales = (statement ?? []).filter((t: any) => CEMENT_DETAIL_TYPES.has(t.transaction_type));
 
-  // Recalculate totals from statement data using the new accounting rule
+  // Recalculate totals from statement data using the new debit/credit rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaDeducted = 0;
+    let totalCredit = 0, totalDebit = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
       const type = t.transaction_type;
-      if (CONCRETE_ON_RAKEZA.has(type)) {
-        if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
-        if (t.pour_order_id) seenPour.add(t.pour_order_id);
-        concreteOnRakeza += amt;
-      } else if (CEMENT_ON_STATION.has(type)) {
-        cementOnStation += amt;
-      } else if (STATION_PAID_TYPES.has(type)) {
-        stationPaid += amt;
-      } else if (RAKEZA_DEDUCT_TYPES.has(type)) {
-        rakezaDeducted += amt;
+      const dir = txnDirection(type);
+      if (!dir) return;
+      // Dedup pours by pour_order_id
+      if (DEBT_TYPES.has(type) && t.pour_order_id) {
+        if (seenPour.has(t.pour_order_id)) return;
+        seenPour.add(t.pour_order_id);
       }
+      if (dir === "credit") totalCredit += amt;
+      else totalDebit += amt;
     });
-    const stationDebt = cementOnStation - stationPaid;
-    const rakezaDebt = concreteOnRakeza + rakezaDeducted;
-    const finalBalance = stationDebt - rakezaDebt;
+    const finalBalance = totalCredit - totalDebit;
     return {
-      concreteOnRakeza, cementOnStation, stationPaid, rakezaDeducted, finalBalance,
-      totalCost: concreteOnRakeza,
-      totalPaid: cementOnStation + stationPaid + rakezaDeducted,
-      cementBalance: cementOnStation + stationPaid,
+      totalCredit, totalDebit, finalBalance,
+      totalCost: totalDebit,
+      totalPaid: totalCredit,
+      cementBalance: totalCredit,
     };
+  })();
+
+  // Build a unified ledger (date-sorted, cumulative balance) for the statement view
+  const ledger = (() => {
+    if (!statement) return [] as Array<any>;
+    const seenPour = new Set<number>();
+    const rows = (statement as any[])
+      .filter((t: any) => {
+        const dir = txnDirection(t.transaction_type);
+        if (!dir) return false;
+        if (DEBT_TYPES.has(t.transaction_type) && t.pour_order_id) {
+          if (seenPour.has(t.pour_order_id)) return false;
+          seenPour.add(t.pour_order_id);
+        }
+        return true;
+      })
+      .map((t: any) => ({
+        ...t,
+        _dir: txnDirection(t.transaction_type)!,
+        _amount: Number(t.amount) || 0,
+      }))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    let running = 0;
+    return rows.map((r) => {
+      running += r._dir === "credit" ? r._amount : -r._amount;
+      return { ...r, _running: running };
+    });
   })();
 
   const buildStationPDFData = (station: StationSummary): StationStatementPDFData => {
@@ -371,37 +420,76 @@ export function StationsTab() {
         {/* Gold stripe */}
         <div style={{ background: "#F5A623", height: 4 }} />
 
-        {/* Summary cards */}
+        {/* Summary cards (debit / credit / balance) */}
         <div style={{ background: "#F8F9FA" }} className="px-5 py-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">خرسانة على ركيزة</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#DC2626" }}>{fmt(totals.totalCost)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">على المحطة لركيزة (إجمالي دائن)</p>
+                <p className="font-cairo font-bold text-lg text-chart-2">{fmt(totals.totalPaid)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">أسمنت (ضمن الخصومات)</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">إجمالي الخصومات</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
+                <p className="text-xs font-cairo text-muted-foreground">على ركيزة للمحطة (إجمالي مدين)</p>
+                <p className="font-cairo font-bold text-lg text-destructive">{fmt(totals.totalCost)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
-                <p className="font-cairo font-bold text-lg" style={{ color: totals.finalBalance > 0 ? "#DC2626" : "#16A34A" }}>
-                  {fmt(totals.finalBalance)}
-                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "ركيزة مدينة للمحطة" : totals.finalBalance < 0 ? "المحطة مدينة لركيزة" : "متساوي"}</span>
+                <p className={`font-cairo font-bold text-lg ${totals.finalBalance > 0 ? "text-chart-2" : totals.finalBalance < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                  {fmt(Math.abs(totals.finalBalance))}
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    {totals.finalBalance > 0 ? "✅ المحطة مدينة لركيزة" : totals.finalBalance < 0 ? "❌ ركيزة مدينة للمحطة" : "متساوي"}
+                  </span>
                 </p>
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Unified ledger (debit/credit + running balance) */}
+        <div className="px-5 py-4">
+          <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>كشف الحساب التفصيلي (مدين/دائن)</h3>
+          {loadingStatement ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : !ledger.length ? (
+            <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد عمليات</p>
+          ) : (
+            <div className="overflow-auto rounded-lg border">
+              <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#1B3A6B" }}>
+                    {["التاريخ", "نوع العملية", "مدين", "دائن", "الرصيد التراكمي"].map((h, idx) => (
+                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.map((r: any, i: number) => (
+                    <tr key={`${r.id}-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
+                      <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString("ar-EG") : "—"}</td>
+                      <td className="font-cairo px-3 py-2.5 text-xs">
+                        <Badge variant="outline" className="text-[10px] font-cairo">
+                          {TXN_LABELS_AR[r.transaction_type] ?? r.transaction_type}
+                        </Badge>
+                      </td>
+                      <td className="font-cairo px-3 py-2.5 text-xs font-bold text-destructive">
+                        {r._dir === "debit" ? fmt(r._amount) : "—"}
+                      </td>
+                      <td className="font-cairo px-3 py-2.5 text-xs font-bold text-chart-2">
+                        {r._dir === "credit" ? fmt(r._amount) : "—"}
+                      </td>
+                      <td className={`font-cairo px-3 py-2.5 text-xs font-bold ${r._running > 0 ? "text-chart-2" : r._running < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                        {fmt(Math.abs(r._running))} {r._running > 0 ? "(دائن)" : r._running < 0 ? "(مدين)" : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Pours table */}
@@ -697,23 +785,15 @@ export function StationsTab() {
 
                   {isAdmin && (
                     <>
-                      {/* 4 buckets grid */}
+                      {/* 2 buckets: credit / debit */}
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">خرسانة على ركيزة</p>
-                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.concreteOnRakeza)}</p>
-                        </div>
                         <div className="rounded-md border border-chart-2/30 bg-chart-2/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">أسمنت على المحطة</p>
-                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.cementOnStation)}</p>
-                        </div>
-                        <div className="rounded-md border border-chart-2/30 bg-chart-2/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">المحطة دفعت</p>
-                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.stationPaid)}</p>
+                          <p className="text-[11px] font-cairo text-muted-foreground">على المحطة لركيزة (دائن)</p>
+                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.totalCredit)}</p>
                         </div>
                         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">خصم من مديونية ركيزة</p>
-                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.rakezaDeducted)}</p>
+                          <p className="text-[11px] font-cairo text-muted-foreground">على ركيزة للمحطة (مدين)</p>
+                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.totalDebit)}</p>
                         </div>
                       </div>
 
