@@ -233,6 +233,7 @@ export function MyClientsTab() {
           estimated_quantity: addQualData.knowsQuantity === "yes" ? addQualData.estimatedQuantity : null,
           has_other_supplier: addQualData.hasOtherSupplier,
           qualification_score: addQualScore,
+          price: addPrice.trim() ? Number(addPrice) : null,
         })
         .select("id")
         .single();
@@ -274,6 +275,7 @@ export function MyClientsTab() {
       setAddClassification("cold");
       setAddNotes("");
       setAddArea("");
+      setAddPrice("");
       setAddPourDate(undefined);
       addRecorder.resetRecording();
       setAddQualData(INITIAL_QUALIFICATION_DATA);
@@ -298,6 +300,7 @@ export function MyClientsTab() {
     setEditClassification(client.status || "active");
     setEditNotes(client.notes || "");
     setEditArea(client.area || "");
+    setEditPrice(client.price != null ? String(client.price) : "");
     setEditPourDate(client.expected_pour_date ? new Date(client.expected_pour_date) : undefined);
     setEditDialogOpen(true);
   };
