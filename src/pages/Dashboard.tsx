@@ -25,6 +25,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ChatPage } from "@/components/chat/ChatPage";
 import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
+import { useDailyReminders } from "@/hooks/useDailyReminders";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "أدمن",
@@ -72,6 +73,7 @@ const Dashboard = () => {
   }, [session, userRole, role, isLoading, navigate]);
 
   useNotificationGenerator();
+  useDailyReminders();
 
   if (isLoading || !role || !ROLE_LABELS[role]) return null;
 

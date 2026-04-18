@@ -11,6 +11,7 @@ import { AISearchBar } from "@/components/sales-rep/AISearchBar";
 import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
 import { ChatPage } from "@/components/chat/ChatPage";
 import { useNotificationGenerator } from "@/hooks/useNotificationGenerator";
+import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { Users, MapPin, LogOut, Target, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +30,7 @@ const SalesRepDashboard = () => {
   }, [session, isLoading, navigate]);
 
   useNotificationGenerator();
+  useDailyReminders();
 
   if (isLoading) return null;
 

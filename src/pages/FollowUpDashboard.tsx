@@ -12,8 +12,10 @@ import { PriceOffersPage } from "@/components/PriceOffersPage";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
 import { ChatPage } from "@/components/chat/ChatPage";
+import { useDailyReminders } from "@/hooks/useDailyReminders";
 
 const FollowUpDashboard = () => {
+  useDailyReminders();
   const navigate = useNavigate();
   const location = useLocation();
   const { session, userRole, isLoading, user } = useAuth();
