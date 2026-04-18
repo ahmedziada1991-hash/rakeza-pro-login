@@ -223,6 +223,32 @@ export function CallLogDialog({ open, onOpenChange, clientId, clientName }: Call
               )}
             </div>
 
+            {/* Next follow-up section */}
+            <div className="space-y-1.5 p-2 border border-primary/30 rounded-md bg-primary/5">
+              <Label className="font-cairo text-xs flex items-center gap-1">
+                <CalendarClock className="h-3.5 w-3.5 text-primary" />
+                موعد المتابعة القادم (اختياري)
+              </Label>
+              <Input
+                type="datetime-local"
+                value={nextFollowupDate}
+                onChange={(e) => setNextFollowupDate(e.target.value)}
+                className="font-cairo h-9 text-sm"
+              />
+              {nextFollowupDate && (
+                <Select value={nextFollowupType} onValueChange={setNextFollowupType}>
+                  <SelectTrigger className="font-cairo h-9">
+                    <SelectValue placeholder="نوع الموعد القادم" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOLLOWUP_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value} className="font-cairo">{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
