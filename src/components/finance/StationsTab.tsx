@@ -250,22 +250,30 @@ export function StationsTab() {
   // Recalculate totals from statement data using the new accounting rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let totalCost = 0, totalPaid = 0, cementBalance = 0;
+    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaPaid = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
       const type = t.transaction_type;
-      if (DEBT_TYPES.has(type)) {
+      if (CONCRETE_ON_RAKEZA.has(type)) {
         if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
-        totalCost += amt;
-      } else if (DEDUCT_TYPES.has(type)) {
-        totalPaid += amt;
-        if (CEMENT_DETAIL_TYPES.has(type)) cementBalance += amt;
+        concreteOnRakeza += amt;
+      } else if (CEMENT_ON_STATION.has(type)) {
+        cementOnStation += amt;
+      } else if (STATION_PAID.has(type)) {
+        stationPaid += amt;
+      } else if (RAKEZA_PAID.has(type)) {
+        rakezaPaid += amt;
       }
     });
-    // New formula: balance = debt - all deductions
-    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost - totalPaid };
+    const finalBalance = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid;
+    return {
+      concreteOnRakeza, cementOnStation, stationPaid, rakezaPaid, finalBalance,
+      totalCost: concreteOnRakeza,
+      totalPaid: cementOnStation + stationPaid + rakezaPaid,
+      cementBalance: cementOnStation + stationPaid,
+    };
   })();
 
   const buildStationPDFData = (station: StationSummary): StationStatementPDFData => {
