@@ -7,12 +7,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Mic, MicOff, Play, Pause, Plus, Clock } from "lucide-react";
+import { Mic, MicOff, Play, Pause, Plus, Clock, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+
+const FOLLOWUP_TYPES = [
+  { value: "phone_followup", label: "متابعة تليفونية" },
+  { value: "field_visit", label: "زيارة ميدانية" },
+  { value: "expected_pour", label: "موعد صبة متوقع" },
+];
+
+const FOLLOWUP_TYPE_LABELS: Record<string, string> = {
+  phone_followup: "متابعة تليفونية",
+  field_visit: "زيارة ميدانية",
+  expected_pour: "موعد صبة متوقع",
+};
 
 const CALL_TYPES = [
   { value: "call", label: "مكالمة" },
@@ -59,6 +72,8 @@ export function CallLogDialog({ open, onOpenChange, clientId, clientName }: Call
   const [callType, setCallType] = useState("call");
   const [callResult, setCallResult] = useState("");
   const [callNotes, setCallNotes] = useState("");
+  const [nextFollowupDate, setNextFollowupDate] = useState("");
+  const [nextFollowupType, setNextFollowupType] = useState("");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const recorder = useAudioRecorder();
 
@@ -96,19 +111,42 @@ export function CallLogDialog({ open, onOpenChange, clientId, clientName }: Call
         result: callResult,
         notes: notes || null,
         audio_url: audioUrl,
+        next_followup_date: nextFollowupDate ? new Date(nextFollowupDate).toISOString() : null,
+        next_followup_type: nextFollowupType || null,
       });
       if (error) throw error;
+
+      // Create follow-up notification if scheduled
+      if (nextFollowupDate && nextFollowupType) {
+        const typeLabel = FOLLOWUP_TYPE_LABELS[nextFollowupType] || "متابعة";
+        const { error: notifErr } = await (supabase as any).from("notifications").insert({
+          user_id: user!.id,
+          type: "followup_reminder",
+          title: `تذكير: ${typeLabel} مع ${clientName}`,
+          body: `موعدك مع ${clientName} اليوم - سجل النتيجة`,
+          scheduled_for: new Date(nextFollowupDate).toISOString(),
+          client_id: typeof clientId === "string" ? Number(clientId) : clientId,
+          is_read: false,
+          metadata: { followup_type: nextFollowupType, client_name: clientName },
+        });
+        if (notifErr) console.error("Notification insert error:", notifErr);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-call-history", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["followup-reminders-today"] });
       setShowNewCall(false);
       setCallResult("");
       setCallNotes("");
       setCallType("call");
+      setNextFollowupDate("");
+      setNextFollowupType("");
       recorder.resetRecording();
       toast({ title: "تم تسجيل المكالمة بنجاح ✅" });
     },
     onError: (err: Error) => {
+      console.error("Save call error:", err);
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
     },
   });
@@ -182,6 +220,32 @@ export function CallLogDialog({ open, onOpenChange, clientId, clientName }: Call
                 <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">
                   🎙️ نص مكتوب: {recorder.transcribedText}
                 </p>
+              )}
+            </div>
+
+            {/* Next follow-up section */}
+            <div className="space-y-1.5 p-2 border border-primary/30 rounded-md bg-primary/5">
+              <Label className="font-cairo text-xs flex items-center gap-1">
+                <CalendarClock className="h-3.5 w-3.5 text-primary" />
+                موعد المتابعة القادم (اختياري)
+              </Label>
+              <Input
+                type="datetime-local"
+                value={nextFollowupDate}
+                onChange={(e) => setNextFollowupDate(e.target.value)}
+                className="font-cairo h-9 text-sm"
+              />
+              {nextFollowupDate && (
+                <Select value={nextFollowupType} onValueChange={setNextFollowupType}>
+                  <SelectTrigger className="font-cairo h-9">
+                    <SelectValue placeholder="نوع الموعد القادم" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOLLOWUP_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value} className="font-cairo">{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </div>
 

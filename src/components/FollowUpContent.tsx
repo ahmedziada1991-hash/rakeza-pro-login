@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useClientPourHistory } from "@/hooks/useClientPourHistory";
 import { AIAssistantDialog } from "@/components/sales-rep/AIAssistantDialog";
+import { FollowupReminders } from "@/components/sales-rep/FollowupReminders";
 import { format, isToday } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -230,6 +231,7 @@ export function FollowUpContent() {
 
   return (
     <div className="space-y-4" dir="rtl">
+      <FollowupReminders />
       <h2 className="text-xl font-cairo font-bold text-foreground">لوحة المتابعة</h2>
 
       {/* Stats cards */}

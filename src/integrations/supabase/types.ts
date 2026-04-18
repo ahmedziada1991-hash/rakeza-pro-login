@@ -57,6 +57,8 @@ export type Database = {
           duration_minutes: number | null
           employee_name: string
           id: string
+          next_followup_date: string | null
+          next_followup_type: string | null
           notes: string | null
           result: string
           user_id: string
@@ -70,6 +72,8 @@ export type Database = {
           duration_minutes?: number | null
           employee_name?: string
           id?: string
+          next_followup_date?: string | null
+          next_followup_type?: string | null
           notes?: string | null
           result?: string
           user_id: string
@@ -83,6 +87,8 @@ export type Database = {
           duration_minutes?: number | null
           employee_name?: string
           id?: string
+          next_followup_date?: string | null
+          next_followup_type?: string | null
           notes?: string | null
           result?: string
           user_id?: string
@@ -233,6 +239,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          client_id: number | null
+          created_at: string
+          id: string
+          is_read: boolean
+          metadata: Json | null
+          scheduled_for: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          client_id?: number | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          scheduled_for?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          client_id?: number | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          scheduled_for?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

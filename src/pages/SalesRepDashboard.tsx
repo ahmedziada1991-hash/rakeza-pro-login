@@ -6,6 +6,7 @@ import { TodayTargets } from "@/components/sales-rep/TodayTargets";
 import { MyClientsTab } from "@/components/sales-rep/MyClientsTab";
 import { FieldTab } from "@/components/sales-rep/FieldTab";
 import { NotificationBell } from "@/components/NotificationBell";
+import { FollowupReminders } from "@/components/sales-rep/FollowupReminders";
 import { AISearchBar } from "@/components/sales-rep/AISearchBar";
 import { ChatHeaderIcon } from "@/components/chat/ChatHeaderIcon";
 import { ChatPage } from "@/components/chat/ChatPage";
@@ -49,6 +50,9 @@ const SalesRepDashboard = () => {
         <ChatPage />
       ) : (
         <main className="p-4 max-w-2xl mx-auto space-y-6 pb-8">
+          {/* Today's follow-up reminders */}
+          <FollowupReminders />
+
           {/* AI Search Bar */}
           <AISearchBar />
 
