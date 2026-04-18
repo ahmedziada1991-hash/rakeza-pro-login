@@ -589,63 +589,118 @@ export function StationsTab() {
           </Button>
         </div>
 
-        {/* Edit Record Dialog */}
-        <Dialog open={!!editRecord} onOpenChange={(open) => !open && setEditRecord(null)}>
-          <DialogContent dir="rtl" className="sm:max-w-sm">
-            <DialogHeader><DialogTitle className="font-cairo text-right">تعديل السجل</DialogTitle></DialogHeader>
-            {editRecord && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">المبلغ</Label>
-                  <Input type="number" value={editRecord.amount} onChange={(e) => setEditRecord((r: any) => ({ ...r, amount: e.target.value }))} className="font-cairo" />
-                </div>
-                {editRecord.transaction_type === "concrete" && (
-                  <>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">الكمية (م³)</Label>
-                      <Input type="number" value={editRecord.quantity_m3 ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, quantity_m3: e.target.value }))} className="font-cairo" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">سعر الشراء/م³</Label>
-                      <Input type="number" value={editRecord.price_per_m3 ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, price_per_m3: e.target.value }))} className="font-cairo" />
-                    </div>
-                  </>
-                )}
-                {(editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale" || editRecord.transaction_type === "cement_deduction") && (
-                  <>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">الكمية (طن)</Label>
-                      <Input type="number" value={editRecord.cement_tons ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, cement_tons: e.target.value }))} className="font-cairo" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">سعر الطن</Label>
-                      <Input type="number" value={editRecord.cement_price_per_ton ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, cement_price_per_ton: e.target.value }))} className="font-cairo" />
-                    </div>
-                  </>
-                )}
-                {(editRecord.transaction_type === "payment" || editRecord.transaction_type === "دفعة") && (
+        {/* Unified Add/Edit Transaction Dialog */}
+        <Dialog open={txnDialogOpen} onOpenChange={(open) => { setTxnDialogOpen(open); if (!open) setTxnForm(emptyTxn); }}>
+          <DialogContent dir="rtl" className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-cairo text-right">
+                {txnForm.id ? "تعديل عملية" : "إضافة عملية جديدة"}
+              </DialogTitle>
+            </DialogHeader>
+            {(() => {
+              const opt = TXN_FORM_OPTIONS.find((o) => o.value === txnForm.transaction_type);
+              const showQty = !!opt?.hasQty;
+              const qtyLabel = opt?.hasQty === "concrete" ? "الكمية (م³)" : "الكمية (طن)";
+              const unitLabel = opt?.hasQty === "concrete" ? "السعر للوحدة (لكل م³)" : "السعر للوحدة (لكل طن)";
+              const dir = txnDirection(txnForm.transaction_type);
+              return (
+                <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label className="font-cairo">طريقة الدفع</Label>
-                    <Select value={editRecord.payment_method ?? ""} onValueChange={(v) => setEditRecord((r: any) => ({ ...r, payment_method: v }))}>
+                    <Label className="font-cairo">نوع العملية *</Label>
+                    <Select
+                      value={txnForm.transaction_type}
+                      onValueChange={(v) => setTxnForm((f) => ({ ...f, transaction_type: v, quantity: "", unit_price: "" }))}
+                    >
                       <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
-                        <SelectItem value="bank_transfer" className="font-cairo">تحويل بنكي</SelectItem>
-                        <SelectItem value="check" className="font-cairo">شيك</SelectItem>
-                        <SelectItem value="concrete_deduction" className="font-cairo">خصم خرسانة</SelectItem>
+                        {TXN_FORM_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value} className="font-cairo">{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[11px] font-cairo text-muted-foreground">
+                      الاتجاه: {dir === "credit" ? "دائن (على المحطة لركيزة) ✅" : dir === "debit" ? "مدين (على ركيزة للمحطة) ❌" : "—"}
+                    </p>
                   </div>
-                )}
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">ملاحظات</Label>
-                  <Textarea value={editRecord.notes ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, notes: e.target.value }))} className="font-cairo" rows={2} />
+
+                  {showQty && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">{qtyLabel}</Label>
+                        <Input
+                          type="number"
+                          value={txnForm.quantity}
+                          onChange={(e) => {
+                            const q = e.target.value;
+                            setTxnForm((f) => {
+                              const next = { ...f, quantity: q };
+                              const qn = Number(q), un = Number(f.unit_price);
+                              if (qn > 0 && un > 0) next.amount = String(qn * un);
+                              return next;
+                            });
+                          }}
+                          className="font-cairo"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">{unitLabel}</Label>
+                        <Input
+                          type="number"
+                          value={txnForm.unit_price}
+                          onChange={(e) => {
+                            const u = e.target.value;
+                            setTxnForm((f) => {
+                              const next = { ...f, unit_price: u };
+                              const qn = Number(f.quantity), un = Number(u);
+                              if (qn > 0 && un > 0) next.amount = String(qn * un);
+                              return next;
+                            });
+                          }}
+                          className="font-cairo"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المبلغ الإجمالي *</Label>
+                    <Input
+                      type="number"
+                      value={txnForm.amount}
+                      onChange={(e) => setTxnForm((f) => ({ ...f, amount: e.target.value }))}
+                      className="font-cairo"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">تاريخ العملية</Label>
+                    <Input
+                      type="date"
+                      value={txnForm.txn_date}
+                      onChange={(e) => setTxnForm((f) => ({ ...f, txn_date: e.target.value }))}
+                      className="font-cairo"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">ملاحظات</Label>
+                    <Textarea
+                      value={txnForm.notes}
+                      onChange={(e) => setTxnForm((f) => ({ ...f, notes: e.target.value }))}
+                      className="font-cairo"
+                      rows={2}
+                      placeholder="ملاحظات تظهر في كشف الحساب"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
-              <Button onClick={handleEditRecord} className="font-cairo">حفظ التعديلات</Button>
-              <Button variant="outline" onClick={() => setEditRecord(null)} className="font-cairo">إلغاء</Button>
+              <Button onClick={handleSaveTxn} className="font-cairo">
+                {txnForm.id ? "حفظ التعديلات" : "إضافة"}
+              </Button>
+              <Button variant="outline" onClick={() => { setTxnDialogOpen(false); setTxnForm(emptyTxn); }} className="font-cairo">إلغاء</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -655,7 +710,7 @@ export function StationsTab() {
           <AlertDialogContent dir="rtl">
             <AlertDialogHeader>
               <AlertDialogTitle className="font-cairo">هل تريد حذف هذا السجل؟</AlertDialogTitle>
-              <AlertDialogDescription className="font-cairo">سيتم حذف السجل نهائياً وتحديث الأرقام.</AlertDialogDescription>
+              <AlertDialogDescription className="font-cairo">سيتم حذف السجل نهائياً وتحديث الأرقام والرصيد.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex gap-2">
               <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
@@ -664,19 +719,6 @@ export function StationsTab() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Delete Cement Sale Confirmation */}
-        <AlertDialog open={!!deleteCementSaleId} onOpenChange={(open) => !open && setDeleteCementSaleId(null)}>
-          <AlertDialogContent dir="rtl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="font-cairo">هل أنت متأكد من حذف هذا السجل؟</AlertDialogTitle>
-              <AlertDialogDescription className="font-cairo">سيتم حذف سجل بيع الأسمنت والسجلات المرتبطة في حساب المحطة نهائياً.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex gap-2">
-              <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteCementSale} className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     );
   }
