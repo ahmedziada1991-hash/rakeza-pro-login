@@ -557,6 +557,10 @@ export function MyClientsTab() {
               <Input value={editArea} onChange={(e) => setEditArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
             </div>
             <div className="space-y-2">
+              <Label className="font-cairo">السعر التقريبي المتفق عليه (ج/م³)</Label>
+              <Input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="مثال: 2500" className="font-cairo" />
+            </div>
+            <div className="space-y-2">
               <Label className="font-cairo">موعد الصبة التقريبي</Label>
               <Popover>
                 <PopoverTrigger asChild>
