@@ -642,6 +642,10 @@ export function MyClientsTab() {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label className="font-cairo">السعر التقريبي المتفق عليه (ج/م³)</Label>
+              <Input type="number" value={addPrice} onChange={(e) => setAddPrice(e.target.value)} placeholder="مثال: 2500" className="font-cairo" />
+            </div>
+            <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
               {addRecorder.transcribedText && (
@@ -673,6 +677,27 @@ export function MyClientsTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={!!deleteClient} onOpenChange={(o) => !o && setDeleteClient(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cairo">تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription className="font-cairo">
+              هل أنت متأكد من حذف العميل "{deleteClient?.name}"؟ لا يمكن التراجع.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteClient && deleteClientMutation.mutate(deleteClient.id)}
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
