@@ -73,13 +73,13 @@ const DEBIT_TYPES = new Set([
   "cement_credit",                 // بيع أسمنت برصيد للمحطة → بيقلل دين المحطة = debit
 ]);
 
-// Arabic labels for transaction types (used in unified ledger)
+// Arabic labels for transaction types (used in unified ledger + dialog dropdown)
 const TXN_LABELS_AR: Record<string, string> = {
-  cement_sale: "بيع أسمنت",
-  concrete_purchase: "شراء خرسانة",
-  concrete: "شراء خرسانة",
-  cement_deduct: "خصم مديونية",
-  cement_cash_paid: "دفع كاش للأسمنت",
+  cement_sale: "بيع أسمنت للمحطة",
+  concrete_purchase: "شراء خرسانة من المحطة",
+  concrete: "شراء خرسانة من المحطة",
+  cement_deduct: "خصم من مديونية ركيزة",
+  cement_cash_paid: "المحطة دفعت كاش للأسمنت",
   cement_credit: "بيع أسمنت برصيد",
   rakeza_cash_payment: "ركيزة دفعت للمحطة",
   payment: "دفعة",
@@ -88,6 +88,15 @@ const TXN_LABELS_AR: Record<string, string> = {
   cement_payment: "دفعة أسمنت",
   cement_deduction: "خصم أسمنت",
 };
+
+// Transaction options for the unified add/edit form (with quantity hints)
+const TXN_FORM_OPTIONS: Array<{ value: string; label: string; hasQty: "cement" | "concrete" | null }> = [
+  { value: "cement_sale", label: "بيع أسمنت للمحطة", hasQty: "cement" },
+  { value: "concrete_purchase", label: "شراء خرسانة من المحطة", hasQty: "concrete" },
+  { value: "cement_deduct", label: "خصم من مديونية ركيزة", hasQty: null },
+  { value: "cement_cash_paid", label: "المحطة دفعت كاش للأسمنت", hasQty: null },
+  { value: "rakeza_cash_payment", label: "ركيزة دفعت للمحطة", hasQty: null },
+];
 
 // Direction helper
 function txnDirection(type: string): "credit" | "debit" | null {
