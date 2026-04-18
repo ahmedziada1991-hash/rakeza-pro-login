@@ -182,18 +182,37 @@ export function FieldTab() {
   });
 
   const transferMutation = useMutation({
-    mutationFn: async ({ clientId, newStatus }: { clientId: number; newStatus: string }) => {
+    mutationFn: async ({ client, newStatus }: { client: any; newStatus: string }) => {
+      // Fetch latest price for accuracy
+      const { data: full } = await (supabase as any)
+        .from("clients").select("price, name").eq("id", client.id).maybeSingle();
       const { error } = await (supabase as any)
         .from("clients")
         .update({ status: newStatus })
-        .eq("id", clientId);
+        .eq("id", client.id);
       if (error) throw error;
+      return { client: { ...client, ...(full || {}) }, newStatus };
     },
-    onSuccess: (_, { newStatus }) => {
+    onSuccess: ({ client, newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["my-field-visits-today"] });
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
       const label = newStatus === "contacted" ? "المتابعة" : "التنفيذ";
-      toast({ title: `تم تحويل العميل لـ${label} ✅` });
+      if (newStatus === "contacted") {
+        if (client.price != null && client.price !== "") {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label} ✅`,
+            description: `السعر المتفق عليه: ${client.price} ج/م³`,
+          });
+        } else {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label}`,
+            description: "⚠️ تنبيه: لم يتم تسجيل السعر لهذا العميل",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({ title: `تم تحويل ${client.name} لـ${label} ✅` });
+      }
     },
     onError: (err: Error) => {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
