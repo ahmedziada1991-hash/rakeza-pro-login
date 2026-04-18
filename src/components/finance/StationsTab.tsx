@@ -665,8 +665,8 @@ export function StationsTab() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {filtered.map((a) => {
-            const isRakezaDebt = a.finalBalance > 0;
-            const isStationDebt = a.finalBalance < 0;
+            const isStationDebt = a.finalBalance > 0;   // station owes Rakeza (green ✅)
+            const isRakezaDebt = a.finalBalance < 0;    // Rakeza owes station (red ❌)
             return (
               <Card
                 key={a.id}
@@ -684,14 +684,14 @@ export function StationsTab() {
                     </div>
                     <Badge
                       className={`font-cairo text-[10px] ${
-                        isRakezaDebt
-                          ? "bg-destructive/15 text-destructive hover:bg-destructive/15"
-                          : isStationDebt
+                        isStationDebt
                           ? "bg-chart-2/15 text-chart-2 hover:bg-chart-2/15"
+                          : isRakezaDebt
+                          ? "bg-destructive/15 text-destructive hover:bg-destructive/15"
                           : "bg-muted text-muted-foreground hover:bg-muted"
                       }`}
                     >
-                      {isRakezaDebt ? "على ركيزة" : isStationDebt ? "على المحطة" : "متساوي"}
+                      {isStationDebt ? "✅ على المحطة" : isRakezaDebt ? "❌ على ركيزة" : "متساوي"}
                     </Badge>
                   </div>
 
@@ -712,29 +712,32 @@ export function StationsTab() {
                           <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.stationPaid)}</p>
                         </div>
                         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
-                          <p className="text-[11px] font-cairo text-muted-foreground">ركيزة دفعت</p>
-                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.rakezaPaid)}</p>
+                          <p className="text-[11px] font-cairo text-muted-foreground">خصم من مديونية ركيزة</p>
+                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.rakezaDeducted)}</p>
                         </div>
                       </div>
 
                       {/* Final balance */}
                       <div
                         className={`rounded-md p-2.5 border-2 ${
-                          isRakezaDebt
-                            ? "border-destructive/40 bg-destructive/10"
-                            : isStationDebt
+                          isStationDebt
                             ? "border-chart-2/40 bg-chart-2/10"
+                            : isRakezaDebt
+                            ? "border-destructive/40 bg-destructive/10"
                             : "border-muted bg-muted/30"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-xs font-cairo font-semibold text-muted-foreground">الرصيد النهائي</p>
                           <p
-                            className={`font-cairo font-bold text-base ${
-                              isRakezaDebt ? "text-destructive" : isStationDebt ? "text-chart-2" : "text-muted-foreground"
+                            className={`font-cairo font-bold text-base text-left ${
+                              isStationDebt ? "text-chart-2" : isRakezaDebt ? "text-destructive" : "text-muted-foreground"
                             }`}
                           >
                             {fmt(Math.abs(a.finalBalance))}
+                            <span className="block text-[10px] font-normal">
+                              {isStationDebt ? "المحطة مدينة لركيزة" : isRakezaDebt ? "ركيزة مدينة للمحطة" : "متساوي"}
+                            </span>
                           </p>
                         </div>
                       </div>
