@@ -218,8 +218,8 @@ export function StationsTab() {
   };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
-  // Deduplicate pours
-  const poursAll = (statement ?? []).filter((t: any) => t.transaction_type === "concrete");
+  // Deduplicate pours (treat both legacy "concrete" and new "concrete_purchase" as pours)
+  const poursAll = (statement ?? []).filter((t: any) => DEBT_TYPES.has(t.transaction_type));
   const seen = new Set<number>();
   const pours = poursAll.filter((t: any) => {
     if (!t.pour_order_id) return true;
@@ -227,32 +227,28 @@ export function StationsTab() {
     seen.add(t.pour_order_id);
     return true;
   });
-  const payments = (statement ?? []).filter((t: any) => t.transaction_type === "payment" || t.transaction_type === "دفعة" || t.transaction_type === "cement_payment" || t.transaction_type === "cement_deduction");
-  const cementSales = (statement ?? []).filter((t: any) => t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale");
+  const payments = (statement ?? []).filter((t: any) => DEDUCT_TYPES.has(t.transaction_type) && !CEMENT_DETAIL_TYPES.has(t.transaction_type));
+  const cementSales = (statement ?? []).filter((t: any) => CEMENT_DETAIL_TYPES.has(t.transaction_type));
 
-  // Recalculate totals from statement data
+  // Recalculate totals from statement data using the new accounting rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
     let totalCost = 0, totalPaid = 0, cementBalance = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
-      if (t.transaction_type === "concrete") {
+      const type = t.transaction_type;
+      if (DEBT_TYPES.has(type)) {
         if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
         totalCost += amt;
-      } else if (
-        t.transaction_type === "payment" ||
-        t.transaction_type === "دفعة" ||
-        t.transaction_type === "cement_payment" ||
-        t.transaction_type === "cement_deduction"
-      ) {
+      } else if (DEDUCT_TYPES.has(type)) {
         totalPaid += amt;
-      } else if (t.transaction_type === "cement" || t.transaction_type === "أسمنت" || t.transaction_type === "cement_sale") {
-        cementBalance += amt;
+        if (CEMENT_DETAIL_TYPES.has(type)) cementBalance += amt;
       }
     });
-    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost + cementBalance - totalPaid };
+    // New formula: balance = debt - all deductions
+    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost - totalPaid };
   })();
 
   const buildStationPDFData = (station: StationSummary): StationStatementPDFData => {
