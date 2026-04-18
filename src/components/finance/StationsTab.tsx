@@ -22,7 +22,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Search, ArrowRight, Download, Send, Pencil, Trash2 } from "lucide-react";
+import { Search, ArrowRight, Download, Send, Pencil, Trash2, Plus } from "lucide-react";
 import { sendStatementWhatsApp } from "@/lib/statement-pdf";
 import { generateStationStatementPDF, StationStatementPDFData } from "@/lib/station-statement-pdf";
 import { toast } from "sonner";
@@ -73,13 +73,13 @@ const DEBIT_TYPES = new Set([
   "cement_credit",                 // بيع أسمنت برصيد للمحطة → بيقلل دين المحطة = debit
 ]);
 
-// Arabic labels for transaction types (used in unified ledger)
+// Arabic labels for transaction types (used in unified ledger + dialog dropdown)
 const TXN_LABELS_AR: Record<string, string> = {
-  cement_sale: "بيع أسمنت",
-  concrete_purchase: "شراء خرسانة",
-  concrete: "شراء خرسانة",
-  cement_deduct: "خصم مديونية",
-  cement_cash_paid: "دفع كاش للأسمنت",
+  cement_sale: "بيع أسمنت للمحطة",
+  concrete_purchase: "شراء خرسانة من المحطة",
+  concrete: "شراء خرسانة من المحطة",
+  cement_deduct: "خصم من مديونية ركيزة",
+  cement_cash_paid: "المحطة دفعت كاش للأسمنت",
   cement_credit: "بيع أسمنت برصيد",
   rakeza_cash_payment: "ركيزة دفعت للمحطة",
   payment: "دفعة",
@@ -88,6 +88,15 @@ const TXN_LABELS_AR: Record<string, string> = {
   cement_payment: "دفعة أسمنت",
   cement_deduction: "خصم أسمنت",
 };
+
+// Transaction options for the unified add/edit form (with quantity hints)
+const TXN_FORM_OPTIONS: Array<{ value: string; label: string; hasQty: "cement" | "concrete" | null }> = [
+  { value: "cement_sale", label: "بيع أسمنت للمحطة", hasQty: "cement" },
+  { value: "concrete_purchase", label: "شراء خرسانة من المحطة", hasQty: "concrete" },
+  { value: "cement_deduct", label: "خصم من مديونية ركيزة", hasQty: null },
+  { value: "cement_cash_paid", label: "المحطة دفعت كاش للأسمنت", hasQty: null },
+  { value: "rakeza_cash_payment", label: "ركيزة دفعت للمحطة", hasQty: null },
+];
 
 // Direction helper
 function txnDirection(type: string): "credit" | "debit" | null {
@@ -107,9 +116,29 @@ export function StationsTab() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedStation, setSelectedStation] = useState<StationSummary | null>(null);
-  const [editRecord, setEditRecord] = useState<any>(null);
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
-  const [deleteCementSaleId, setDeleteCementSaleId] = useState<number | null>(null);
+
+  // Unified add/edit dialog
+  type TxnForm = {
+    id: number | null;
+    transaction_type: string;
+    quantity: string;
+    unit_price: string;
+    amount: string;
+    txn_date: string; // yyyy-mm-dd
+    notes: string;
+  };
+  const emptyTxn: TxnForm = {
+    id: null,
+    transaction_type: "cement_sale",
+    quantity: "",
+    unit_price: "",
+    amount: "",
+    txn_date: new Date().toISOString().slice(0, 10),
+    notes: "",
+  };
+  const [txnDialogOpen, setTxnDialogOpen] = useState(false);
+  const [txnForm, setTxnForm] = useState<TxnForm>(emptyTxn);
 
   const { data: accounts, isLoading } = useQuery({
     queryKey: ["finance-stations-tab"],
@@ -206,29 +235,68 @@ export function StationsTab() {
     queryClient.invalidateQueries({ queryKey: ["finance-stations-tab"] });
   };
 
-  const handleEditRecord = async () => {
-    if (!editRecord) return;
-    const updateData: any = {
-      amount: Number(editRecord.amount),
-      notes: editRecord.notes || null,
-      payment_method: editRecord.payment_method || null,
+  const openAddTxn = () => {
+    setTxnForm({ ...emptyTxn, txn_date: new Date().toISOString().slice(0, 10) });
+    setTxnDialogOpen(true);
+  };
+
+  const openEditTxn = (row: any) => {
+    // Map the row back to the unified form
+    const t = row.transaction_type;
+    const qty = row.quantity_m3 ?? row.cement_tons ?? "";
+    const unit = row.price_per_m3 ?? row.cement_price_per_ton ?? "";
+    setTxnForm({
+      id: row.id,
+      transaction_type: t === "concrete" ? "concrete_purchase" : t,
+      quantity: qty != null ? String(qty) : "",
+      unit_price: unit != null ? String(unit) : "",
+      amount: String(row.amount ?? ""),
+      txn_date: row.created_at ? new Date(row.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      notes: row.notes ?? "",
+    });
+    setTxnDialogOpen(true);
+  };
+
+  const handleSaveTxn = async () => {
+    if (!selectedStation) return;
+    const amt = Number(txnForm.amount) || 0;
+    if (amt <= 0) { toast.error("أدخل المبلغ الإجمالي"); return; }
+    const opt = TXN_FORM_OPTIONS.find((o) => o.value === txnForm.transaction_type);
+    if (!opt) { toast.error("اختر نوع العملية"); return; }
+
+    const payload: any = {
+      station_id: selectedStation.id,
+      transaction_type: txnForm.transaction_type,
+      amount: amt,
+      notes: txnForm.notes || null,
+      created_at: txnForm.txn_date ? new Date(txnForm.txn_date).toISOString() : new Date().toISOString(),
+      // reset both qty fields then set the relevant ones
+      quantity_m3: null,
+      price_per_m3: null,
+      cement_tons: null,
+      cement_price_per_ton: null,
     };
-    if (editRecord.transaction_type === "concrete") {
-      updateData.quantity_m3 = editRecord.quantity_m3 ? Number(editRecord.quantity_m3) : null;
-      updateData.price_per_m3 = editRecord.price_per_m3 ? Number(editRecord.price_per_m3) : null;
+    const qty = txnForm.quantity ? Number(txnForm.quantity) : null;
+    const unit = txnForm.unit_price ? Number(txnForm.unit_price) : null;
+    if (opt.hasQty === "concrete") {
+      payload.quantity_m3 = qty;
+      payload.price_per_m3 = unit;
+    } else if (opt.hasQty === "cement") {
+      payload.cement_tons = qty;
+      payload.cement_price_per_ton = unit;
     }
-    if (editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale") {
-      updateData.cement_tons = editRecord.cement_tons ? Number(editRecord.cement_tons) : null;
-      updateData.cement_price_per_ton = editRecord.cement_price_per_ton ? Number(editRecord.cement_price_per_ton) : null;
-    }
-    const { error } = await supabase.from("station_accounts" as any).update(updateData).eq("id", editRecord.id);
+
+    const { error } = txnForm.id
+      ? await supabase.from("station_accounts" as any).update(payload).eq("id", txnForm.id)
+      : await supabase.from("station_accounts" as any).insert(payload);
+
     if (error) {
-      toast.error("فشل التحديث");
-    } else {
-      toast.success("تم التحديث بنجاح");
-      invalidateStation();
+      toast.error(txnForm.id ? "فشل التعديل" : "فشل الإضافة");
+      return;
     }
-    setEditRecord(null);
+    toast.success(txnForm.id ? "تم التعديل بنجاح ✅" : "تمت الإضافة بنجاح ✅");
+    setTxnDialogOpen(false);
+    invalidateStation();
   };
 
   const handleDeleteRecord = async () => {
@@ -243,26 +311,6 @@ export function StationsTab() {
     setDeleteRecordId(null);
   };
 
-  const handleDeleteCementSale = async () => {
-    if (!deleteCementSaleId) return;
-    // Get the sale record first to find related station_accounts
-    const { data: sale } = await supabase.from("cement_sales" as any).select("*").eq("id", deleteCementSaleId).single();
-    if (sale) {
-      // Delete related station_accounts by matching created_at and station_id
-      await supabase.from("station_accounts" as any).delete()
-        .eq("station_id", sale.station_id)
-        .eq("created_at", sale.created_at);
-    }
-    // Delete the cement_sales record
-    const { error } = await supabase.from("cement_sales" as any).delete().eq("id", deleteCementSaleId);
-    if (error) {
-      toast.error("فشل الحذف");
-    } else {
-      toast.success("تم الحذف بنجاح");
-      invalidateStation();
-    }
-    setDeleteCementSaleId(null);
-  };
   const filtered = (accounts ?? []).filter((a) => a.name.includes(search));
 
   // Deduplicate pours (treat both legacy "concrete" and new "concrete_purchase" as pours)
@@ -449,9 +497,17 @@ export function StationsTab() {
           </div>
         </div>
 
-        {/* Unified ledger (debit/credit + running balance) */}
+        {/* Unified ledger (debit/credit + running balance + notes + actions) */}
         <div className="px-5 py-4">
-          <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>كشف الحساب التفصيلي (مدين/دائن)</h3>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 className="font-cairo font-bold" style={{ color: "#1B3A6B", fontSize: 16 }}>كشف الحساب التفصيلي</h3>
+            {isAdmin && (
+              <Button onClick={openAddTxn} size="sm" className="font-cairo gap-1 text-white" style={{ background: "#1B3A6B" }}>
+                <Plus className="h-4 w-4" />
+                إضافة عملية
+              </Button>
+            )}
+          </div>
           {loadingStatement ? (
             <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
           ) : !ledger.length ? (
@@ -461,115 +517,43 @@ export function StationsTab() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "نوع العملية", "مدين", "دائن", "الرصيد التراكمي"].map((h, idx) => (
+                    {["التاريخ", "نوع العملية", "الكمية", "مدين", "دائن", "الملاحظات", "الرصيد التراكمي", ...(isAdmin ? [""] : [])].map((h, idx) => (
                       <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {ledger.map((r: any, i: number) => (
-                    <tr key={`${r.id}-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
-                      <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString("ar-EG") : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">
-                        <Badge variant="outline" className="text-[10px] font-cairo">
-                          {TXN_LABELS_AR[r.transaction_type] ?? r.transaction_type}
-                        </Badge>
-                      </td>
-                      <td className="font-cairo px-3 py-2.5 text-xs font-bold text-destructive">
-                        {r._dir === "debit" ? fmt(r._amount) : "—"}
-                      </td>
-                      <td className="font-cairo px-3 py-2.5 text-xs font-bold text-chart-2">
-                        {r._dir === "credit" ? fmt(r._amount) : "—"}
-                      </td>
-                      <td className={`font-cairo px-3 py-2.5 text-xs font-bold ${r._running > 0 ? "text-chart-2" : r._running < 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                        {fmt(Math.abs(r._running))} {r._running > 0 ? "(دائن)" : r._running < 0 ? "(مدين)" : ""}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Pours table */}
-        <div className="px-5 py-4">
-          <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>صبات الخرسانة</h3>
-          {loadingStatement ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-          ) : !pours.length ? (
-            <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد صبات</p>
-          ) : (
-            <div className="overflow-auto rounded-lg border">
-              <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "اسم العميل", "الكمية (م³)", "سعر الشراء", "الإجمالي", ...(isAdmin ? [""] : [])].map((h, idx) => (
-                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pours.map((t: any, i: number) => (
-                    <tr key={t.id} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.client_name || extractClientName(t.notes)}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.quantity_m3 ?? "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.price_per_m3 ? fmt(Number(t.price_per_m3)) : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs font-bold">{fmt(Number(t.amount) || 0)}</td>
-                      {isAdmin && (
-                        <td className="px-2 py-2.5 print:hidden">
-                          <div className="flex gap-1">
-                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
-                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Cement Sales - from cement_sales table */}
-        {(cementSalesData ?? []).length > 0 && (
-          <div className="px-5 py-4">
-            <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>مبيعات الأسمنت</h3>
-            <div className="overflow-auto rounded-lg border">
-              <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "الكمية (طن)", "سعر الطن", "الإجمالي", "طريقة الدفع", "كاش مدفوع", "خصم من مديونية", "الرصيد المتبقي", "ملاحظات", ...(isAdmin ? [""] : [])].map((h, idx) => (
-                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(cementSalesData ?? []).map((s: any, i: number) => {
-                    const saleTotal = Number(s.total_amount) || (Number(s.quantity_tons) * Number(s.sale_price_per_ton || s.price_per_ton));
-                    const cashPaid = Number(s.cash_amount) || 0;
-                    const deducted = Number(s.concrete_deduction_amount) || 0;
-                    const remaining = saleTotal - cashPaid - deducted;
+                  {ledger.map((r: any, i: number) => {
+                    const qty = r.quantity_m3 ?? r.cement_tons;
+                    const qtyUnit = r.quantity_m3 != null ? "م³" : r.cement_tons != null ? "طن" : "";
                     return (
-                      <tr key={s.id} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
-                        <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">{s.created_at ? new Date(s.created_at).toLocaleDateString("ar-EG") : "—"}</td>
-                        <td className="font-cairo px-3 py-2.5 text-xs">{s.quantity_tons ?? "—"}</td>
-                        <td className="font-cairo px-3 py-2.5 text-xs">{s.sale_price_per_ton ? fmt(Number(s.sale_price_per_ton)) : (s.price_per_ton ? fmt(Number(s.price_per_ton)) : "—")}</td>
-                        <td className="font-cairo px-3 py-2.5 text-xs font-bold">{fmt(saleTotal)}</td>
+                      <tr key={`${r.id}-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
+                        <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleDateString("ar-EG") : "—"}</td>
                         <td className="font-cairo px-3 py-2.5 text-xs">
-                          <Badge variant="outline" className="text-[10px] whitespace-nowrap">{METHOD_LABELS[s.payment_method] ?? s.payment_method ?? "—"}</Badge>
+                          <Badge variant="outline" className="text-[10px] font-cairo whitespace-nowrap">
+                            {TXN_LABELS_AR[r.transaction_type] ?? r.transaction_type}
+                          </Badge>
                         </td>
-                        <td className="font-cairo px-3 py-2.5 text-xs" style={{ color: cashPaid > 0 ? "#16A34A" : undefined }}>{cashPaid > 0 ? fmt(cashPaid) : "—"}</td>
-                        <td className="font-cairo px-3 py-2.5 text-xs" style={{ color: deducted > 0 ? "#F59E0B" : undefined }}>{deducted > 0 ? fmt(deducted) : "—"}</td>
-                        <td className="font-cairo px-3 py-2.5 text-xs font-bold" style={{ color: remaining > 0 ? "#DC2626" : "#16A34A" }}>{fmt(remaining)}</td>
-                        <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{s.notes ?? "—"}</td>
+                        <td className="font-cairo px-3 py-2.5 text-xs whitespace-nowrap">
+                          {qty != null ? `${qty} ${qtyUnit}` : "—"}
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs font-bold text-destructive">
+                          {r._dir === "debit" ? fmt(r._amount) : "—"}
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs font-bold text-chart-2">
+                          {r._dir === "credit" ? fmt(r._amount) : "—"}
+                        </td>
+                        <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[180px]" title={r.notes ?? ""}>
+                          {r.notes || "—"}
+                        </td>
+                        <td className={`font-cairo px-3 py-2.5 text-xs font-bold whitespace-nowrap ${r._running > 0 ? "text-chart-2" : r._running < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                          {fmt(Math.abs(r._running))} {r._running > 0 ? "(دائن)" : r._running < 0 ? "(مدين)" : ""}
+                        </td>
                         {isAdmin && (
                           <td className="px-2 py-2.5 print:hidden">
                             <div className="flex gap-1">
-                              <button onClick={() => setEditRecord({ ...s, _source: "cement_sales" })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => setDeleteCementSaleId(s.id)} className="text-destructive hover:text-destructive/80"><Trash2 className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => openEditTxn(r)} className="text-muted-foreground hover:text-primary" title="تعديل"><Pencil className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setDeleteRecordId(r.id)} className="text-destructive hover:text-destructive/80" title="حذف"><Trash2 className="h-3.5 w-3.5" /></button>
                             </div>
                           </td>
                         )}
@@ -579,48 +563,9 @@ export function StationsTab() {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
-
-        {/* Payments */}
-        <div className="px-5 py-4">
-          <h3 className="font-cairo font-bold mb-3" style={{ color: "#1B3A6B", fontSize: 16 }}>المدفوعات</h3>
-          {!payments.length ? (
-            <p className="text-center text-muted-foreground font-cairo py-6 text-sm">لا توجد مدفوعات</p>
-          ) : (
-            <div className="overflow-auto rounded-lg border">
-              <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#1B3A6B" }}>
-                    {["التاريخ", "المبلغ", "طريقة الدفع", "ملاحظات", ...(isAdmin ? [""] : [])].map((h, idx) => (
-                      <th key={idx} className="font-cairo text-white text-right px-3 py-2.5 text-xs">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((t: any, i: number) => (
-                    <tr key={t.id} style={{ background: i % 2 === 0 ? "#fff" : "#F0F4FF", borderBottom: "1px solid #E5E7EB" }}>
-                      <td className="font-cairo px-3 py-2.5 text-xs">{t.created_at ? new Date(t.created_at).toLocaleDateString("ar-EG") : "—"}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs font-bold" style={{ color: "#16A34A" }}>{fmt(Number(t.amount) || 0)}</td>
-                      <td className="font-cairo px-3 py-2.5 text-xs">
-                        <Badge variant="outline" className="text-[10px]">{METHOD_LABELS[t.payment_method] ?? t.payment_method ?? "—"}</Badge>
-                      </td>
-                      <td className="font-cairo px-3 py-2.5 text-xs text-muted-foreground truncate max-w-[120px]">{t.notes ?? "—"}</td>
-                      {isAdmin && (
-                        <td className="px-2 py-2.5 print:hidden">
-                          <div className="flex gap-1">
-                            <button onClick={() => setEditRecord({ ...t })} className="text-muted-foreground hover:text-primary"><Pencil className="h-3.5 w-3.5" /></button>
-                            <button onClick={() => setDeleteRecordId(t.id)} className="text-red-500 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           )}
         </div>
+
 
         {/* Footer */}
         <div style={{ background: "#F5A623", height: 4 }} className="mt-4" />
@@ -644,63 +589,118 @@ export function StationsTab() {
           </Button>
         </div>
 
-        {/* Edit Record Dialog */}
-        <Dialog open={!!editRecord} onOpenChange={(open) => !open && setEditRecord(null)}>
-          <DialogContent dir="rtl" className="sm:max-w-sm">
-            <DialogHeader><DialogTitle className="font-cairo text-right">تعديل السجل</DialogTitle></DialogHeader>
-            {editRecord && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">المبلغ</Label>
-                  <Input type="number" value={editRecord.amount} onChange={(e) => setEditRecord((r: any) => ({ ...r, amount: e.target.value }))} className="font-cairo" />
-                </div>
-                {editRecord.transaction_type === "concrete" && (
-                  <>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">الكمية (م³)</Label>
-                      <Input type="number" value={editRecord.quantity_m3 ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, quantity_m3: e.target.value }))} className="font-cairo" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">سعر الشراء/م³</Label>
-                      <Input type="number" value={editRecord.price_per_m3 ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, price_per_m3: e.target.value }))} className="font-cairo" />
-                    </div>
-                  </>
-                )}
-                {(editRecord.transaction_type === "cement" || editRecord.transaction_type === "cement_sale" || editRecord.transaction_type === "cement_deduction") && (
-                  <>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">الكمية (طن)</Label>
-                      <Input type="number" value={editRecord.cement_tons ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, cement_tons: e.target.value }))} className="font-cairo" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="font-cairo">سعر الطن</Label>
-                      <Input type="number" value={editRecord.cement_price_per_ton ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, cement_price_per_ton: e.target.value }))} className="font-cairo" />
-                    </div>
-                  </>
-                )}
-                {(editRecord.transaction_type === "payment" || editRecord.transaction_type === "دفعة") && (
+        {/* Unified Add/Edit Transaction Dialog */}
+        <Dialog open={txnDialogOpen} onOpenChange={(open) => { setTxnDialogOpen(open); if (!open) setTxnForm(emptyTxn); }}>
+          <DialogContent dir="rtl" className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-cairo text-right">
+                {txnForm.id ? "تعديل عملية" : "إضافة عملية جديدة"}
+              </DialogTitle>
+            </DialogHeader>
+            {(() => {
+              const opt = TXN_FORM_OPTIONS.find((o) => o.value === txnForm.transaction_type);
+              const showQty = !!opt?.hasQty;
+              const qtyLabel = opt?.hasQty === "concrete" ? "الكمية (م³)" : "الكمية (طن)";
+              const unitLabel = opt?.hasQty === "concrete" ? "السعر للوحدة (لكل م³)" : "السعر للوحدة (لكل طن)";
+              const dir = txnDirection(txnForm.transaction_type);
+              return (
+                <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label className="font-cairo">طريقة الدفع</Label>
-                    <Select value={editRecord.payment_method ?? ""} onValueChange={(v) => setEditRecord((r: any) => ({ ...r, payment_method: v }))}>
+                    <Label className="font-cairo">نوع العملية *</Label>
+                    <Select
+                      value={txnForm.transaction_type}
+                      onValueChange={(v) => setTxnForm((f) => ({ ...f, transaction_type: v, quantity: "", unit_price: "" }))}
+                    >
                       <SelectTrigger className="font-cairo"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash" className="font-cairo">كاش</SelectItem>
-                        <SelectItem value="bank_transfer" className="font-cairo">تحويل بنكي</SelectItem>
-                        <SelectItem value="check" className="font-cairo">شيك</SelectItem>
-                        <SelectItem value="concrete_deduction" className="font-cairo">خصم خرسانة</SelectItem>
+                        {TXN_FORM_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value} className="font-cairo">{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[11px] font-cairo text-muted-foreground">
+                      الاتجاه: {dir === "credit" ? "دائن (على المحطة لركيزة) ✅" : dir === "debit" ? "مدين (على ركيزة للمحطة) ❌" : "—"}
+                    </p>
                   </div>
-                )}
-                <div className="space-y-1.5">
-                  <Label className="font-cairo">ملاحظات</Label>
-                  <Textarea value={editRecord.notes ?? ""} onChange={(e) => setEditRecord((r: any) => ({ ...r, notes: e.target.value }))} className="font-cairo" rows={2} />
+
+                  {showQty && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">{qtyLabel}</Label>
+                        <Input
+                          type="number"
+                          value={txnForm.quantity}
+                          onChange={(e) => {
+                            const q = e.target.value;
+                            setTxnForm((f) => {
+                              const next = { ...f, quantity: q };
+                              const qn = Number(q), un = Number(f.unit_price);
+                              if (qn > 0 && un > 0) next.amount = String(qn * un);
+                              return next;
+                            });
+                          }}
+                          className="font-cairo"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="font-cairo">{unitLabel}</Label>
+                        <Input
+                          type="number"
+                          value={txnForm.unit_price}
+                          onChange={(e) => {
+                            const u = e.target.value;
+                            setTxnForm((f) => {
+                              const next = { ...f, unit_price: u };
+                              const qn = Number(f.quantity), un = Number(u);
+                              if (qn > 0 && un > 0) next.amount = String(qn * un);
+                              return next;
+                            });
+                          }}
+                          className="font-cairo"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">المبلغ الإجمالي *</Label>
+                    <Input
+                      type="number"
+                      value={txnForm.amount}
+                      onChange={(e) => setTxnForm((f) => ({ ...f, amount: e.target.value }))}
+                      className="font-cairo"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">تاريخ العملية</Label>
+                    <Input
+                      type="date"
+                      value={txnForm.txn_date}
+                      onChange={(e) => setTxnForm((f) => ({ ...f, txn_date: e.target.value }))}
+                      className="font-cairo"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="font-cairo">ملاحظات</Label>
+                    <Textarea
+                      value={txnForm.notes}
+                      onChange={(e) => setTxnForm((f) => ({ ...f, notes: e.target.value }))}
+                      className="font-cairo"
+                      rows={2}
+                      placeholder="ملاحظات تظهر في كشف الحساب"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <DialogFooter className="flex-row-reverse gap-2 sm:justify-start">
-              <Button onClick={handleEditRecord} className="font-cairo">حفظ التعديلات</Button>
-              <Button variant="outline" onClick={() => setEditRecord(null)} className="font-cairo">إلغاء</Button>
+              <Button onClick={handleSaveTxn} className="font-cairo">
+                {txnForm.id ? "حفظ التعديلات" : "إضافة"}
+              </Button>
+              <Button variant="outline" onClick={() => { setTxnDialogOpen(false); setTxnForm(emptyTxn); }} className="font-cairo">إلغاء</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -710,7 +710,7 @@ export function StationsTab() {
           <AlertDialogContent dir="rtl">
             <AlertDialogHeader>
               <AlertDialogTitle className="font-cairo">هل تريد حذف هذا السجل؟</AlertDialogTitle>
-              <AlertDialogDescription className="font-cairo">سيتم حذف السجل نهائياً وتحديث الأرقام.</AlertDialogDescription>
+              <AlertDialogDescription className="font-cairo">سيتم حذف السجل نهائياً وتحديث الأرقام والرصيد.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex gap-2">
               <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
@@ -719,19 +719,6 @@ export function StationsTab() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Delete Cement Sale Confirmation */}
-        <AlertDialog open={!!deleteCementSaleId} onOpenChange={(open) => !open && setDeleteCementSaleId(null)}>
-          <AlertDialogContent dir="rtl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="font-cairo">هل أنت متأكد من حذف هذا السجل؟</AlertDialogTitle>
-              <AlertDialogDescription className="font-cairo">سيتم حذف سجل بيع الأسمنت والسجلات المرتبطة في حساب المحطة نهائياً.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex gap-2">
-              <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteCementSale} className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     );
   }
