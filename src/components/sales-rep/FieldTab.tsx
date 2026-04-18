@@ -314,14 +314,14 @@ export function FieldTab() {
                     )}
                     {client && (
                       <Button size="sm" variant="outline" className="font-cairo text-xs gap-1 text-primary border-primary/30 hover:bg-primary/10"
-                        onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "contacted" })}>
+                        onClick={() => transferMutation.mutate({ client, newStatus: "contacted" })}>
                         <ArrowRightLeft className="h-3.5 w-3.5" />
                         تحويل لمتابعة
                       </Button>
                     )}
                     {client && (
                       <Button size="sm" variant="outline" className="font-cairo text-xs gap-1 text-chart-4 border-chart-4/30 hover:bg-chart-4/10"
-                        onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "execution" })}>
+                        onClick={() => transferMutation.mutate({ client, newStatus: "execution" })}>
                         <ArrowRightLeft className="h-3.5 w-3.5" />
                         تحويل لتنفيذ
                       </Button>
