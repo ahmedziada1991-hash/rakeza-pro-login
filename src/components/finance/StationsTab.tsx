@@ -49,19 +49,26 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  totalCost: number;        // الدين على ركيزة (concrete_purchase + legacy concrete)
-  totalPaid: number;        // الخصومات (cement_sale/deduct/credit + rakeza_cash_payment + legacy)
-  cementBalance: number;    // أسمنت تفصيلي (للعرض فقط)
-  finalBalance: number;     // = totalCost - totalPaid
+  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase)
+  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale)
+  stationPaid: number;          // 3) المحطة دفعت (cement_deduct/credit/cash_paid)
+  rakezaPaid: number;           // 4) ركيزة دفعت (rakeza_cash_payment)
+  finalBalance: number;         // 5) = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid
+  // Legacy aggregates for backwards-compatible PDF/table fields
+  totalCost: number;
+  totalPaid: number;
+  cementBalance: number;
 }
 
-// Transaction type sets per the new accounting rules
-const DEBT_TYPES = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
-const DEDUCT_TYPES = new Set([
-  "cement_sale", "cement_deduct", "cement_credit", "rakeza_cash_payment",
-  // Legacy aliases kept so old records still settle correctly
-  "payment", "دفعة", "cement_payment", "cement_deduction", "cement", "أسمنت",
-]);
+// Transaction type buckets per the new accounting rules
+const CONCRETE_ON_RAKEZA = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
+const CEMENT_ON_STATION = new Set(["cement_sale"]);
+const STATION_PAID = new Set(["cement_deduct", "cement_credit", "cement_cash_paid", "cement_payment", "cement_deduction", "cement", "أسمنت"]);
+const RAKEZA_PAID = new Set(["rakeza_cash_payment", "payment", "دفعة"]);
+
+// Legacy aliases used elsewhere in the file
+const DEBT_TYPES = CONCRETE_ON_RAKEZA;
+const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID, ...RAKEZA_PAID]);
 const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement", "أسمنت"]);
 
 export function StationsTab() {
@@ -91,7 +98,10 @@ export function StationsTab() {
       (stations ?? []).forEach((s: any) => {
         map.set(s.id, {
           id: s.id, name: s.name,
-          totalPours: 0, totalCost: 0, totalPaid: 0, cementBalance: 0, finalBalance: 0,
+          totalPours: 0,
+          concreteOnRakeza: 0, cementOnStation: 0, stationPaid: 0, rakezaPaid: 0,
+          finalBalance: 0,
+          totalCost: 0, totalPaid: 0, cementBalance: 0,
         });
       });
 
@@ -102,7 +112,7 @@ export function StationsTab() {
         if (!acc) return;
         const amt = Number(t.amount) || 0;
         const type = t.transaction_type;
-        if (DEBT_TYPES.has(type)) {
+        if (CONCRETE_ON_RAKEZA.has(type)) {
           if (t.pour_order_id) {
             if (!seenPour.has(t.station_id)) seenPour.set(t.station_id, new Set());
             const set = seenPour.get(t.station_id)!;
@@ -110,19 +120,26 @@ export function StationsTab() {
             set.add(t.pour_order_id);
           }
           acc.totalPours++;
-          acc.totalCost += amt;
-        } else if (DEDUCT_TYPES.has(type)) {
-          acc.totalPaid += amt;
-          if (CEMENT_DETAIL_TYPES.has(type)) acc.cementBalance += amt;
+          acc.concreteOnRakeza += amt;
+        } else if (CEMENT_ON_STATION.has(type)) {
+          acc.cementOnStation += amt;
+        } else if (STATION_PAID.has(type)) {
+          acc.stationPaid += amt;
+        } else if (RAKEZA_PAID.has(type)) {
+          acc.rakezaPaid += amt;
         }
       });
 
       map.forEach((acc) => {
-        acc.finalBalance = acc.totalCost - acc.totalPaid;
+        acc.finalBalance = acc.concreteOnRakeza - acc.cementOnStation + acc.stationPaid - acc.rakezaPaid;
+        // Legacy fields for PDF/statement compatibility
+        acc.totalCost = acc.concreteOnRakeza;
+        acc.totalPaid = acc.cementOnStation + acc.stationPaid + acc.rakezaPaid;
+        acc.cementBalance = acc.cementOnStation + acc.stationPaid;
       });
 
       return [...map.values()]
-        .filter(a => a.totalPours > 0 || a.totalPaid > 0 || a.cementBalance > 0)
+        .filter(a => a.totalPours > 0 || a.cementOnStation > 0 || a.stationPaid > 0 || a.rakezaPaid > 0)
         .sort((a, b) => b.finalBalance - a.finalBalance);
     },
   });
@@ -233,22 +250,30 @@ export function StationsTab() {
   // Recalculate totals from statement data using the new accounting rule
   const statementTotals = (() => {
     if (!statement || !statement.length) return null;
-    let totalCost = 0, totalPaid = 0, cementBalance = 0;
+    let concreteOnRakeza = 0, cementOnStation = 0, stationPaid = 0, rakezaPaid = 0;
     const seenPour = new Set<number>();
     (statement as any[]).forEach((t: any) => {
       const amt = Number(t.amount) || 0;
       const type = t.transaction_type;
-      if (DEBT_TYPES.has(type)) {
+      if (CONCRETE_ON_RAKEZA.has(type)) {
         if (t.pour_order_id && seenPour.has(t.pour_order_id)) return;
         if (t.pour_order_id) seenPour.add(t.pour_order_id);
-        totalCost += amt;
-      } else if (DEDUCT_TYPES.has(type)) {
-        totalPaid += amt;
-        if (CEMENT_DETAIL_TYPES.has(type)) cementBalance += amt;
+        concreteOnRakeza += amt;
+      } else if (CEMENT_ON_STATION.has(type)) {
+        cementOnStation += amt;
+      } else if (STATION_PAID.has(type)) {
+        stationPaid += amt;
+      } else if (RAKEZA_PAID.has(type)) {
+        rakezaPaid += amt;
       }
     });
-    // New formula: balance = debt - all deductions
-    return { totalCost, totalPaid, cementBalance, finalBalance: totalCost - totalPaid };
+    const finalBalance = concreteOnRakeza - cementOnStation + stationPaid - rakezaPaid;
+    return {
+      concreteOnRakeza, cementOnStation, stationPaid, rakezaPaid, finalBalance,
+      totalCost: concreteOnRakeza,
+      totalPaid: cementOnStation + stationPaid + rakezaPaid,
+      cementBalance: cementOnStation + stationPaid,
+    };
   })();
 
   const buildStationPDFData = (station: StationSummary): StationStatementPDFData => {
@@ -631,43 +656,87 @@ export function StationsTab() {
       {!filtered.length ? (
         <p className="text-center text-muted-foreground font-cairo py-12">لا توجد بيانات</p>
       ) : (
-        <div className="overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-cairo text-right">المحطة</TableHead>
-                <TableHead className="font-cairo text-right">عدد الصبات</TableHead>
-                {isAdmin && <TableHead className="font-cairo text-right">مديونية خرسانة</TableHead>}
-                {isAdmin && <TableHead className="font-cairo text-right">المدفوع</TableHead>}
-                {isAdmin && <TableHead className="font-cairo text-right">خصم أسمنت</TableHead>}
-                {isAdmin && <TableHead className="font-cairo text-right">الرصيد النهائي</TableHead>}
-                <TableHead className="font-cairo text-right">نسبة السداد</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((a) => {
-                const pct = a.totalCost > 0 ? Math.round(((a.totalPaid + a.cementBalance) / a.totalCost) * 100) : 0;
-                return (
-                  <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedStation(a)}>
-                    <TableCell className="font-cairo font-medium text-primary underline-offset-2 hover:underline">{a.name}</TableCell>
-                    <TableCell className="font-cairo">{a.totalPours}</TableCell>
-                    {isAdmin && <TableCell className="font-cairo">{fmt(a.totalCost)}</TableCell>}
-                    {isAdmin && <TableCell className="font-cairo text-chart-2">{fmt(a.totalPaid)}</TableCell>}
-                    {isAdmin && <TableCell className="font-cairo text-chart-4">{fmt(a.cementBalance)}</TableCell>}
-                    {isAdmin && <TableCell className={`font-cairo font-semibold ${a.finalBalance > 0 ? "text-destructive" : "text-chart-2"}`}>{fmt(a.finalBalance)}</TableCell>}
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-chart-2 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {filtered.map((a) => {
+            const isRakezaDebt = a.finalBalance > 0;
+            const isStationDebt = a.finalBalance < 0;
+            return (
+              <Card
+                key={a.id}
+                className="cursor-pointer hover:shadow-md transition-shadow border-border/60"
+                onClick={() => setSelectedStation(a)}
+              >
+                <CardContent className="p-4 space-y-3">
+                  {/* Header */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-cairo font-bold text-primary text-base">{a.name}</h3>
+                      <Badge variant="secondary" className="font-cairo text-[10px]">
+                        {a.totalPours} صبة
+                      </Badge>
+                    </div>
+                    <Badge
+                      className={`font-cairo text-[10px] ${
+                        isRakezaDebt
+                          ? "bg-destructive/15 text-destructive hover:bg-destructive/15"
+                          : isStationDebt
+                          ? "bg-chart-2/15 text-chart-2 hover:bg-chart-2/15"
+                          : "bg-muted text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {isRakezaDebt ? "على ركيزة" : isStationDebt ? "على المحطة" : "متساوي"}
+                    </Badge>
+                  </div>
+
+                  {isAdmin && (
+                    <>
+                      {/* 4 buckets grid */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
+                          <p className="text-[11px] font-cairo text-muted-foreground">خرسانة على ركيزة</p>
+                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.concreteOnRakeza)}</p>
                         </div>
-                        <span className="text-xs font-cairo text-muted-foreground">{pct}%</span>
+                        <div className="rounded-md border border-chart-2/30 bg-chart-2/5 p-2">
+                          <p className="text-[11px] font-cairo text-muted-foreground">أسمنت على المحطة</p>
+                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.cementOnStation)}</p>
+                        </div>
+                        <div className="rounded-md border border-chart-2/30 bg-chart-2/5 p-2">
+                          <p className="text-[11px] font-cairo text-muted-foreground">المحطة دفعت</p>
+                          <p className="font-cairo font-bold text-sm text-chart-2">{fmt(a.stationPaid)}</p>
+                        </div>
+                        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
+                          <p className="text-[11px] font-cairo text-muted-foreground">ركيزة دفعت</p>
+                          <p className="font-cairo font-bold text-sm text-destructive">{fmt(a.rakezaPaid)}</p>
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+
+                      {/* Final balance */}
+                      <div
+                        className={`rounded-md p-2.5 border-2 ${
+                          isRakezaDebt
+                            ? "border-destructive/40 bg-destructive/10"
+                            : isStationDebt
+                            ? "border-chart-2/40 bg-chart-2/10"
+                            : "border-muted bg-muted/30"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-cairo font-semibold text-muted-foreground">الرصيد النهائي</p>
+                          <p
+                            className={`font-cairo font-bold text-base ${
+                              isRakezaDebt ? "text-destructive" : isStationDebt ? "text-chart-2" : "text-muted-foreground"
+                            }`}
+                          >
+                            {fmt(Math.abs(a.finalBalance))}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
