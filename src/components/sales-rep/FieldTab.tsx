@@ -42,6 +42,7 @@ export function FieldTab() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [notes, setNotes] = useState("");
   const [classification, setClassification] = useState("cold");
+  const [price, setPrice] = useState<string>("");
   const [pourDate, setPourDate] = useState<Date>();
   const [qualData, setQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
   const [qualScore, setQualScore] = useState(0);
@@ -118,6 +119,7 @@ export function FieldTab() {
           estimated_quantity: qualData.knowsQuantity === "yes" ? qualData.estimatedQuantity : null,
           has_other_supplier: qualData.hasOtherSupplier,
           qualification_score: qualScore,
+          price: price.trim() ? Number(price) : null,
         })
         .select("id")
         .single();
@@ -165,6 +167,7 @@ export function FieldTab() {
       setArea("");
       setNotes("");
       setClassification("cold");
+      setPrice("");
       setPourDate(undefined);
       setSavedLocation(null);
       recorder.resetRecording();
@@ -179,18 +182,37 @@ export function FieldTab() {
   });
 
   const transferMutation = useMutation({
-    mutationFn: async ({ clientId, newStatus }: { clientId: number; newStatus: string }) => {
+    mutationFn: async ({ client, newStatus }: { client: any; newStatus: string }) => {
+      // Fetch latest price for accuracy
+      const { data: full } = await (supabase as any)
+        .from("clients").select("price, name").eq("id", client.id).maybeSingle();
       const { error } = await (supabase as any)
         .from("clients")
         .update({ status: newStatus })
-        .eq("id", clientId);
+        .eq("id", client.id);
       if (error) throw error;
+      return { client: { ...client, ...(full || {}) }, newStatus };
     },
-    onSuccess: (_, { newStatus }) => {
+    onSuccess: ({ client, newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["my-field-visits-today"] });
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
       const label = newStatus === "contacted" ? "المتابعة" : "التنفيذ";
-      toast({ title: `تم تحويل العميل لـ${label} ✅` });
+      if (newStatus === "contacted") {
+        if (client.price != null && client.price !== "") {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label} ✅`,
+            description: `السعر المتفق عليه: ${client.price} ج/م³`,
+          });
+        } else {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label}`,
+            description: "⚠️ تنبيه: لم يتم تسجيل السعر لهذا العميل",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({ title: `تم تحويل ${client.name} لـ${label} ✅` });
+      }
     },
     onError: (err: Error) => {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
@@ -292,14 +314,14 @@ export function FieldTab() {
                     )}
                     {client && (
                       <Button size="sm" variant="outline" className="font-cairo text-xs gap-1 text-primary border-primary/30 hover:bg-primary/10"
-                        onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "contacted" })}>
+                        onClick={() => transferMutation.mutate({ client, newStatus: "contacted" })}>
                         <ArrowRightLeft className="h-3.5 w-3.5" />
                         تحويل لمتابعة
                       </Button>
                     )}
                     {client && (
                       <Button size="sm" variant="outline" className="font-cairo text-xs gap-1 text-chart-4 border-chart-4/30 hover:bg-chart-4/10"
-                        onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "execution" })}>
+                        onClick={() => transferMutation.mutate({ client, newStatus: "execution" })}>
                         <ArrowRightLeft className="h-3.5 w-3.5" />
                         تحويل لتنفيذ
                       </Button>
@@ -380,8 +402,10 @@ export function FieldTab() {
                 <p className="text-xs text-muted-foreground font-cairo bg-muted/50 rounded p-2">🎙️ نص مكتوب: {recorder.transcribedText}</p>
               )}
             </div>
-
-            {/* Qualification Questions */}
+            <div className="space-y-2">
+              <Label className="font-cairo">السعر التقريبي المتفق عليه (ج/م³)</Label>
+              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="مثال: 2500" className="font-cairo" />
+            </div>
             <div className="border-t pt-4">
               <p className="font-cairo font-bold text-sm mb-3">أسئلة التصنيف التلقائي</p>
               <ClientQualificationForm

@@ -12,10 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, Clock, Plus, Contact, Search, Layers, Bot } from "lucide-react";
+import { Phone, MessageCircle, FileText, CalendarDays, ArrowRightLeft, Mic, MicOff, Pencil, Clock, Plus, Contact, Search, Layers, Bot, Trash2 } from "lucide-react";
 import { useClientPourHistory } from "@/hooks/useClientPourHistory";
 import { CallLogDialog } from "./CallLogDialog";
 import { AIAssistantDialog } from "./AIAssistantDialog";
@@ -59,6 +63,7 @@ export function MyClientsTab() {
   const [editClassification, setEditClassification] = useState("cold");
   const [editNotes, setEditNotes] = useState("");
   const [editArea, setEditArea] = useState("");
+  const [editPrice, setEditPrice] = useState<string>("");
   const [editPourDate, setEditPourDate] = useState<Date | undefined>();
   // Add form state
   const [addName, setAddName] = useState("");
@@ -66,10 +71,13 @@ export function MyClientsTab() {
   const [addClassification, setAddClassification] = useState("cold");
   const [addNotes, setAddNotes] = useState("");
   const [addArea, setAddArea] = useState("");
+  const [addPrice, setAddPrice] = useState<string>("");
   const [addPourDate, setAddPourDate] = useState<Date>();
   const addRecorder = useAudioRecorder();
   const [addQualData, setAddQualData] = useState<QualificationData>(INITIAL_QUALIFICATION_DATA);
   const [addQualScore, setAddQualScore] = useState(0);
+  // Delete confirm
+  const [deleteClient, setDeleteClient] = useState<any>(null);
 
   // Call log counts per client
   const { data: callCounts = {} } = useQuery({
@@ -132,17 +140,48 @@ export function MyClientsTab() {
   });
 
   const transferMutation = useMutation({
-    mutationFn: async ({ clientId, newStatus }: { clientId: string; newStatus: string }) => {
+    mutationFn: async ({ client, newStatus }: { client: any; newStatus: string }) => {
       const { error } = await (supabase as any)
         .from("clients")
         .update({ status: newStatus })
-        .eq("id", clientId);
+        .eq("id", client.id);
       if (error) throw error;
+      return { client, newStatus };
     },
-    onSuccess: (_, { newStatus }) => {
+    onSuccess: ({ client, newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
       const label = newStatus === "contacted" ? "المتابعة" : "التنفيذ";
-      toast({ title: `تم تحويل العميل لـ${label} ✅` });
+      if (newStatus === "contacted") {
+        if (client.price != null && client.price !== "") {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label} ✅`,
+            description: `السعر المتفق عليه: ${client.price} ج/م³`,
+          });
+        } else {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label}`,
+            description: "⚠️ تنبيه: لم يتم تسجيل السعر لهذا العميل",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({ title: `تم تحويل ${client.name} لـ${label} ✅` });
+      }
+    },
+  });
+
+  const deleteClientMutation = useMutation({
+    mutationFn: async (clientId: any) => {
+      const { error } = await (supabase as any).from("clients").delete().eq("id", clientId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      setDeleteClient(null);
+      toast({ title: "تم حذف العميل ✅" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" });
     },
   });
 
@@ -157,6 +196,7 @@ export function MyClientsTab() {
           status: editClassification,
           notes: editNotes.trim() || null,
           area: editArea.trim() || null,
+          price: editPrice.trim() ? Number(editPrice) : null,
           expected_pour_date: editPourDate ? editPourDate.toISOString() : null,
         })
         .eq("id", selectedClient.id);
@@ -193,6 +233,7 @@ export function MyClientsTab() {
           estimated_quantity: addQualData.knowsQuantity === "yes" ? addQualData.estimatedQuantity : null,
           has_other_supplier: addQualData.hasOtherSupplier,
           qualification_score: addQualScore,
+          price: addPrice.trim() ? Number(addPrice) : null,
         })
         .select("id")
         .single();
@@ -234,6 +275,7 @@ export function MyClientsTab() {
       setAddClassification("cold");
       setAddNotes("");
       setAddArea("");
+      setAddPrice("");
       setAddPourDate(undefined);
       addRecorder.resetRecording();
       setAddQualData(INITIAL_QUALIFICATION_DATA);
@@ -258,6 +300,7 @@ export function MyClientsTab() {
     setEditClassification(client.status || "active");
     setEditNotes(client.notes || "");
     setEditArea(client.area || "");
+    setEditPrice(client.price != null ? String(client.price) : "");
     setEditPourDate(client.expected_pour_date ? new Date(client.expected_pour_date) : undefined);
     setEditDialogOpen(true);
   };
@@ -381,14 +424,14 @@ export function MyClientsTab() {
 
                     {/* Transfer to followup */}
                     <Button size="sm" variant="outline" className="font-cairo gap-1 text-primary border-primary/30 hover:bg-primary/10"
-                      onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "contacted" })}>
+                      onClick={() => transferMutation.mutate({ client, newStatus: "contacted" })}>
                       <ArrowRightLeft className="h-3.5 w-3.5" />
                       تحويل لمتابعة
                     </Button>
 
                     {/* Transfer to execution */}
                     <Button size="sm" variant="outline" className="font-cairo gap-1 text-chart-4 border-chart-4/30 hover:bg-chart-4/10"
-                      onClick={() => transferMutation.mutate({ clientId: client.id, newStatus: "execution" })}>
+                      onClick={() => transferMutation.mutate({ client, newStatus: "execution" })}>
                       <ArrowRightLeft className="h-3.5 w-3.5" />
                       تحويل لتنفيذ
                     </Button>
@@ -422,6 +465,13 @@ export function MyClientsTab() {
                       onClick={() => { setAiClient(client); setAiDialogOpen(true); }}>
                       <Bot className="h-3.5 w-3.5" />
                       مساعد AI 🤖
+                    </Button>
+
+                    {/* Delete */}
+                    <Button size="sm" variant="outline" className="font-cairo gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => setDeleteClient(client)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                      حذف
                     </Button>
                   </div>
                 </CardContent>
@@ -507,6 +557,10 @@ export function MyClientsTab() {
               <Input value={editArea} onChange={(e) => setEditArea(e.target.value)} className="font-cairo" placeholder="المنطقة / الموقع" />
             </div>
             <div className="space-y-2">
+              <Label className="font-cairo">السعر التقريبي المتفق عليه (ج/م³)</Label>
+              <Input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="مثال: 2500" className="font-cairo" />
+            </div>
+            <div className="space-y-2">
               <Label className="font-cairo">موعد الصبة التقريبي</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -588,6 +642,10 @@ export function MyClientsTab() {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label className="font-cairo">السعر التقريبي المتفق عليه (ج/م³)</Label>
+              <Input type="number" value={addPrice} onChange={(e) => setAddPrice(e.target.value)} placeholder="مثال: 2500" className="font-cairo" />
+            </div>
+            <div className="space-y-2">
               <Label className="font-cairo">ملاحظات</Label>
               <Textarea value={addNotes} onChange={(e) => setAddNotes(e.target.value)} className="font-cairo min-h-[80px]" placeholder="ملاحظات..." />
               {addRecorder.transcribedText && (
@@ -619,6 +677,27 @@ export function MyClientsTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={!!deleteClient} onOpenChange={(o) => !o && setDeleteClient(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cairo">تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription className="font-cairo">
+              هل أنت متأكد من حذف العميل "{deleteClient?.name}"؟ لا يمكن التراجع.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-cairo">إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="font-cairo bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteClient && deleteClientMutation.mutate(deleteClient.id)}
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
