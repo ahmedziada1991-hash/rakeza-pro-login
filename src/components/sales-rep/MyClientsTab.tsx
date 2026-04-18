@@ -196,6 +196,7 @@ export function MyClientsTab() {
           status: editClassification,
           notes: editNotes.trim() || null,
           area: editArea.trim() || null,
+          price: editPrice.trim() ? Number(editPrice) : null,
           expected_pour_date: editPourDate ? editPourDate.toISOString() : null,
         })
         .eq("id", selectedClient.id);
