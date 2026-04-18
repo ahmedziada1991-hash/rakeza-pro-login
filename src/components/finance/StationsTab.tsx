@@ -350,13 +350,13 @@ export function StationsTab() {
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">أسمنت على المحطة</p>
+                <p className="text-xs font-cairo text-muted-foreground">أسمنت (ضمن الخصومات)</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: "#F59E0B" }}>{fmt(totals.cementBalance)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
-                <p className="text-xs font-cairo text-muted-foreground">مدفوع (كاش + خصم)</p>
+                <p className="text-xs font-cairo text-muted-foreground">إجمالي الخصومات</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: "#16A34A" }}>{fmt(totals.totalPaid)}</p>
               </CardContent>
             </Card>
@@ -365,7 +365,7 @@ export function StationsTab() {
                 <p className="text-xs font-cairo text-muted-foreground">الرصيد النهائي</p>
                 <p className="font-cairo font-bold text-lg" style={{ color: totals.finalBalance > 0 ? "#DC2626" : "#16A34A" }}>
                   {fmt(totals.finalBalance)}
-                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "المحطة مدينة" : totals.finalBalance < 0 ? "ركيزة مدينة" : "متساوي"}</span>
+                  <span className="block text-[10px] font-normal text-muted-foreground">{totals.finalBalance > 0 ? "ركيزة مدينة للمحطة" : totals.finalBalance < 0 ? "المحطة مدينة لركيزة" : "متساوي"}</span>
                 </p>
               </CardContent>
             </Card>
