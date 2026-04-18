@@ -56,7 +56,7 @@ export function FieldTab() {
       const endOfDay = `${todayStr}T23:59:59`;
       const { data, error } = await (supabase as any)
         .from("field_locations")
-        .select("*, clients:client_id(id, name, phone, status, expected_pour_date)")
+        .select("*, clients:client_id(id, name, phone, status, expected_pour_date, price)")
         .eq("user_id", user!.id)
         .gte("created_at", startOfDay)
         .lte("created_at", endOfDay)
@@ -278,6 +278,17 @@ export function FieldTab() {
                       </Button>
                     )}
                   </div>
+
+                  {/* Price badge */}
+                  {client && (client.price != null && client.price !== "" ? (
+                    <div className="inline-flex items-center gap-1.5 text-xs font-cairo font-bold rounded-md px-2 py-1 bg-primary/10 text-primary border border-primary/30 w-fit">
+                      💰 السعر المتفق: {Number(client.price).toLocaleString("ar-EG")} ج/م³
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1.5 text-xs font-cairo rounded-md px-2 py-1 bg-muted/50 text-muted-foreground w-fit">
+                      💰 لم يُحدد السعر بعد
+                    </div>
+                  ))}
 
                   {/* Pour date */}
                   {client?.expected_pour_date && (

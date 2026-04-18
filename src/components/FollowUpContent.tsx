@@ -385,6 +385,17 @@ export function FollowUpContent() {
                         )}
                       </div>
 
+                      {/* Price badge */}
+                      {client.price != null && client.price !== "" ? (
+                        <div className="inline-flex items-center gap-1.5 text-xs font-cairo font-bold rounded-md px-2 py-1 bg-primary/10 text-primary border border-primary/30 w-fit">
+                          💰 السعر المتفق: {Number(client.price).toLocaleString("ar-EG")} ج/م³
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 text-xs font-cairo rounded-md px-2 py-1 bg-muted/50 text-muted-foreground w-fit">
+                          💰 لم يُحدد السعر بعد
+                        </div>
+                      )}
+
                       {/* Pour history */}
                       {pourHistory[client.id] && (
                         <div className="flex flex-wrap gap-3 text-xs font-cairo bg-muted/50 rounded-md p-2">
