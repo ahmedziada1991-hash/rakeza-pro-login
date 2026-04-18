@@ -49,26 +49,56 @@ interface StationSummary {
   id: number;
   name: string;
   totalPours: number;
-  concreteOnRakeza: number;     // 1) خرسانة على ركيزة (concrete_purchase) — Rakeza debt
-  cementOnStation: number;      // 2) أسمنت على المحطة (cement_sale) — Station debt
-  stationPaid: number;          // 3) المحطة دفعت (cement_cash_paid + cement_credit) — reduces station debt
-  rakezaDeducted: number;       // 4) خصم من مديونية ركيزة (cement_deduct) — increases Rakeza debt
-  finalBalance: number;         // 5) = (cementOnStation - stationPaid) - (concreteOnRakeza + rakezaDeducted)
+  totalCredit: number;   // على المحطة لركيزة (يزيد دين المحطة)
+  totalDebit: number;    // على ركيزة للمحطة (يزيد دين ركيزة)
+  finalBalance: number;  // = totalCredit - totalDebit
   // Legacy aggregates for backwards-compatible PDF/table fields
   totalCost: number;
   totalPaid: number;
   cementBalance: number;
 }
 
-// Transaction type buckets per the new accounting rules
-const CONCRETE_ON_RAKEZA = new Set(["concrete_purchase", "concrete"]); // legacy "concrete" treated as purchase
-const CEMENT_ON_STATION = new Set(["cement_sale"]);
-const STATION_PAID_TYPES = new Set(["cement_cash_paid", "cement_credit"]);
-const RAKEZA_DEDUCT_TYPES = new Set(["cement_deduct"]);
+// Debit/Credit model:
+//  CREDIT (+) = على المحطة لركيزة → station owes Rakeza more (or Rakeza paid down its debt)
+//  DEBIT  (−) = على ركيزة للمحطة → Rakeza owes station more (or station paid down its debt)
+const CREDIT_TYPES = new Set([
+  "cement_sale",          // بيع أسمنت  → المحطة عليها
+  "cement_deduct",        // خصم مديونية ركيزة → بيقلل دين ركيزة = credit
+  "rakeza_cash_payment",  // ركيزة دفعت كاش للمحطة → بيقلل دين ركيزة = credit
+  "payment", "دفعة",       // legacy payment entries
+]);
+const DEBIT_TYPES = new Set([
+  "concrete_purchase", "concrete", // شراء خرسانة → على ركيزة
+  "cement_cash_paid",              // المحطة دفعت كاش للأسمنت → بيقلل دين المحطة = debit
+  "cement_credit",                 // بيع أسمنت برصيد للمحطة → بيقلل دين المحطة = debit
+]);
 
-// Legacy aliases used elsewhere in the file
-const DEBT_TYPES = CONCRETE_ON_RAKEZA;
-const DEDUCT_TYPES = new Set([...CEMENT_ON_STATION, ...STATION_PAID_TYPES, ...RAKEZA_DEDUCT_TYPES, "cement_payment", "cement_deduction", "cement", "أسمنت", "rakeza_cash_payment", "payment", "دفعة"]);
+// Arabic labels for transaction types (used in unified ledger)
+const TXN_LABELS_AR: Record<string, string> = {
+  cement_sale: "بيع أسمنت",
+  concrete_purchase: "شراء خرسانة",
+  concrete: "شراء خرسانة",
+  cement_deduct: "خصم مديونية",
+  cement_cash_paid: "دفع كاش للأسمنت",
+  cement_credit: "بيع أسمنت برصيد",
+  rakeza_cash_payment: "ركيزة دفعت للمحطة",
+  payment: "دفعة",
+  دفعة: "دفعة",
+  cement: "أسمنت",
+  cement_payment: "دفعة أسمنت",
+  cement_deduction: "خصم أسمنت",
+};
+
+// Direction helper
+function txnDirection(type: string): "credit" | "debit" | null {
+  if (CREDIT_TYPES.has(type)) return "credit";
+  if (DEBIT_TYPES.has(type)) return "debit";
+  return null;
+}
+
+// Legacy aliases used elsewhere in the file (for the per-section tables)
+const DEBT_TYPES = new Set(["concrete_purchase", "concrete"]);
+const DEDUCT_TYPES = new Set(["payment", "دفعة", "rakeza_cash_payment"]);
 const CEMENT_DETAIL_TYPES = new Set(["cement_sale", "cement_deduct", "cement_credit", "cement_cash_paid", "cement", "أسمنت"]);
 
 export function StationsTab() {
