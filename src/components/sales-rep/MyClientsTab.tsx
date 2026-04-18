@@ -140,17 +140,48 @@ export function MyClientsTab() {
   });
 
   const transferMutation = useMutation({
-    mutationFn: async ({ clientId, newStatus }: { clientId: string; newStatus: string }) => {
+    mutationFn: async ({ client, newStatus }: { client: any; newStatus: string }) => {
       const { error } = await (supabase as any)
         .from("clients")
         .update({ status: newStatus })
-        .eq("id", clientId);
+        .eq("id", client.id);
       if (error) throw error;
+      return { client, newStatus };
     },
-    onSuccess: (_, { newStatus }) => {
+    onSuccess: ({ client, newStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["my-clients"] });
       const label = newStatus === "contacted" ? "المتابعة" : "التنفيذ";
-      toast({ title: `تم تحويل العميل لـ${label} ✅` });
+      if (newStatus === "contacted") {
+        if (client.price != null && client.price !== "") {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label} ✅`,
+            description: `السعر المتفق عليه: ${client.price} ج/م³`,
+          });
+        } else {
+          toast({
+            title: `تم تحويل ${client.name} لـ${label}`,
+            description: "⚠️ تنبيه: لم يتم تسجيل السعر لهذا العميل",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({ title: `تم تحويل ${client.name} لـ${label} ✅` });
+      }
+    },
+  });
+
+  const deleteClientMutation = useMutation({
+    mutationFn: async (clientId: any) => {
+      const { error } = await (supabase as any).from("clients").delete().eq("id", clientId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-clients"] });
+      setDeleteClient(null);
+      toast({ title: "تم حذف العميل ✅" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" });
     },
   });
 
